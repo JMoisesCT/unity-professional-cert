@@ -258,6 +258,74 @@ UCP.addTranslation('en', {
         'Two different Quality Levels'
       ],
       explanation: 'Unity 6 replaces the Build Settings window with **Build Profiles**: each profile stores the platform, the scene list, scripting defines and Player Settings overrides, and it can be versioned as an asset. You switch configuration without changing settings by hand.'
+    },
+    'prf-25': {
+      topic: 'Jobs and Burst',
+      q: 'This code schedules a job to calculate positions, but the results are sometimes zero and the console warns about a memory leak. What is missing?',
+      options: [
+        'Call `handle.Complete()` before reading `results`, and then `results.Dispose()` when it is no longer needed.',
+        'Change `Allocator.TempJob` to `Allocator.Temp`, which is freed automatically at the end of the frame.',
+        'Call `job.Run()` after `Schedule` so that the job starts running.',
+        'Mark `MoveJob` with `[BurstCompile]`, which syncs and frees the memory automatically.'
+      ],
+      explanation: '`Schedule` only queues the job: until you call `handle.Complete()` there is no guarantee it has finished (and the safety system will not let you read the array while the job may still write to it). Also, a `NativeArray` is unmanaged memory: the GC does not free it, so you must call `Dispose()`. `Allocator.Temp` cannot be passed to scheduled jobs, `Run()` runs the job again on the main thread and `[BurstCompile]` only optimizes the code, it does not manage memory.'
+    },
+    'prf-26': {
+      topic: 'Jobs and Burst',
+      q: 'Which **two** statements about the C# Job System with Burst are correct? (Choose 2)',
+      options: [
+        'Inside a job you cannot use managed objects such as `GameObject`, `Transform` or C# classes; you work with structs and native containers (`NativeArray`, `NativeList`…).',
+        'To move many `Transform`s from a job there is `IJobParallelForTransform`, which takes a `TransformAccessArray`.',
+        'A job can call `GetComponent` as long as it is scheduled with `ScheduleParallel`.',
+        'Burst compiles any C# code, including LINQ, `string` and exceptions with `try/catch`, and makes it faster.',
+        '`Schedule()` runs the job immediately on the main thread and blocks until it finishes.'
+      ],
+      explanation: 'Jobs run on worker threads and can only touch *blittable* data and native containers; the object-based Unity API (`GameObject`, `GetComponent`, most components) is main-thread only. The exception for transforms is `IJobParallelForTransform`. Burst compiles a subset of C# (HPC#) without managed objects, so LINQ or `string` will not work. `Schedule()` does not block: `Complete()` is what blocks (or `Run()`, which runs on the main thread).'
+    },
+    'prf-27': {
+      topic: 'Rendering',
+      q: 'You marked all of a level\'s scenery as **Static**, including a door. Now the door does not move even though the script changes its `transform.position`. What is the most likely cause?',
+      options: [
+        'The door has **Batching Static**: its mesh was combined with the others and statically batched objects cannot move. Remove that flag from the door.',
+        'Static objects do not run `Update`, so the script never runs.',
+        'The **Navigation Static** flag locks the `Transform` of objects with a collider.',
+        'You have to call `StaticBatchingUtility.Combine` every time the door moves.'
+      ],
+      explanation: 'Static batching combines, at build/load time, the meshes of static objects that share a material so they are drawn with fewer calls. In exchange, those objects cannot move, rotate or scale, and the combined mesh uses extra memory. Scripts on a Static object do run; the problem is only visual. Anything that moves (doors, platforms) must not have Batching Static. `StaticBatchingUtility.Combine` is for combining at runtime, not for moving objects that are already combined.'
+    },
+    'prf-28': {
+      topic: 'Rendering',
+      q: 'In a URP project you enabled **Enable GPU Instancing** on a tree material, but the Frame Debugger shows the draws as "SRP Batch" instead of instancing. Why?',
+      options: [
+        'If the shader is compatible with the **SRP Batcher**, URP uses the SRP Batcher instead of GPU instancing; it takes priority.',
+        'GPU instancing only works in the Built-in Render Pipeline.',
+        'GPU instancing requires the trees to be marked as Batching Static.',
+        'The Frame Debugger always shows "SRP Batch", even when GPU instancing is used.'
+      ],
+      explanation: 'In URP/HDRP, when an object is compatible with the SRP Batcher, Unity uses it instead of GPU instancing. The SRP Batcher groups by **shader variant** (even if the materials differ) and reduces the CPU cost of setting up each draw. If you really want GPU instancing (for example, thousands of identical meshes), you have to make the object incompatible with the SRP Batcher or draw with `Graphics.RenderMeshInstanced`. GPU instancing does work in URP and has nothing to do with Batching Static.'
+    },
+    'prf-29': {
+      topic: 'UI',
+      q: 'A HUD has hundreds of decorative `Image`s and texts that are never clicked, and an inventory bar with **nested Layout Groups** that changes every frame. Which **two** changes reduce the UI cost? (Choose 2)',
+      options: [
+        'Disable **Raycast Target** on graphics that are not interactive.',
+        'Avoid nested Layout Groups on elements that change often (use anchors or calculate positions once).',
+        'Add a `GraphicRaycaster` to every `Image` so raycasts are more precise.',
+        'Enable **Pixel Perfect** on the Canvas so it rebuilds less.',
+        'Set the Canvas Scaler to **Constant Pixel Size**.'
+      ],
+      explanation: 'The `GraphicRaycaster` goes through every graphic with Raycast Target enabled on each pointer event, so disabling it on decorative elements saves CPU. Layout Groups recalculate their children\'s layout every time something is marked "dirty", and nesting them multiplies the cost. More raycasters make performance worse, Pixel Perfect forces more recalculation (it costs more, not less) and the Canvas Scaler mode has no effect on rebuilds.'
+    },
+    'prf-30': {
+      topic: 'Efficient scripting',
+      q: 'The Profiler shows **GC Alloc** every frame because of this code. What is the best fix?',
+      options: [
+        'Reuse a `List<Enemy>` created only once: empty it with `Clear()` and fill it with a `for` loop every frame.',
+        'Replace `Where(...).ToList()` with `enemies.FindAll(e => e.IsAlive)`.',
+        'Replace `.ToList()` with `.ToArray()`, which generates less garbage.',
+        'Move the code to `FixedUpdate`, where the GC does not run.'
+      ],
+      explanation: 'LINQ and `ToList()` create a new list (plus enumerators/lambdas) on every call, and that garbage eventually causes GC spikes. A list stored in a field and reused with `Clear()` does not allocate new memory as long as it does not exceed its capacity. `FindAll` and `ToArray` also create a new collection on every call, and `FixedUpdate` does not prevent allocations (and it can run several times per frame).'
     }
   }
 });

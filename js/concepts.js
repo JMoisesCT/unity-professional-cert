@@ -943,6 +943,663 @@
   }
 
   /* ---------------------------------------------------------
+     11. Matriz de colisiones: OnCollision vs OnTrigger
+     --------------------------------------------------------- */
+
+  function mountCollisionMatrix(host, lang) {
+    const TYPES = [
+      { short: 'S', rb: false, kin: false, trig: false, es: 'Collider estático', en: 'Static collider' },
+      { short: 'RB', rb: true, kin: false, trig: false, es: 'Rigidbody', en: 'Rigidbody' },
+      { short: 'K', rb: true, kin: true, trig: false, es: 'Rigidbody cinemático', en: 'Kinematic Rigidbody' },
+      { short: 'S·T', rb: false, kin: false, trig: true, es: 'Trigger estático', en: 'Static trigger' },
+      { short: 'RB·T', rb: true, kin: false, trig: true, es: 'Rigidbody + trigger', en: 'Rigidbody + trigger' },
+      { short: 'K·T', rb: true, kin: true, trig: true, es: 'Cinemático + trigger', en: 'Kinematic + trigger' }
+    ];
+    const L = {
+      es: { tap: 'Toca una celda de la matriz para elegir la pareja A × B.', none: 'Ningún mensaje',
+        noRb: 'Ninguno de los dos tiene <code>Rigidbody</code>: la física no comprueba esta pareja.',
+        kinKin: 'Ningún <code>Rigidbody</code> es dinámico y no hay trigger: un cinemático no choca con estáticos ni con otros cinemáticos.',
+        trig: 'Hay un trigger y al menos un <code>Rigidbody</code> (aunque sea cinemático): <b>ambos</b> reciben <code>OnTriggerEnter</code>, <code>Stay</code> y <code>Exit</code>. No hay respuesta física: se atraviesan.',
+        coll: 'Hay un <code>Rigidbody</code> dinámico y ningún trigger: <b>ambos</b> reciben <code>OnCollisionEnter</code>, <code>Stay</code> y <code>Exit</code> y la física los separa.',
+        legend: 'S = estático · RB = Rigidbody · K = cinemático · ·T = Is Trigger' },
+      en: { tap: 'Tap a cell in the matrix to pick the A × B pair.', none: 'No message',
+        noRb: 'Neither has a <code>Rigidbody</code>: physics does not check this pair.',
+        kinKin: 'No <code>Rigidbody</code> is dynamic and there is no trigger: a kinematic body does not collide with static or other kinematic colliders.',
+        trig: 'There is a trigger and at least one <code>Rigidbody</code> (even a kinematic one): <b>both</b> get <code>OnTriggerEnter</code>, <code>Stay</code> and <code>Exit</code>. No physical response: they pass through.',
+        coll: 'There is a dynamic <code>Rigidbody</code> and no trigger: <b>both</b> get <code>OnCollisionEnter</code>, <code>Stay</code> and <code>Exit</code> and physics pushes them apart.',
+        legend: 'S = static · RB = Rigidbody · K = kinematic · ·T = Is Trigger' }
+    }[lang];
+    const result = (a, b) => {
+      if (!a.rb && !b.rb) return 'noRb';
+      if (a.trig || b.trig) return 'trig';
+      if ((a.rb && !a.kin) || (b.rb && !b.kin)) return 'coll';
+      return 'kinKin';
+    };
+    let ia = 1, ib = 0;
+    let sim = null;
+    const ROW_H = 26, TOP = 124;
+    let layout = null;
+
+    const stage = makeCanvas(host, () => TOP + 26 + TYPES.length * ROW_H + 8, (x, y) => {
+      if (!layout || y < layout.y0) return;
+      const r = Math.floor((y - layout.y0) / ROW_H), col = Math.floor((x - layout.x0) / layout.cw);
+      if (r >= 0 && r < TYPES.length && col >= 0 && col < TYPES.length) { ia = r; ib = col; restart(); }
+    });
+    const out = readout(host);
+
+    function restart() {
+      const A = TYPES[ia], B = TYPES[ib];
+      // Se mueve A, salvo que A no tenga Rigidbody y B sí (un collider estático no debería moverse).
+      const aMoves = A.rb || !B.rb;
+      sim = { t: 0, aMoves, xa: 0.18, xb: 0.82, va: aMoves ? 0.32 : 0, vb: aMoves ? 0 : -0.32, inside: false, done: false, bubbles: [] };
+    }
+    restart();
+
+    const SIZE = 0.09;
+    const stop = loop((dt) => {
+      const A = TYPES[ia], B = TYPES[ib];
+      const res = result(A, B);
+      const s = sim;
+      s.t += dt;
+      s.xa += s.va * dt; s.xb += s.vb * dt;
+      const overlap = Math.abs(s.xa - s.xb) < SIZE;
+      const msg = (name) => { s.bubbles.push({ name, life: 1.6, x: (s.xa + s.xb) / 2 }); };
+      if (overlap && !s.inside) {
+        s.inside = true;
+        if (res === 'coll') {
+          msg('OnCollisionEnter');
+          const mover = s.aMoves ? A : B;
+          const moverDynamic = mover.rb && !mover.kin;
+          if (moverDynamic) {
+            // El objeto dinámico rebota.
+            if (s.aMoves) { s.va = -0.18; s.xa = s.xb - SIZE; } else { s.vb = 0.18; s.xb = s.xa + SIZE; }
+          } else {
+            // El cinemático sigue su camino y empuja al dinámico.
+            if (s.aMoves) s.vb = s.va; else s.va = s.vb;
+          }
+        } else if (res === 'trig') msg('OnTriggerEnter');
+      } else if (!overlap && s.inside && Math.abs(s.xa - s.xb) > SIZE + 0.01) {
+        s.inside = false;
+        if (res === 'trig') msg('OnTriggerExit');
+        if (res === 'coll') msg('OnCollisionExit');
+      }
+      s.bubbles.forEach((b) => { b.life -= dt; });
+      s.bubbles = s.bubbles.filter((b) => b.life > 0);
+      if (s.t > 4.2) restart();
+
+      const c = colors();
+      const { ctx, w, h } = stage;
+      ctx.clearRect(0, 0, w, h);
+      // Escena
+      const sw = Math.min(w - 24, 520), sx = (w - sw) / 2;
+      const X = (v) => sx + v * sw;
+      ctx.strokeStyle = c.border; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(10, 92); ctx.lineTo(w - 10, 92); ctx.stroke();
+      const drawBody = (T, x, label) => {
+        const px = X(x), size = SIZE * sw;
+        const fill = !T.rb ? c.soft : (T.kin ? c.warnSoft : c.accentSoft);
+        const stroke = !T.rb ? c.muted : (T.kin ? c.warn : c.accent);
+        ctx.fillStyle = fill;
+        roundRect(ctx, px - size / 2, 92 - size, size, size, 6);
+        ctx.globalAlpha = T.trig ? 0.55 : 1; ctx.fill(); ctx.globalAlpha = 1;
+        ctx.strokeStyle = stroke; ctx.lineWidth = 2;
+        if (T.trig) ctx.setLineDash([4, 3]);
+        ctx.stroke(); ctx.setLineDash([]);
+        text(ctx, label, px, 92 - size / 2, c.text, { align: 'center' });
+      };
+      text(ctx, 'A: ' + A[lang], 10, 106, c.muted);
+      text(ctx, 'B: ' + B[lang], w - 10, 106, c.muted, { align: 'right' });
+      drawBody(A, s.xa, 'A');
+      drawBody(B, s.xb, 'B');
+      s.bubbles.forEach((b, i) => {
+        ctx.globalAlpha = Math.min(1, b.life);
+        const isColl = b.name.indexOf('Collision') >= 0;
+        text(ctx, b.name + '()', X(b.x), 12 + (i % 2) * 14, isColl ? c.accent : c.ok, { align: 'center', mono: true });
+        ctx.globalAlpha = 1;
+      });
+      if (res === 'noRb' || res === 'kinKin') {
+        if (s.inside) text(ctx, '— ' + L.none + ' —', w / 2, 24, c.muted, { align: 'center' });
+      }
+
+      // Matriz
+      const labelW = Math.min(150, Math.max(46, w * 0.3));
+      const cw = (w - labelW - 12) / TYPES.length;
+      const y0 = TOP + 26;
+      layout = { x0: labelW, y0, cw };
+      text(ctx, 'A \\ B', 8, TOP + 12, c.muted, { mono: true });
+      TYPES.forEach((T, j) => text(ctx, T.short, labelW + cw * j + cw / 2, TOP + 12, j === ib ? c.text : c.muted, { align: 'center', mono: true }));
+      TYPES.forEach((Ta, i) => {
+        const y = y0 + i * ROW_H;
+        text(ctx, w < 480 ? Ta.short : Ta[lang], 8, y + ROW_H / 2, i === ia ? c.text : c.muted, { mono: w < 480 });
+        TYPES.forEach((Tb, j) => {
+          const r = result(Ta, Tb);
+          const x = labelW + cw * j;
+          ctx.fillStyle = r === 'coll' ? c.accentSoft : r === 'trig' ? c.okSoft : c.soft;
+          roundRect(ctx, x + 2, y + 2, cw - 4, ROW_H - 4, 5); ctx.fill();
+          const sym = r === 'coll' ? 'C' : r === 'trig' ? 'T' : '·';
+          text(ctx, sym, x + cw / 2, y + ROW_H / 2, r === 'coll' ? c.accent : r === 'trig' ? c.ok : c.muted, { align: 'center', mono: true });
+          if (i === ia && j === ib) {
+            ctx.strokeStyle = c.text; ctx.lineWidth = 2;
+            roundRect(ctx, x + 1, y + 1, cw - 2, ROW_H - 2, 6); ctx.stroke();
+          }
+        });
+      });
+
+      out('<b>A</b>: ' + A[lang] + ' · <b>B</b>: ' + B[lang] + '<p>' + L[res] + '</p><p class="muted small">' + L.tap + ' ' + L.legend + ' · C = OnCollision · T = OnTrigger</p>');
+    });
+    return () => { stop(); stage.destroy(); };
+  }
+
+  /* ---------------------------------------------------------
+     12. Corrutinas: cuándo se reanuda cada yield
+     --------------------------------------------------------- */
+
+  function mountCoroutines(host, lang) {
+    const L = {
+      es: { fps: 'FPS del juego', active: 'Activo', disabled: 'enabled = false', inactive: 'SetActive(false)', restart: 'StartCoroutine() otra vez',
+        frame: 'frame', stopped: 'detenida',
+        msgActive: 'Cada columna es un frame. <code>yield return null</code> se reanuda en cada frame (después de <code>Update</code>); <code>WaitForFixedUpdate</code>, después de cada paso de física (0, 1 o varios por frame).',
+        msgDisabled: 'Con <code>enabled = false</code> deja de llamarse <code>Update</code>, pero <b>las corrutinas siguen corriendo</b>: pertenecen al MonoBehaviour, no a su estado <i>enabled</i>.',
+        msgInactive: 'Al desactivar el GameObject (o destruirlo) <b>todas sus corrutinas se detienen</b>, y al reactivarlo <b>no se reanudan</b>: hay que volver a llamar a <code>StartCoroutine</code>.',
+        msgPaused: 'Con <code>timeScale = 0</code>: <code>WaitForSeconds</code> y la física se congelan; <code>yield return null</code> y <code>WaitForSecondsRealtime</code> siguen.' },
+      en: { fps: 'Game FPS', active: 'Active', disabled: 'enabled = false', inactive: 'SetActive(false)', restart: 'StartCoroutine() again',
+        frame: 'frame', stopped: 'stopped',
+        msgActive: 'Each column is a frame. <code>yield return null</code> resumes every frame (after <code>Update</code>); <code>WaitForFixedUpdate</code> resumes after each physics step (0, 1 or several per frame).',
+        msgDisabled: 'With <code>enabled = false</code>, <code>Update</code> stops being called, but <b>coroutines keep running</b>: they belong to the MonoBehaviour, not to its <i>enabled</i> state.',
+        msgInactive: 'Deactivating (or destroying) the GameObject <b>stops all its coroutines</b>, and re-activating it <b>does not resume them</b>: you must call <code>StartCoroutine</code> again.',
+        msgPaused: 'With <code>timeScale = 0</code>: <code>WaitForSeconds</code> and physics freeze; <code>yield return null</code> and <code>WaitForSecondsRealtime</code> keep going.' }
+    }[lang];
+    const ROWS = [
+      { key: 'update', label: 'Update()' },
+      { key: 'nul', label: 'yield return null' },
+      { key: 'wfs', label: 'WaitForSeconds(0.25f)' },
+      { key: 'wfsr', label: 'WaitForSecondsRealtime(0.25f)' },
+      { key: 'fixed', label: 'WaitForFixedUpdate()' }
+    ];
+    let fps = 30, ts = 1, objState = 'active', running = true;
+    const st = { frame: 0, acc: 0, fixedAcc: 0, wfs: 0, wfsr: 0, hist: [] };
+    const ctl = controls(host);
+    slider(ctl, L.fps, 15, 144, 1, fps, (v) => { fps = v; });
+    seg(ctl, [{ v: 1, l: 'timeScale 1' }, { v: 0.5, l: '0.5' }, { v: 0, l: '0' }], 1, (v) => { ts = v; });
+    const ctl2 = controls(host);
+    seg(ctl2, [{ v: 'active', l: L.active }, { v: 'disabled', l: L.disabled }, { v: 'inactive', l: L.inactive }], 'active', (v) => {
+      objState = v;
+      if (v === 'inactive') running = false;
+    });
+    button(ctl2, L.restart, () => { if (objState !== 'inactive') { running = true; st.wfs = 0; st.wfsr = 0; } }, true);
+    const stage = makeCanvas(host, (w) => (w < 520 ? 30 + ROWS.length * 40 : 40 + ROWS.length * 30));
+    const out = readout(host);
+    const VISUAL = 0.16; // segundos reales de pantalla por frame simulado (cámara lenta)
+
+    function step() {
+      const realDt = 1 / fps, scaledDt = realDt * ts;
+      const col = { frame: st.frame, update: false, nul: false, wfs: false, wfsr: false, fixed: 0, off: false };
+      st.fixedAcc += scaledDt;
+      let n = 0;
+      while (st.fixedAcc >= 0.02 - 1e-9) { st.fixedAcc -= 0.02; n++; }
+      if (objState === 'inactive') {
+        col.off = true;
+      } else {
+        col.update = objState === 'active';
+        if (running) {
+          col.fixed = n;
+          col.nul = true;
+          st.wfs += scaledDt; st.wfsr += realDt;
+          if (st.wfs >= 0.25 - 1e-9) { col.wfs = true; st.wfs = 0; }
+          if (st.wfsr >= 0.25 - 1e-9) { col.wfsr = true; st.wfsr = 0; }
+        }
+      }
+      st.hist.push(col);
+      if (st.hist.length > 80) st.hist.shift();
+      st.frame++;
+    }
+
+    const stop = loop((dt) => {
+      st.acc += dt;
+      while (st.acc >= VISUAL) { st.acc -= VISUAL; step(); }
+      const c = colors();
+      const { ctx, w, h } = stage;
+      ctx.clearRect(0, 0, w, h);
+      const narrow = w < 520;
+      const RH = narrow ? 40 : 30, DY = narrow ? 26 : 12;
+      const labelW = narrow ? 8 : Math.min(230, w * 0.48);
+      const CW = 18;
+      const nCols = Math.max(4, Math.floor((w - labelW - 8) / CW));
+      const cols = st.hist.slice(-nCols);
+      const y0 = narrow ? 20 : 30;
+      text(ctx, L.frame + ' →', narrow ? w - 8 : labelW, 10, c.muted, { align: narrow ? 'right' : 'left' });
+      cols.forEach((col, k) => {
+        const x = labelW + k * CW;
+        const isLast = k === cols.length - 1;
+        if (isLast) { ctx.fillStyle = c.accentSoft; ctx.fillRect(x, y0 - 4, CW - 2, ROWS.length * RH); }
+        if (col.off) { ctx.fillStyle = c.badSoft; ctx.fillRect(x, y0 - 4, CW - 2, ROWS.length * RH); }
+        ROWS.forEach((r, i) => {
+          const y = y0 + i * RH + DY;
+          const v = col[r.key];
+          if (r.key === 'fixed') {
+            for (let m = 0; m < v; m++) {
+              ctx.fillStyle = c.warn;
+              ctx.fillRect(x + 3, y - 8 + m * 6, CW - 8, 4);
+            }
+            if (!v) { ctx.fillStyle = c.border; ctx.fillRect(x + 6, y, CW - 14, 1); }
+          } else {
+            ctx.fillStyle = v ? (r.key === 'update' ? c.accent : r.key === 'wfs' ? c.warn : c.ok) : c.border;
+            ctx.beginPath(); ctx.arc(x + CW / 2 - 1, y, v ? 5 : 1.5, 0, Math.PI * 2); ctx.fill();
+          }
+        });
+      });
+      ROWS.forEach((r, i) => {
+        const isStopped = r.key !== 'update' && (!running || objState === 'inactive');
+        const ly = narrow ? y0 + i * RH + 6 : y0 + i * RH + DY;
+        text(ctx, r.label, 8, ly, isStopped ? c.muted : c.text, { mono: true });
+        if (isStopped && !narrow) text(ctx, '(' + L.stopped + ')', labelW - 6, ly, c.bad, { align: 'right' });
+      });
+      let msg = L.msgActive;
+      if (objState === 'inactive' || !running) msg = L.msgInactive;
+      else if (objState === 'disabled') msg = L.msgDisabled;
+      else if (ts === 0) msg = L.msgPaused;
+      out(msg);
+    });
+    return () => { stop(); stage.destroy(); };
+  }
+
+  /* ---------------------------------------------------------
+     13. Batching: draw calls y SetPass calls
+     --------------------------------------------------------- */
+
+  function mountBatching(host, lang) {
+    const L = {
+      es: { none: 'Sin batching', stat: 'Static batching', inst: 'GPU Instancing', srp: 'SRP Batcher', mats1: '1 material', mats3: '3 materiales', mesh1: '1 malla', mesh2: '2 mallas',
+        draws: 'Draw calls', setpass: 'SetPass calls', frame: 'Coste de CPU del frame (simulado)',
+        nNone: 'Cada objeto es un draw call y cada cambio de material, un SetPass.',
+        nStat: 'Los objetos marcados <b>Static</b> se combinan por material en mallas grandes al hacer el build. Ya <b>no se pueden mover</b> y ocupan más memoria.',
+        nInst: 'Un draw call por cada pareja <b>misma malla + mismo material</b> (con <i>Enable GPU Instancing</i> en el material). Ideal para muchas copias: árboles, hierba, balas.',
+        nSrp: 'Sigue habiendo un draw call por objeto, pero <b>muy baratos</b>: los datos del material viven en la GPU y solo cambia el estado cuando cambia el <b>shader (variante)</b>, no el material. En URP tiene prioridad sobre GPU Instancing.' },
+      en: { none: 'No batching', stat: 'Static batching', inst: 'GPU Instancing', srp: 'SRP Batcher', mats1: '1 material', mats3: '3 materials', mesh1: '1 mesh', mesh2: '2 meshes',
+        draws: 'Draw calls', setpass: 'SetPass calls', frame: 'Frame CPU cost (simulated)',
+        nNone: 'Every object is a draw call and every material change is a SetPass.',
+        nStat: 'Objects marked <b>Static</b> are combined per material into big meshes at build time. They <b>can no longer move</b> and use more memory.',
+        nInst: 'One draw call per <b>same mesh + same material</b> pair (with <i>Enable GPU Instancing</i> on the material). Great for many copies: trees, grass, bullets.',
+        nSrp: 'There is still one draw call per object, but they are <b>very cheap</b>: material data lives on the GPU and state only changes when the <b>shader (variant)</b> changes, not the material. In URP it takes priority over GPU Instancing.' }
+    }[lang];
+    const N = 24, COLS = 8;
+    let tech = 'none', M = 3, MESHES = 2;
+    let batches = [], drawIdx = 0, timer = 0, frameCost = 0;
+    const ctl = controls(host);
+    seg(ctl, [{ v: 'none', l: L.none }, { v: 'static', l: L.stat }, { v: 'instancing', l: L.inst }, { v: 'srp', l: L.srp }], tech, (v) => { tech = v; rebuild(); });
+    const ctl2 = controls(host);
+    seg(ctl2, [{ v: 1, l: L.mats1 }, { v: 3, l: L.mats3 }], M, (v) => { M = v; rebuild(); });
+    seg(ctl2, [{ v: 1, l: L.mesh1 }, { v: 2, l: L.mesh2 }], MESHES, (v) => { MESHES = v; rebuild(); });
+    const stage = makeCanvas(host, (w) => Math.round(10 + 3 * (Math.min(w - 20, 520) / 8) * 0.82 + 62));
+    const out = readout(host);
+
+    const objs = [];
+    for (let i = 0; i < N; i++) objs.push({ i, matSeed: (i * 7 + Math.floor(i / COLS)) % 3, meshSeed: Math.floor(i / 2) % 2 });
+    const mat = (o) => o.matSeed % M;
+    const mesh = (o) => o.meshSeed % MESHES;
+
+    function rebuild() {
+      const sorted = objs.slice().sort((a, b) => mat(a) - mat(b) || mesh(a) - mesh(b) || a.i - b.i);
+      const groups = new Map();
+      if (tech === 'none' || tech === 'srp') {
+        batches = sorted.map((o) => ({ objs: [o], mat: mat(o) }));
+      } else {
+        sorted.forEach((o) => {
+          const k = tech === 'static' ? String(mat(o)) : mat(o) + '-' + mesh(o);
+          if (!groups.has(k)) groups.set(k, { objs: [], mat: mat(o) });
+          groups.get(k).objs.push(o);
+        });
+        batches = Array.from(groups.values());
+      }
+      let prev = -1;
+      batches.forEach((b, idx) => {
+        b.pass = tech === 'srp' ? idx === 0 : b.mat !== prev;
+        prev = b.mat;
+      });
+      drawIdx = 0; timer = 0;
+      // Coste simulado: los SetPass son caros; en SRP Batcher cada draw call es barato.
+      const perDraw = tech === 'srp' ? 0.15 : 0.5, perPass = 1.6;
+      frameCost = batches.length * perDraw + batches.filter((b) => b.pass).length * perPass;
+    }
+    rebuild();
+
+    const stop = loop((dt) => {
+      timer += dt;
+      const STEP = tech === 'srp' ? 0.05 : 0.14;
+      const cur = batches[drawIdx];
+      const need = STEP + (cur && cur.pass ? 0.3 : 0);
+      if (drawIdx < batches.length && timer >= need) { timer = 0; drawIdx++; }
+      else if (drawIdx >= batches.length && timer > 1.2) { drawIdx = 0; timer = 0; }
+
+      const c = colors();
+      const pal = [c.accent, c.ok, c.warn];
+      const { ctx, w, h } = stage;
+      ctx.clearRect(0, 0, w, h);
+      const rows = N / COLS;
+      const gw = Math.min(w - 20, 520), cell = gw / COLS;
+      const gx = (w - gw) / 2, gy = 10;
+      const drawn = new Set();
+      batches.slice(0, drawIdx).forEach((b) => b.objs.forEach((o) => drawn.add(o.i)));
+      const active = batches[Math.min(drawIdx, batches.length - 1)];
+      const activeSet = drawIdx < batches.length ? new Set(active.objs.map((o) => o.i)) : new Set();
+      objs.forEach((o) => {
+        const cx = gx + (o.i % COLS) * cell + cell / 2;
+        const cy = gy + Math.floor(o.i / COLS) * cell * 0.82 + cell * 0.41;
+        const r = cell * 0.3;
+        const col = pal[mat(o)];
+        const isDrawn = drawn.has(o.i);
+        ctx.fillStyle = isDrawn ? col : c.soft;
+        ctx.strokeStyle = activeSet.has(o.i) ? c.text : (isDrawn ? col : c.border);
+        ctx.lineWidth = activeSet.has(o.i) ? 2.5 : 1;
+        if (mesh(o) === 0) { roundRect(ctx, cx - r, cy - r, r * 2, r * 2, 4); }
+        else { ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); }
+        ctx.fill(); ctx.stroke();
+      });
+      if (tech === 'static') text(ctx, '🔒 static', gx + gw, gy + rows * cell * 0.82 + 8, c.muted, { align: 'right' });
+      // Barra de coste del frame
+      const by = h - 34;
+      text(ctx, L.frame, 10, by - 8, c.muted);
+      const maxCost = N * 0.5 + 3 * 1.6;
+      ctx.fillStyle = c.soft; roundRect(ctx, 10, by, w - 20, 12, 6); ctx.fill();
+      const prog = batches.length ? drawIdx / batches.length : 0;
+      ctx.fillStyle = frameCost > maxCost * 0.6 ? c.bad : frameCost > maxCost * 0.25 ? c.warn : c.ok;
+      roundRect(ctx, 10, by, Math.max(6, (w - 20) * (frameCost / maxCost) * prog), 12, 6); ctx.fill();
+      ctx.strokeStyle = c.border; ctx.lineWidth = 1;
+      ctx.strokeRect(10 + (w - 20) * (frameCost / maxCost), by - 2, 0.5, 16);
+
+      const passes = batches.filter((b) => b.pass).length;
+      const note = { none: L.nNone, static: L.nStat, instancing: L.nInst, srp: L.nSrp }[tech];
+      out(L.draws + ': <b>' + batches.length + '</b> · ' + L.setpass + ': <b>' + passes + '</b>' + '<p>' + note + '</p>');
+    });
+    return () => { stop(); stage.destroy(); };
+  }
+
+  /* ---------------------------------------------------------
+     14. Modos de luz: Realtime, Mixed y Baked
+     --------------------------------------------------------- */
+
+  function mountLightModes(host, lang) {
+    const L = {
+      es: { color: 'Cambiar color en runtime', bake: 'Generate Lighting (rebake)', probes: 'Light Probes', on: 'Sí', off: 'No',
+        stat: 'Caja (Static)', dyn: 'Personaje (dinámico)', stale: 'El lightmap tiene el color antiguo: hay que volver a hornear.',
+        realtime: '<b>Realtime</b>: todo se calcula cada frame. Luz y sombras reaccionan al instante a cambios, pero es lo más caro y no hay luz rebotada (GI) horneada.',
+        mixed: '<b>Mixed (Baked Indirect)</b>: luz directa y sombras en tiempo real; la luz <b>indirecta</b> (rebote) se hornea. Si cambias el color, la directa cambia, pero el rebote horneado no.',
+        baked: '<b>Baked</b>: la luz se hornea en lightmaps para los objetos <b>Static</b>. Muy barato, pero no cambia en runtime y los objetos dinámicos ni reciben luz directa ni proyectan sombra: necesitan <b>Light Probes</b> para no verse apagados.' },
+      en: { color: 'Change color at runtime', bake: 'Generate Lighting (rebake)', probes: 'Light Probes', on: 'On', off: 'Off',
+        stat: 'Crate (Static)', dyn: 'Character (dynamic)', stale: 'The lightmap still has the old color: you need to bake again.',
+        realtime: '<b>Realtime</b>: everything is computed every frame. Light and shadows react instantly to changes, but it is the most expensive and there is no baked bounced light (GI).',
+        mixed: '<b>Mixed (Baked Indirect)</b>: direct light and shadows in real time; <b>indirect</b> (bounced) light is baked. If you change the color, the direct light changes, but the baked bounce does not.',
+        baked: '<b>Baked</b>: lighting is baked into lightmaps for <b>Static</b> objects. Very cheap, but it does not change at runtime and dynamic objects get no direct light and cast no shadow: they need <b>Light Probes</b> to not look unlit.' }
+    }[lang];
+    const PALETTE = [[255, 210, 122], [255, 107, 107], [107, 182, 255]];
+    let mode = 'mixed', probes = true, ci = 0, bakedCi = 0, t = 0;
+    const ctl = controls(host);
+    seg(ctl, [{ v: 'realtime', l: 'Realtime' }, { v: 'mixed', l: 'Mixed' }, { v: 'baked', l: 'Baked' }], mode, (v) => { mode = v; bakedCi = ci; });
+    button(ctl, L.color, () => { ci = (ci + 1) % PALETTE.length; }, true);
+    button(ctl, L.bake, () => { bakedCi = ci; });
+    const ctl2 = controls(host);
+    seg(ctl2, [{ v: true, l: L.probes + ': ' + L.on }, { v: false, l: L.probes + ': ' + L.off }], probes, (v) => { probes = v; });
+    const stage = makeCanvas(host, 210);
+    const out = readout(host);
+    const rgba = (c3, a) => 'rgba(' + c3[0] + ',' + c3[1] + ',' + c3[2] + ',' + a + ')';
+
+    const stop = loop((dt) => {
+      t += dt;
+      const c = colors();
+      const { ctx, w, h } = stage;
+      ctx.clearRect(0, 0, w, h);
+      const floorY = h - 34;
+      const lx = w * 0.22, ly = 28;
+      const live = PALETTE[ci], baked = PALETTE[bakedCi];
+      const directLive = mode !== 'baked';
+      // Suelo y fondo
+      ctx.fillStyle = c.soft; ctx.fillRect(0, 0, w, floorY);
+      ctx.fillStyle = c.border; ctx.fillRect(0, floorY, w, h - floorY);
+      // Luz directa (en tiempo real) o lightmap (horneado) sobre el suelo
+      const glow = (col, a, r) => {
+        const g = ctx.createRadialGradient(lx, floorY, 4, lx, floorY, r);
+        g.addColorStop(0, rgba(col, a)); g.addColorStop(1, rgba(col, 0));
+        ctx.fillStyle = g; ctx.fillRect(0, floorY - 60, w, 60 + h - floorY);
+      };
+      if (directLive) {
+        const g = ctx.createLinearGradient(0, ly, 0, floorY);
+        g.addColorStop(0, rgba(live, 0.35)); g.addColorStop(1, rgba(live, 0.05));
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(lx - w * 0.2, floorY); ctx.lineTo(lx + w * 0.45, floorY); ctx.closePath(); ctx.fill();
+        glow(live, 0.55, w * 0.75);
+      }
+      if (mode !== 'realtime') glow(baked, mode === 'baked' ? 0.55 : 0.25, w * 0.9);
+      // Caja estática
+      const bx = w * 0.5, bw = Math.min(70, w * 0.14), bh = 56;
+      const boxCol = mode === 'baked' ? baked : live;
+      // Sombra de la caja: horneada (suave) o en tiempo real (nítida)
+      const proj = (x, y) => lx + (x - lx) * (floorY - ly) / (y - ly);
+      const sx1 = bx + bw, sx2 = Math.min(w, proj(bx + bw, floorY - bh));
+      if (mode === 'baked') {
+        const g = ctx.createLinearGradient(sx1, 0, sx2, 0);
+        g.addColorStop(0, 'rgba(0,0,0,.45)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g; ctx.fillRect(sx1, floorY - 4, sx2 - sx1, 10);
+      } else {
+        ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(sx1, floorY - 2, sx2 - sx1, 6);
+      }
+      ctx.fillStyle = rgba(boxCol, 0.9);
+      ctx.fillRect(bx, floorY - bh, bw, bh);
+      ctx.strokeStyle = c.text; ctx.lineWidth = 1; ctx.strokeRect(bx, floorY - bh, bw, bh);
+      text(ctx, L.stat, bx + bw / 2, floorY + 14, c.text, { align: 'center' });
+      // Personaje dinámico
+      const pLeft = 64, pRight = Math.max(pLeft + 20, bx - 66);
+      const px = pLeft + (Math.sin(t * 0.6) * 0.5 + 0.5) * (pRight - pLeft), pr = 14, py = floorY - pr;
+      let ballCol, ballAlpha, ballShadow = false;
+      if (mode === 'realtime') { ballCol = live; ballAlpha = 0.95; ballShadow = true; }
+      else if (mode === 'mixed') { ballCol = live; ballAlpha = 0.95; ballShadow = true; }
+      else { ballCol = probes ? baked : [70, 70, 80]; ballAlpha = probes ? 0.75 : 0.9; }
+      if (ballShadow) {
+        const s1 = proj(px - pr, py), s2 = proj(px + pr, py);
+        ctx.fillStyle = 'rgba(0,0,0,.45)';
+        ctx.beginPath(); ctx.ellipse((s1 + s2) / 2, floorY, Math.abs(s2 - s1) / 2 + 4, 4, 0, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.fillStyle = rgba(ballCol, ballAlpha);
+      ctx.beginPath(); ctx.arc(px, py, pr, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = c.text; ctx.stroke();
+      if (mode === 'mixed' && !probes) {
+        // Sin probes, el lado en sombra no recibe el rebote horneado.
+        ctx.fillStyle = 'rgba(0,0,0,.35)';
+        ctx.beginPath(); ctx.arc(px, py, pr, -Math.PI / 2, Math.PI / 2); ctx.fill();
+      }
+      text(ctx, L.dyn, px, py - pr - 10, c.text, { align: 'center' });
+      if (probes && mode !== 'realtime') {
+        for (let k = 0; k < 4; k++) {
+          ctx.fillStyle = rgba(baked, 0.9);
+          ctx.beginPath(); ctx.arc(w * 0.08 + k * w * 0.12, floorY - 46, 3, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+      // Bombilla
+      ctx.fillStyle = rgba(live, 1);
+      ctx.beginPath(); ctx.arc(lx, ly, 10, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = c.text; ctx.stroke();
+      text(ctx, 'Light (' + mode + ')', lx + 16, ly, c.text, { mono: true });
+
+      const stale = mode !== 'realtime' && bakedCi !== ci;
+      out(L[mode] + (stale ? '<p>⚠️ ' + L.stale + '</p>' : ''));
+    });
+    return () => { stop(); stage.destroy(); };
+  }
+
+  /* ---------------------------------------------------------
+     15. Rotaciones: Lerp vs Slerp vs RotateTowards
+     --------------------------------------------------------- */
+
+  function mountRotation(host, lang) {
+    const L = {
+      es: { target: 'Ángulo objetivo', speed: 'velocidad', arrived: 'llegó', never: 'nunca llega exacto',
+        note: 'Con ángulos grandes, <code>Lerp</code> con <i>t</i> lineal no gira a velocidad constante (acelera en el centro); <code>Slerp</code> sí. <code>RotateTowards</code> gira a grados/segundo fijos y llega exactamente. El patrón <code>Slerp(actual, objetivo, k * deltaTime)</code> suaviza, pero se frena al final y nunca llega del todo.' },
+      en: { target: 'Target angle', speed: 'speed', arrived: 'arrived', never: 'never quite arrives',
+        note: 'For large angles, <code>Lerp</code> with a linear <i>t</i> does not rotate at a constant speed (it speeds up in the middle); <code>Slerp</code> does. <code>RotateTowards</code> turns at a fixed degrees per second and arrives exactly. The <code>Slerp(current, target, k * deltaTime)</code> pattern smooths, but slows down at the end and never quite arrives.' }
+    }[lang];
+    const ROWS = [
+      { id: 'lerp', label: 'Lerp(from, to, t)' },
+      { id: 'slerp', label: 'Slerp(from, to, t)' },
+      { id: 'towards', label: 'RotateTowards(…, 120*dt)' },
+      { id: 'smooth', label: 'Slerp(cur, to, 4*dt)' }
+    ];
+    let target = 170, t = 0;
+    const st = { lerp: 0, slerp: 0, towards: 0, smooth: 0 };
+    const spd = { lerp: 0, slerp: 0, towards: 0, smooth: 0 };
+    const ctl = controls(host);
+    seg(ctl, [{ v: 60, l: '60°' }, { v: 120, l: '120°' }, { v: 170, l: '170°' }], target, (v) => { target = v; reset(); });
+    const stage = makeCanvas(host, 20 + ROWS.length * 56);
+    const out = readout(host);
+    function reset() { t = 0; Object.keys(st).forEach((k) => { st[k] = 0; spd[k] = 0; }); }
+    const DUR = 1.5;
+    function nlerpAngle(a1, u) {
+      // Ángulo (grados) de normalize(lerp(q0, q1, u)) para rotaciones en un solo eje, q0 = identidad.
+      const h = (a1 * Math.PI / 180) / 2;
+      const qx = (1 - u) + u * Math.cos(h), qy = u * Math.sin(h);
+      return 2 * Math.atan2(qy, qx) * 180 / Math.PI;
+    }
+
+    const stop = loop((dt) => {
+      t += dt;
+      if (t > DUR + 1.6) reset();
+      const u = Math.min(1, t / DUR);
+      const prev = Object.assign({}, st);
+      st.lerp = nlerpAngle(target, u);
+      st.slerp = target * u;
+      st.towards = Math.min(target, st.towards + 120 * dt);
+      st.smooth = st.smooth + (target - st.smooth) * Math.min(1, 4 * dt);
+      if (dt > 0) Object.keys(st).forEach((k) => { spd[k] = spd[k] * 0.7 + ((st[k] - prev[k]) / dt) * 0.3; });
+
+      const c = colors();
+      const { ctx, w, h } = stage;
+      ctx.clearRect(0, 0, w, h);
+      const pal = { lerp: c.warn, slerp: c.accent, towards: c.ok, smooth: c.bad };
+      ROWS.forEach((r, i) => {
+        const cy = 34 + i * 56, cx = 30, R = 22;
+        ctx.strokeStyle = c.border; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
+        // Objetivo
+        const ta = -target * Math.PI / 180;
+        ctx.strokeStyle = c.muted; ctx.setLineDash([3, 3]);
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(ta) * R, cy + Math.sin(ta) * R); ctx.stroke();
+        ctx.setLineDash([]);
+        // Flecha actual
+        const a = -st[r.id] * Math.PI / 180;
+        ctx.strokeStyle = pal[r.id]; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R); ctx.stroke();
+        ctx.fillStyle = pal[r.id];
+        ctx.beginPath(); ctx.arc(cx + Math.cos(a) * R, cy + Math.sin(a) * R, 3.5, 0, Math.PI * 2); ctx.fill();
+        // Etiqueta y barra de velocidad angular
+        const tx = 64;
+        text(ctx, r.label, tx, cy - 10, c.text, { mono: true });
+        const narrow = w < 480;
+        const bwMax = narrow ? w - tx - 12 : Math.max(60, w - tx - 160);
+        const v = Math.abs(spd[r.id]);
+        ctx.fillStyle = c.soft; roundRect(ctx, tx, cy + 2, bwMax, 8, 4); ctx.fill();
+        ctx.fillStyle = pal[r.id]; roundRect(ctx, tx, cy + 2, Math.max(2, bwMax * Math.min(1, v / 300)), 8, 4); ctx.fill();
+        const done = Math.abs(target - st[r.id]) < 0.05;
+        const status = done ? '✓ ' + L.arrived : (r.id === 'smooth' && u >= 1 ? L.never : Math.round(v) + '°/s');
+        if (narrow) text(ctx, Math.round(st[r.id]) + '° · ' + status, tx, cy + 21, done ? c.ok : c.muted);
+        else text(ctx, Math.round(st[r.id]) + '° · ' + status, tx + bwMax + 8, cy + 6, done ? c.ok : c.muted);
+      });
+      out(L.note);
+    });
+    return () => { stop(); stage.destroy(); };
+  }
+
+  /* ---------------------------------------------------------
+     16. Orden de ejecución entre objetos: Awake, OnEnable, Start
+     --------------------------------------------------------- */
+
+  function mountExecOrder(host, lang) {
+    const L = {
+      es: { readIn: 'Player lee GameManager.Instance en', order: 'Unity carga primero', deo: '[DefaultExecutionOrder(-100)] en GameManager', yes: 'Sí', no: 'No', play: '▶ Repetir',
+        p1: 'Awake + OnEnable (todos los objetos)', p2: 'Start (todos)', p3: 'Primer frame',
+        nre: '✗ NullReferenceException: Player leyó <code>GameManager.Instance</code> antes de que el Awake de GameManager lo asignara.',
+        ok: '✓ Funciona: cuando Player lee la instancia, GameManager ya ejecutó su Awake.',
+        luck: '⚠️ Funciona, pero <b>por suerte</b>: el orden entre objetos no está garantizado. Lee en <code>Start</code> o fija el orden con <code>[DefaultExecutionOrder]</code>.',
+        rule: 'Regla: <b>Awake</b> para inicializarte a ti mismo; <b>Start</b> para usar a otros (todos los Awake de la escena ya se ejecutaron).' },
+      en: { readIn: 'Player reads GameManager.Instance in', order: 'Unity loads first', deo: '[DefaultExecutionOrder(-100)] on GameManager', yes: 'Yes', no: 'No', play: '▶ Replay',
+        p1: 'Awake + OnEnable (all objects)', p2: 'Start (all)', p3: 'First frame',
+        nre: '✗ NullReferenceException: Player read <code>GameManager.Instance</code> before GameManager\'s Awake assigned it.',
+        ok: '✓ It works: when Player reads the instance, GameManager has already run its Awake.',
+        luck: '⚠️ It works, but <b>by luck</b>: the order between objects is not guaranteed. Read it in <code>Start</code> or set the order with <code>[DefaultExecutionOrder]</code>.',
+        rule: 'Rule: <b>Awake</b> to initialize yourself; <b>Start</b> to use others (every Awake in the scene has already run).' }
+    }[lang];
+    let readIn = 'Awake', first = 'Player', deo = false, t = 0;
+    const ctl = controls(host);
+    const lab = (s) => { const e = el('span', 'muted small', s); ctl.appendChild(e); };
+    lab(L.readIn);
+    seg(ctl, [{ v: 'Awake', l: 'Awake' }, { v: 'Start', l: 'Start' }], readIn, (v) => { readIn = v; t = 0; });
+    const ctl2 = controls(host);
+    const lab2 = el('span', 'muted small', L.order); ctl2.appendChild(lab2);
+    seg(ctl2, [{ v: 'GameManager', l: 'GameManager' }, { v: 'Player', l: 'Player' }], first, (v) => { first = v; t = 0; });
+    const ctl3 = controls(host);
+    const lab3 = el('span', 'muted small', '<code>' + L.deo + '</code>'); ctl3.appendChild(lab3);
+    seg(ctl3, [{ v: false, l: L.no }, { v: true, l: L.yes }], deo, (v) => { deo = v; t = 0; });
+    button(ctl3, L.play, () => { t = 0; }, true);
+    const ROW = 24, HEAD = 30;
+    const stage = makeCanvas(host, HEAD + 8 * ROW + 3 * 18 + 10);
+    const out = readout(host);
+
+    function sequence() {
+      const objs = deo || first === 'GameManager' ? ['GameManager', 'Player'] : ['Player', 'GameManager'];
+      const ev = [];
+      objs.forEach((o) => { ev.push({ o, m: 'Awake', phase: 0 }); ev.push({ o, m: 'OnEnable', phase: 0 }); });
+      objs.forEach((o) => ev.push({ o, m: 'Start', phase: 1 }));
+      objs.forEach((o) => ev.push({ o, m: 'Update', phase: 2 }));
+      let managerReady = false, crashed = false;
+      ev.forEach((e) => {
+        if (e.o === 'GameManager' && e.m === 'Awake') { managerReady = true; e.note = 'Instance = this'; }
+        if (e.o === 'Player' && e.m === readIn) {
+          e.read = true;
+          if (!managerReady) { e.err = true; crashed = true; e.note = 'NullReferenceException'; }
+          else e.note = 'Instance ✓';
+        }
+      });
+      return { ev, crashed };
+    }
+
+    const stop = loop((dt) => {
+      t += dt;
+      const { ev, crashed } = sequence();
+      const shown = Math.min(ev.length, Math.floor(t / 0.55));
+      if (t > ev.length * 0.55 + 2.5) t = 0;
+      const c = colors();
+      const { ctx, w, h } = stage;
+      ctx.clearRect(0, 0, w, h);
+      const colW = (w - 20) / 2;
+      text(ctx, 'GameManager', 10 + colW / 2, 14, c.text, { align: 'center', mono: true });
+      text(ctx, 'Player', 10 + colW * 1.5, 14, c.text, { align: 'center', mono: true });
+      let y = HEAD, phase = -1;
+      ev.forEach((e, i) => {
+        if (e.phase !== phase) {
+          phase = e.phase;
+          text(ctx, [L.p1, L.p2, L.p3][phase], 10, y + 8, c.muted);
+          ctx.strokeStyle = c.border; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(10, y + 16); ctx.lineTo(w - 10, y + 16); ctx.stroke();
+          y += 18;
+        }
+        if (i < shown) {
+          const x = e.o === 'GameManager' ? 10 : 10 + colW;
+          ctx.fillStyle = e.err ? c.badSoft : (e.read ? c.okSoft : (i === shown - 1 ? c.accentSoft : c.soft));
+          roundRect(ctx, x + 4, y + 2, colW - 8, ROW - 4, 6); ctx.fill();
+          if (e.err) { ctx.strokeStyle = c.bad; ctx.lineWidth = 1.5; ctx.stroke(); }
+          text(ctx, (i + 1) + '. ' + e.m + '()', x + 12, y + ROW / 2, e.err ? c.bad : c.text, { mono: true });
+          if (e.note && w >= 400) text(ctx, e.note, x + colW - 12, y + ROW / 2, e.err ? c.bad : c.muted, { align: 'right' });
+        }
+        y += ROW;
+      });
+      let verdict;
+      if (shown < ev.length) verdict = '…';
+      else if (crashed) verdict = L.nre;
+      else if (readIn === 'Awake' && !deo) verdict = L.luck;
+      else verdict = L.ok;
+      out('<p>' + verdict + '</p><p class="muted small">' + L.rule + '</p>');
+    });
+    return () => { stop(); stage.destroy(); };
+  }
+
+  /* ---------------------------------------------------------
      Catálogo
      --------------------------------------------------------- */
 
@@ -963,6 +1620,21 @@
       }
     },
     {
+      id: 'orden-ejecucion', domain: 'team', practice: { d: 'team', t: 'Ciclo de vida' }, icon: '🧩', mount: mountExecOrder,
+      text: {
+        es: {
+          title: 'Orden entre objetos: Awake, OnEnable y Start',
+          summary: 'Al cargar una escena, Unity llama a `Awake` y `OnEnable` de **todos** los objetos y después a `Start` de todos. Lo que **no** está garantizado es el orden entre objetos distintos. Haz que Player lea `GameManager.Instance` en `Awake`, cambia qué objeto carga primero y mira cuándo explota.',
+          points: ['Todos los `Awake` (y `OnEnable`) de la escena se ejecutan antes que cualquier `Start`.', 'El orden entre objetos no está garantizado: no dependas de otro objeto en `Awake`.', '`[DefaultExecutionOrder(-100)]` o Project Settings → Script Execution Order fijan el orden.', 'GameObject inactivo: no recibe `Awake` hasta que se activa. Componente desactivado: recibe `Awake`, pero no `Start`.']
+        },
+        en: {
+          title: 'Order between objects: Awake, OnEnable and Start',
+          summary: 'When a scene loads, Unity calls `Awake` and `OnEnable` on **every** object and then `Start` on all of them. What is **not** guaranteed is the order between different objects. Make Player read `GameManager.Instance` in `Awake`, change which object loads first and see when it breaks.',
+          points: ['Every `Awake` (and `OnEnable`) in the scene runs before any `Start`.', 'The order between objects is not guaranteed: do not depend on another object in `Awake`.', '`[DefaultExecutionOrder(-100)]` or Project Settings → Script Execution Order set the order.', 'Inactive GameObject: no `Awake` until it is activated. Disabled component: gets `Awake`, but not `Start`.']
+        }
+      }
+    },
+    {
       id: 'delta-time', domain: 'core', practice: { d: 'core', t: 'Movimiento' }, icon: '⏩', mount: mountDeltaTime,
       text: {
         es: {
@@ -974,6 +1646,21 @@
           title: 'Time.deltaTime: FPS-independent movement',
           summary: 'If you move something a fixed amount per frame, it moves faster the higher the FPS. Multiplying by `Time.deltaTime` (seconds since the previous frame) turns speed into units per second. Compare both lanes with and without deltaTime.',
           points: ['Without deltaTime: actual speed = value × FPS.', 'With deltaTime: the same speed on any machine.', 'Inside `FixedUpdate`, `Time.deltaTime` returns `fixedDeltaTime` automatically.', 'Capping FPS is not the fix: the problem is the unit of the speed.']
+        }
+      }
+    },
+    {
+      id: 'rotaciones', domain: 'core', practice: { d: 'core', t: 'Rotación' }, icon: '🧭', mount: mountRotation,
+      text: {
+        es: {
+          title: 'Rotaciones: Lerp, Slerp y RotateTowards',
+          summary: 'Las cuatro flechas giran del mismo ángulo inicial al mismo objetivo, cada una con una función distinta. Fíjate en la barra de velocidad: con 170° la diferencia entre `Lerp` y `Slerp` es evidente, y el patrón de suavizado se frena al final.',
+          points: ['`Slerp`: interpolación esférica, velocidad angular constante con t lineal.', '`Lerp`: más barato; con ángulos grandes, la velocidad no es constante.', '`RotateTowards(cur, to, grados * Time.deltaTime)`: velocidad fija y llegada exacta (torretas).', 'Nunca edites `rotation.x/y/z/w`: es un `Quaternion`, no grados. Usa `Quaternion.Euler`.']
+        },
+        en: {
+          title: 'Rotations: Lerp, Slerp and RotateTowards',
+          summary: 'The four arrows rotate from the same starting angle to the same target, each with a different function. Watch the speed bar: at 170° the difference between `Lerp` and `Slerp` is obvious, and the smoothing pattern slows down at the end.',
+          points: ['`Slerp`: spherical interpolation, constant angular speed with a linear t.', '`Lerp`: cheaper; with large angles, the speed is not constant.', '`RotateTowards(cur, to, degrees * Time.deltaTime)`: fixed speed and exact arrival (turrets).', 'Never edit `rotation.x/y/z/w`: it is a `Quaternion`, not degrees. Use `Quaternion.Euler`.']
         }
       }
     },
@@ -1008,6 +1695,21 @@
       }
     },
     {
+      id: 'colisiones', domain: 'core', practice: { d: 'core', t: 'Física' }, icon: '🧱', mount: mountCollisionMatrix,
+      text: {
+        es: {
+          title: 'Matriz de colisiones: OnCollision vs OnTrigger',
+          summary: '¿Qué mensaje recibe cada pareja de objetos? Depende de tres cosas: si tienen `Rigidbody`, si es **cinemático** y si el collider es **Is Trigger**. Toca cualquier celda de la matriz y mira la pareja en acción.',
+          points: ['Sin ningún `Rigidbody`, no hay mensajes de ningún tipo.', '`OnTrigger*`: basta con un trigger y un `Rigidbody` (vale uno cinemático).', '`OnCollision*`: hace falta al menos un `Rigidbody` **dinámico** y ningún trigger.', 'Cinemático contra estático o cinemático: nada. Mueve los cinemáticos con `MovePosition`.']
+        },
+        en: {
+          title: 'Collision matrix: OnCollision vs OnTrigger',
+          summary: 'Which message does each pair of objects get? It depends on three things: whether they have a `Rigidbody`, whether it is **kinematic** and whether the collider is **Is Trigger**. Tap any cell in the matrix and watch that pair in action.',
+          points: ['Without any `Rigidbody`, there are no messages at all.', '`OnTrigger*`: one trigger and one `Rigidbody` are enough (a kinematic one works).', '`OnCollision*`: needs at least one **dynamic** `Rigidbody` and no trigger.', 'Kinematic vs static or kinematic: nothing. Move kinematic bodies with `MovePosition`.']
+        }
+      }
+    },
+    {
       id: 'layer-mask', domain: 'core', practice: { d: 'core', t: 'Raycasts y capas' }, icon: '🎯', mount: mountLayerMask,
       text: {
         es: {
@@ -1034,6 +1736,21 @@
           title: 'Object pooling vs Instantiate/Destroy',
           summary: 'Creating and destroying objects constantly costs CPU and generates garbage that the Garbage Collector eventually cleans up all at once (a frame-time spike). A pool reuses deactivated objects. Increase the shots per second and compare the graphs.',
           points: ['`ObjectPool<T>`: `Get()` takes an object and `Release(obj)` returns it.', 'Callbacks: `createFunc`, `actionOnGet`, `actionOnRelease`, `actionOnDestroy`.', 'Benefits: fewer `Instantiate`/`Destroy` calls and fewer GC spikes.', 'Cost: inactive objects still use memory.']
+        }
+      }
+    },
+    {
+      id: 'corrutinas', domain: 'scene', practice: { d: 'scene', t: 'Corrutinas y async' }, icon: '🧵', mount: mountCoroutines,
+      text: {
+        es: {
+          title: 'Corrutinas: cuándo se reanuda cada yield',
+          summary: 'Cada columna es un frame y cada fila, una corrutina esperando con un `yield` distinto. Cambia los FPS y el `timeScale`, y prueba `enabled = false` frente a `SetActive(false)`: es una de las diferencias que más se preguntan.',
+          points: ['`yield return null`: el siguiente frame, después de `Update`.', '`WaitForSeconds` usa tiempo escalado; `WaitForSecondsRealtime`, no.', '`enabled = false` **no** detiene las corrutinas; desactivar o destruir el GameObject **sí**, y no se reanudan.', '`StopCoroutine` necesita la referencia `Coroutine` que devolvió `StartCoroutine`.']
+        },
+        en: {
+          title: 'Coroutines: when each yield resumes',
+          summary: 'Each column is a frame and each row is a coroutine waiting on a different `yield`. Change the FPS and the `timeScale`, and try `enabled = false` versus `SetActive(false)`: it is one of the most asked differences.',
+          points: ['`yield return null`: the next frame, after `Update`.', '`WaitForSeconds` uses scaled time; `WaitForSecondsRealtime` does not.', '`enabled = false` does **not** stop coroutines; deactivating or destroying the GameObject **does**, and they do not resume.', '`StopCoroutine` needs the `Coroutine` reference returned by `StartCoroutine`.']
         }
       }
     },
@@ -1083,16 +1800,46 @@
       }
     },
     {
+      id: 'iluminacion', domain: 'art', practice: { d: 'art', t: 'Iluminación' }, icon: '💡', mount: mountLightModes,
+      text: {
+        es: {
+          title: 'Modos de luz: Realtime, Mixed y Baked',
+          summary: 'Una luz, una caja **Static** y un personaje que se mueve. Cambia el modo de la luz, cambia su color en runtime y quita las Light Probes: verás qué se actualiza al momento, qué se queda horneado y por qué los objetos dinámicos se ven apagados con luz Baked.',
+          points: ['Realtime: todo dinámico, lo más caro, sin GI horneada.', 'Mixed (Baked Indirect): directa y sombras en tiempo real, rebote horneado.', 'Baked: solo afecta a objetos **Static** vía lightmaps; cambiarla en runtime no hace nada.', 'Objetos dinámicos en escenas horneadas: **Light Probes** (y Reflection Probes para reflejos).']
+        },
+        en: {
+          title: 'Light modes: Realtime, Mixed and Baked',
+          summary: 'One light, a **Static** crate and a moving character. Change the light mode, change its color at runtime and turn off the Light Probes: you will see what updates instantly, what stays baked and why dynamic objects look unlit with a Baked light.',
+          points: ['Realtime: everything dynamic, the most expensive, no baked GI.', 'Mixed (Baked Indirect): direct light and shadows in real time, bounce baked.', 'Baked: only affects **Static** objects via lightmaps; changing it at runtime does nothing.', 'Dynamic objects in baked scenes: **Light Probes** (and Reflection Probes for reflections).']
+        }
+      }
+    },
+    {
+      id: 'batching', domain: 'perf', practice: { d: 'perf', t: 'Renderizado' }, icon: '📦', mount: mountBatching,
+      text: {
+        es: {
+          title: 'Batching: draw calls y SetPass calls',
+          summary: 'La CPU tiene que pedirle a la GPU que dibuje cada cosa (draw call) y cambiar de material o shader (SetPass) es lo más caro. Mira cómo se "pinta" el frame con cada técnica y cómo cambian los contadores al usar más materiales o mallas.',
+          points: ['Static batching: combina por material; los objetos no se pueden mover.', 'GPU Instancing: misma malla + mismo material, muchas copias en un draw call.', 'SRP Batcher (URP/HDRP): agrupa por variante de shader; draw calls baratos.', 'Compruébalo con el **Frame Debugger** y las estadísticas (Stats) del Game view.']
+        },
+        en: {
+          title: 'Batching: draw calls and SetPass calls',
+          summary: 'The CPU has to ask the GPU to draw each thing (draw call), and switching material or shader (SetPass) is the expensive part. Watch how the frame gets "painted" with each technique and how the counters change with more materials or meshes.',
+          points: ['Static batching: combines per material; objects cannot move.', 'GPU Instancing: same mesh + same material, many copies in one draw call.', 'SRP Batcher (URP/HDRP): groups by shader variant; cheap draw calls.', 'Check it with the **Frame Debugger** and the Game view Stats.']
+        }
+      }
+    },
+    {
       id: 'time-scale', domain: 'systems', practice: { d: 'systems', t: 'Pausa y tiempo' }, icon: '⏸️', mount: mountTimeScale,
       text: {
         es: {
           title: 'Time.timeScale: qué se detiene al pausar',
-          summary: 'Poner `Time.timeScale = 0` no detiene el juego entero: `Update` se sigue llamando, pero `Time.deltaTime` vale 0, la física se detiene y `WaitForSeconds` se congela. Lo que usa tiempo *unscaled* sigue funcionando. Mueve el slider y observa cada fila.',
+          summary: 'Poner `Time.timeScale = 0` no detiene el juego entero: `Update` se sigue llamando, pero `Time.deltaTime` vale 0, la física se detiene y `WaitForSeconds` se congela. Lo que usa tiempo unscaled sigue funcionando. Mueve el slider y observa cada fila.',
           points: ['`Update`: se sigue llamando (por eso puedes leer el input del menú de pausa).', '`FixedUpdate`: deja de ejecutarse con timeScale 0.', '`WaitForSeconds` se congela; `WaitForSecondsRealtime` sigue.', 'UI animada en pausa: `unscaledDeltaTime` o Animator en **Unscaled Time**.']
         },
         en: {
           title: 'Time.timeScale: what stops when you pause',
-          summary: 'Setting `Time.timeScale = 0` does not stop the whole game: `Update` is still called, but `Time.deltaTime` is 0, physics stops and `WaitForSeconds` freezes. Anything using *unscaled* time keeps working. Move the slider and watch each row.',
+          summary: 'Setting `Time.timeScale = 0` does not stop the whole game: `Update` is still called, but `Time.deltaTime` is 0, physics stops and `WaitForSeconds` freezes. Anything using unscaled time keeps working. Move the slider and watch each row.',
           points: ['`Update`: still called (that is why you can read pause-menu input).', '`FixedUpdate`: stops running with timeScale 0.', '`WaitForSeconds` freezes; `WaitForSecondsRealtime` keeps going.', 'Animated UI while paused: `unscaledDeltaTime` or an Animator on **Unscaled Time**.']
         }
       }

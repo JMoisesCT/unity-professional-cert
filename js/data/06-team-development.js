@@ -307,6 +307,87 @@ UCP.addDomain({
       ],
       answer: [0],
       explanation: '`Awaitable` (Unity 2023.1+ / Unity 6) se integra con el player loop: respeta `Time.timeScale`, vuelve al hilo principal y acepta `destroyCancellationToken` para cancelarse si el objeto se destruye. `Task.Delay` no sabe nada de Unity (sigue aunque salgas de Play Mode y no funciona bien en WebGL), `yield return` solo vale en corrutinas y `Thread.Sleep` congela el juego.'
+    },
+    {
+      id: 'team-24',
+      topic: 'Ciclo de vida',
+      q: 'En la misma escena, el `Start` de `EnemySpawner` lee una lista que `LevelData` rellena en **su** `Awake`. Ambos objetos están activos y habilitados desde el principio. ¿Es seguro?',
+      options: [
+        'Sí: al cargar la escena, Unity llama al `Awake` de todos los objetos activos antes de llamar a cualquier `Start`.',
+        'Solo si `LevelData` está más arriba en la Hierarchy, porque los scripts se ejecutan en ese orden.',
+        'Solo si ambos scripts están en el mismo GameObject.',
+        'No: hay que añadir `[DefaultExecutionOrder]` a `LevelData`, porque `Start` y `Awake` de objetos distintos se ejecutan en cualquier orden.'
+      ],
+      answer: [0],
+      explanation: 'Para los objetos que están en la escena al cargarla, todas las llamadas a `Awake` (y `OnEnable`) ocurren antes que cualquier `Start`. Por eso la regla es: inicializa lo tuyo en `Awake` y lee a los demás en `Start`. Lo que **no** está garantizado es el orden entre dos `Awake` (o dos `Start`) de objetos distintos; el orden de la Hierarchy no lo determina. `[DefaultExecutionOrder]` solo haría falta si ambos accedieran en el mismo método (por ejemplo, los dos en `Awake`).'
+    },
+    {
+      id: 'team-25',
+      topic: 'Ciclo de vida',
+      q: 'Un script tiene `Awake`, `OnEnable` y `Start`. ¿Qué **dos** afirmaciones son correctas? (Elige 2)',
+      options: [
+        'Si su GameObject empieza **inactivo**, `Awake` no se llama hasta que el GameObject se active.',
+        'Si el GameObject está activo pero el **componente** está deshabilitado, `Awake` sí se llama, pero `Start` no se llama hasta que el componente se habilite.',
+        '`Start` se vuelve a llamar cada vez que el componente se deshabilita y se habilita de nuevo.',
+        '`OnEnable` se llama al cargar la escena aunque el GameObject esté inactivo.',
+        '`Awake` se llama cada vez que el GameObject se reactiva.'
+      ],
+      answer: [0, 1],
+      explanation: '`Awake` se llama una sola vez, cuando el GameObject está activo por primera vez (aunque el componente esté deshabilitado). `Start` también se llama una sola vez, justo antes del primer `Update` en que el componente está habilitado. Lo que se repite en cada activación es `OnEnable` (y `OnDisable` al desactivar), y solo cuando el objeto está activo y el componente habilitado.'
+    },
+    {
+      id: 'team-26',
+      topic: 'Ciclo de vida',
+      q: 'Necesitas que el `Update` de `InputReader` se ejecute siempre **antes** que el de cualquier `PlayerController`, y quieres que esa regla quede escrita en el propio código. ¿Qué usas?',
+      options: [
+        '`[DefaultExecutionOrder(-100)]` sobre la clase `InputReader`.',
+        '`[RequireComponent(typeof(PlayerController))]` sobre `InputReader`.',
+        '`[ExecuteAlways]` sobre `InputReader`.',
+        '`[RuntimeInitializeOnLoadMethod]` sobre el método `Update` de `InputReader`.'
+      ],
+      answer: [0],
+      explanation: '`[DefaultExecutionOrder(n)]` fija el orden de ejecución del script: los valores más bajos se ejecutan antes que los más altos (los scripts sin orden usan 0). Es lo mismo que **Project Settings > Script Execution Order**, pero queda en el código. `RequireComponent` solo obliga a que exista un componente, `ExecuteAlways` hace que el script se ejecute también en modo edición y `RuntimeInitializeOnLoadMethod` sirve para métodos estáticos que se llaman una vez al arrancar.'
+    },
+    {
+      id: 'team-27',
+      topic: 'Depuración',
+      q: 'Quieres ver en la vista Scene el radio de detección de cada enemigo, pero **solo** del enemigo que tengas seleccionado, para no llenar la escena de círculos. ¿Qué usas?',
+      options: [
+        '`OnDrawGizmosSelected` con `Gizmos.DrawWireSphere(transform.position, radius)`.',
+        '`OnDrawGizmos` con `Gizmos.DrawWireSphere(transform.position, radius)`.',
+        '`Debug.DrawLine` en `Update` con una duración larga.',
+        '`OnGUI` con `GUI.Box` en la posición del enemigo.'
+      ],
+      answer: [0],
+      explanation: '`OnDrawGizmosSelected` solo se llama cuando el objeto (o uno de sus padres) está seleccionado; `OnDrawGizmos` dibuja siempre, para todos los objetos. Los gizmos funcionan también fuera de Play Mode y no se incluyen en las builds. `Debug.DrawLine` solo dibuja mientras el juego corre y no depende de la selección, y `OnGUI` dibuja en pantalla, no en la vista Scene.'
+    },
+    {
+      id: 'team-28',
+      topic: 'Depuración',
+      q: 'Usas este código para depurar la línea de visión de un enemigo. Ves la línea en la vista Scene, pero no en la vista Game. ¿Por qué?',
+      code: 'void Update()\n{\n    Debug.DrawRay(eyes.position, eyes.forward * viewDistance, Color.red);\n}',
+      options: [
+        '`Debug.DrawRay` se dibuja en la vista Scene; en la vista Game solo aparece si activas el botón **Gizmos** de esa vista (y nunca en una build).',
+        'Falta el parámetro `duration`: con el valor por defecto la línea dura 0 segundos y no se dibuja.',
+        '`Debug.DrawRay` solo funciona si además lanzas un `Physics.Raycast` con el mismo origen.',
+        'Solo se ve en la vista Game si haces una **Development Build**.'
+      ],
+      answer: [0],
+      explanation: '`Debug.DrawRay` y `Debug.DrawLine` son herramientas del Editor: se dibujan en la vista Scene y, si activas **Gizmos** en la barra de la vista Game, también allí. No aparecen en builds. Con `duration` por defecto (0) la línea dura un frame, que es justo lo que quieres si la dibujas en cada `Update`. No hace falta ningún raycast: solo dibuja una línea.'
+    },
+    {
+      id: 'team-29',
+      topic: 'Estructura de código',
+      q: '¿Qué ventaja principal ofrece este patrón de "canal de eventos" con ScriptableObject?',
+      code: '[CreateAssetMenu(menuName = "Events/Void Event")]\npublic class VoidEventChannel : ScriptableObject\n{\n    public event Action OnRaised;\n    public void Raise() => OnRaised?.Invoke();\n}',
+      options: [
+        'Emisores y oyentes solo referencian el mismo asset en el Inspector, así que se comunican sin conocerse ni usar singletons, aunque estén en escenas o prefabs distintos.',
+        'Los eventos se guardan en disco y se vuelven a disparar al abrir el juego.',
+        'Los oyentes se desuscriben solos cuando se destruyen, así que no hace falta `OnDisable`.',
+        'Los eventos se ejecutan en un hilo aparte y no afectan al frame.'
+      ],
+      answer: [0],
+      explanation: 'El asset actúa como punto de encuentro: quien emite llama a `Raise()` y quien escucha se suscribe a `OnRaised`, y ninguno de los dos tiene una referencia al otro. Así se reducen las dependencias, se pueden probar los sistemas por separado y los diseñadores pueden conectar cosas desde el Inspector. No guarda nada en disco (los cambios en ScriptableObjects no persisten en una build), sigue siendo un evento de C# normal (hay que desuscribirse en `OnDisable`) y se ejecuta en el hilo principal, de forma síncrona.'
     }
   ]
 });

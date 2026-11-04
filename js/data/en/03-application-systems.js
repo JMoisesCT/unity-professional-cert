@@ -226,6 +226,73 @@ UCP.addTranslation('en', {
         '`JsonUtility.Save(data, "save.json");`'
       ],
       explanation: 'The typical flow is to serialize with `JsonUtility.ToJson` and write with `System.IO.File` to `persistentDataPath` (using `Path.Combine` so it works on all platforms). To load: `File.Exists`, `File.ReadAllText` and `JsonUtility.FromJson<T>`. `JsonUtility.Save` does not exist.'
+    },
+    'sys-21': {
+      topic: 'Scenes',
+      q: 'You load the `Dungeon` level in **Additive** mode on top of the `Core` scene (which holds the `GameManager`). Enemies you instantiate afterwards appear in `Core`, and the ambient lighting is still the one from `Core`. What are you missing?',
+      options: [
+        'Calling `SceneManager.SetActiveScene(SceneManager.GetSceneByName("Dungeon"))` once loading finishes.',
+        'Loading `Dungeon` with `LoadSceneMode.Single`.',
+        'Calling `DontDestroyOnLoad` on every enemy.',
+        'Setting `allowSceneActivation = true` before calling `LoadSceneAsync`.'
+      ],
+      explanation: 'With several scenes loaded, only one is the **active scene**: it is where `Instantiate` puts new objects and the one that provides lighting settings (skybox, ambient light). When loading additively, the active scene stays the original one until you call `SetActiveScene` (once loading has finished). `Single` mode would unload `Core`, and `DontDestroyOnLoad` would move them to a special scene, not to `Dungeon`.'
+    },
+    'sys-22': {
+      topic: 'Scenes',
+      q: 'Which **two** statements about loading and unloading scenes are correct? (Choose 2)',
+      options: [
+        '`LoadSceneMode.Single` unloads every loaded scene (except objects marked with `DontDestroyOnLoad`).',
+        '`SceneManager.UnloadSceneAsync` does not by itself free the assets the scene used; that is what `Resources.UnloadUnusedAssets` is for.',
+        'Additively loaded scenes unload automatically when another scene is loaded additively.',
+        'Objects marked with `DontDestroyOnLoad` are destroyed when a scene is loaded in Single mode.',
+        'Only scenes included in Addressables can be loaded additively.'
+      ],
+      explanation: '`Single` replaces everything loaded, except what lives in the special `DontDestroyOnLoad` scene. `UnloadSceneAsync` unloads the scene\'s objects, but its assets (textures, meshes…) can stay in memory until you call `Resources.UnloadUnusedAssets`. Additive scenes are not unloaded automatically when another additive scene loads, and any scene in the Build Profiles list can be loaded additively.'
+    },
+    'sys-23': {
+      topic: 'Localization',
+      q: 'You use the **Localization** package. In the options menu, the player picks a language from a dropdown. How do you change the language at runtime?',
+      options: [
+        '`LocalizationSettings.SelectedLocale = LocalizationSettings.AvailableLocales.Locales[index];`',
+        '`Application.systemLanguage = SystemLanguage.Spanish;`',
+        '`CultureInfo.CurrentCulture = new CultureInfo("es");`',
+        '`SceneManager.LoadScene` the same scene so the String Tables reload.'
+      ],
+      explanation: 'The active language is `LocalizationSettings.SelectedLocale`. When you change it, the system loads the tables for the new `Locale`, and `LocalizeStringEvent` components (and `LocalizedString`s subscribed to `StringChanged`) update on their own, without reloading the scene. `Application.systemLanguage` is read-only and tells you the device language, and changing the .NET `CultureInfo` does not affect the tables.'
+    },
+    'sys-24': {
+      topic: 'Localization',
+      q: 'A String Table entry reads `You have {coins} coins`. On screen, `{coins}` appears literally instead of the number. What is missing?',
+      options: [
+        'Marking the entry as **Smart** (Smart String) and providing the `coins` variable (for example, as a local variable of the `LocalizedString`).',
+        'Using `string.Format` on the `TextMeshProUGUI` text every frame.',
+        'Writing the variable as `{0}`, because the package does not support names.',
+        'Creating a separate entry for each number of coins.'
+      ],
+      explanation: 'Named placeholders are resolved by **Smart Strings** (based on SmartFormat), which only applies to entries marked as Smart. Values are passed as arguments or, better, as local/persistent variables of the `LocalizedString`, which refresh the text when they change. Smart Strings also support plurals (`{coins:plural:coin|coins}`), so you do not need one entry per amount.'
+    },
+    'sys-25': {
+      topic: 'Progression',
+      q: 'You store the player\'s level and gold by modifying a `ScriptableObject` at runtime. In the Editor it seems to persist between sessions, but in the build the progress is lost when the game closes. Why?',
+      options: [
+        'In a build, changes to a ScriptableObject only live in memory; in the Editor you were modifying the asset itself. Progress must be saved to a file (for example, JSON in `persistentDataPath`).',
+        'ScriptableObjects are only saved if they are in the `Resources` folder.',
+        'You have to call `ScriptableObject.Save()` before quitting.',
+        'You have to mark the ScriptableObject with `DontDestroyOnLoad`.'
+      ],
+      explanation: 'A ScriptableObject is an asset: in the Editor, changing it in Play Mode modifies the project file (which is why it "persists" and, incidentally, pollutes version control). In a build, assets are read-only: the changes disappear when the game closes. Use them for configuration data or in-memory state, and save progress with your own save system. `ScriptableObject.Save()` does not exist.'
+    },
+    'sys-26': {
+      topic: 'Settings',
+      q: 'The resolution dropdown is filled from `Screen.resolutions`. Which line applies the chosen resolution?',
+      options: [
+        '`Screen.SetResolution(r.width, r.height, Screen.fullScreenMode);`',
+        '`Screen.currentResolution = r;`',
+        '`QualitySettings.SetQualityLevel(index);`',
+        '`Camera.main.pixelRect = new Rect(0, 0, r.width, r.height);`'
+      ],
+      explanation: '`Screen.SetResolution` changes the resolution (and the full-screen mode) and is applied at the end of the frame. `Screen.currentResolution` is read-only (and in windowed mode it reports the desktop resolution). `SetQualityLevel` changes the quality preset, not the resolution, and `pixelRect` only changes the area of the screen a camera renders to.'
     }
   }
 });

@@ -272,6 +272,86 @@ UCP.addDomain({
       ],
       answer: [0],
       explanation: 'El flujo típico es serializar con `JsonUtility.ToJson` y escribir con `System.IO.File` en `persistentDataPath` (usando `Path.Combine` para que funcione en todas las plataformas). Para cargar: `File.Exists`, `File.ReadAllText` y `JsonUtility.FromJson<T>`. `JsonUtility.Save` no existe.'
+    },
+    {
+      id: 'sys-21',
+      topic: 'Escenas',
+      q: 'Cargas el nivel `Dungeon` en modo **Additive** sobre la escena `Core` (que tiene el `GameManager`). Los enemigos que instancias después aparecen en `Core` y la iluminación ambiental sigue siendo la de `Core`. ¿Qué te falta?',
+      options: [
+        'Llamar a `SceneManager.SetActiveScene(SceneManager.GetSceneByName("Dungeon"))` cuando termine la carga.',
+        'Cargar `Dungeon` en modo `LoadSceneMode.Single`.',
+        'Llamar a `DontDestroyOnLoad` sobre cada enemigo.',
+        'Poner `allowSceneActivation = true` antes de llamar a `LoadSceneAsync`.'
+      ],
+      answer: [0],
+      explanation: 'Con varias escenas cargadas, solo una es la **escena activa**: es donde `Instantiate` coloca los objetos nuevos y la que aporta los ajustes de iluminación (skybox, luz ambiental). Al cargar en Additive, la activa sigue siendo la original hasta que llamas a `SetActiveScene` (cuando la carga ha terminado). El modo `Single` descargaría `Core`, y `DontDestroyOnLoad` los movería a una escena especial, no a `Dungeon`.'
+    },
+    {
+      id: 'sys-22',
+      topic: 'Escenas',
+      q: '¿Qué **dos** afirmaciones sobre la carga y descarga de escenas son correctas? (Elige 2)',
+      options: [
+        '`LoadSceneMode.Single` descarga todas las escenas cargadas (salvo los objetos marcados con `DontDestroyOnLoad`).',
+        '`SceneManager.UnloadSceneAsync` no libera por sí sola los assets que usaba la escena; para eso existe `Resources.UnloadUnusedAssets`.',
+        'Las escenas cargadas en Additive se descargan solas al cargar otra escena en Additive.',
+        'Los objetos marcados con `DontDestroyOnLoad` se destruyen al cargar una escena en modo Single.',
+        'Solo se pueden cargar en Additive las escenas incluidas en Addressables.'
+      ],
+      answer: [0, 1],
+      explanation: '`Single` sustituye todo lo cargado, excepto lo que vive en la escena especial `DontDestroyOnLoad`. `UnloadSceneAsync` descarga los objetos de la escena, pero los assets (texturas, mallas…) pueden seguir en memoria hasta llamar a `Resources.UnloadUnusedAssets`. Las escenas Additive no se descargan solas al cargar otra Additive, y cualquier escena de la lista de Build Profiles se puede cargar en Additive.'
+    },
+    {
+      id: 'sys-23',
+      topic: 'Localización',
+      q: 'Usas el paquete **Localization**. En el menú de opciones, el jugador elige un idioma de un desplegable. ¿Cómo cambias el idioma en tiempo de ejecución?',
+      options: [
+        '`LocalizationSettings.SelectedLocale = LocalizationSettings.AvailableLocales.Locales[index];`',
+        '`Application.systemLanguage = SystemLanguage.Spanish;`',
+        '`CultureInfo.CurrentCulture = new CultureInfo("es");`',
+        '`SceneManager.LoadScene` de la misma escena para que se recarguen las String Tables.'
+      ],
+      answer: [0],
+      explanation: 'El idioma activo es `LocalizationSettings.SelectedLocale`. Al cambiarlo, el sistema carga las tablas del nuevo `Locale` y los componentes `LocalizeStringEvent` (y los `LocalizedString` suscritos a `StringChanged`) se actualizan solos, sin recargar la escena. `Application.systemLanguage` es de solo lectura e indica el idioma del dispositivo, y cambiar la `CultureInfo` de .NET no afecta a las tablas.'
+    },
+    {
+      id: 'sys-24',
+      topic: 'Localización',
+      q: 'Una entrada de la String Table es `Tienes {coins} monedas`. En pantalla aparece literalmente `{coins}` en lugar del número. ¿Qué falta?',
+      options: [
+        'Marcar la entrada como **Smart** (Smart String) y proporcionar la variable `coins` (por ejemplo, como variable local del `LocalizedString`).',
+        'Usar `string.Format` sobre el texto del `TextMeshProUGUI` en cada frame.',
+        'Escribir la variable como `{0}`, porque el paquete no admite nombres.',
+        'Crear una entrada distinta para cada cantidad de monedas.'
+      ],
+      answer: [0],
+      explanation: 'Los marcadores con nombre los resuelve **Smart Strings** (basado en SmartFormat), que solo se aplica a las entradas marcadas como Smart. Los valores se pasan como argumentos o, mejor, como variables locales/persistentes del `LocalizedString`, que refrescan el texto cuando cambian. Smart Strings también permite plurales (`{coins:plural:moneda|monedas}`), así que no hace falta una entrada por cantidad.'
+    },
+    {
+      id: 'sys-25',
+      topic: 'Progresión',
+      q: 'Guardas el nivel y el oro del jugador modificando un `ScriptableObject` en tiempo de ejecución. En el Editor parece que se guarda entre sesiones, pero en la build el progreso se pierde al cerrar el juego. ¿Por qué?',
+      options: [
+        'En una build, los cambios en un ScriptableObject solo viven en memoria; en el Editor se modificaba el propio asset. Hay que guardar el progreso en un archivo (por ejemplo, JSON en `persistentDataPath`).',
+        'Los ScriptableObject solo se guardan si están en la carpeta `Resources`.',
+        'Hay que llamar a `ScriptableObject.Save()` antes de salir.',
+        'Hay que marcar el ScriptableObject con `DontDestroyOnLoad`.'
+      ],
+      answer: [0],
+      explanation: 'Un ScriptableObject es un asset: en el Editor, cambiarlo en Play Mode modifica el archivo del proyecto (por eso "persiste" y, de paso, ensucia el control de versiones). En una build, los assets son de solo lectura: los cambios desaparecen al cerrar. Úsalos para datos de configuración o estado en memoria, y guarda el progreso con tu propio sistema de guardado. `ScriptableObject.Save()` no existe.'
+    },
+    {
+      id: 'sys-26',
+      topic: 'Ajustes',
+      q: 'El desplegable de resolución se rellena con `Screen.resolutions`. ¿Qué línea aplica la resolución elegida?',
+      code: 'Resolution[] resolutions;\n\nvoid Start() => resolutions = Screen.resolutions;\n\npublic void OnResolutionChanged(int index)\n{\n    Resolution r = resolutions[index];\n    // ???\n}',
+      options: [
+        '`Screen.SetResolution(r.width, r.height, Screen.fullScreenMode);`',
+        '`Screen.currentResolution = r;`',
+        '`QualitySettings.SetQualityLevel(index);`',
+        '`Camera.main.pixelRect = new Rect(0, 0, r.width, r.height);`'
+      ],
+      answer: [0],
+      explanation: '`Screen.SetResolution` cambia la resolución (y el modo de pantalla completa) y se aplica al terminar el frame. `Screen.currentResolution` es de solo lectura (y en modo ventana indica la resolución del escritorio). `SetQualityLevel` cambia el preset de calidad, no la resolución, y `pixelRect` solo cambia la zona de la pantalla en la que dibuja una cámara.'
     }
   ]
 });

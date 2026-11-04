@@ -224,6 +224,73 @@ UCP.addTranslation('en', {
         '`GameObject.Find("GameManager")`'
       ],
       explanation: '`FindAnyObjectByType` returns any instance without guaranteeing order, so it is the fastest. `FindFirstObjectByType` guarantees the same instance `FindObjectOfType` used to return, but it is slower. Sorting every instance or searching by name is even worse. Ideally you still cache the reference instead of searching every frame.'
+    },
+    'scn-21': {
+      topic: 'Coroutines and async',
+      q: 'When taking damage the blinking should stop, but it goes on forever. Why?',
+      options: [
+        '`Blink()` creates a new `IEnumerator` each time: you need to store the `Coroutine` returned by `StartCoroutine` and pass it to `StopCoroutine`.',
+        '`StopCoroutine` only works with coroutines started from `Start`.',
+        'A `while (true)` loop inside a coroutine cannot be stopped.',
+        '`StopCoroutine` only takes effect on the next `WaitForSeconds` that is a multiple of 1 second.'
+      ],
+      explanation: 'Each call to `Blink()` returns a different iterator, so `StopCoroutine(Blink())` tries to stop one that was never started. Store the reference: `blinkRoutine = StartCoroutine(Blink());` and then `StopCoroutine(blinkRoutine);` (storing the `IEnumerator` also works). `StopAllCoroutines()` stops all of the component\'s coroutines.'
+    },
+    'scn-22': {
+      topic: 'Coroutines and async',
+      q: 'Which **two** statements about when a coroutine resumes are correct? (Choose 2)',
+      options: [
+        '`yield return null` resumes it on the next frame, after every `Update` has been called.',
+        '`yield return new WaitForFixedUpdate()` resumes it after the `FixedUpdate` calls of the next physics step.',
+        '`yield return null` resumes it in the same frame, right before `LateUpdate`.',
+        '`yield return new WaitForEndOfFrame()` resumes it before the frame is rendered.',
+        '`yield return new WaitForSeconds(0)` resumes it immediately, on the same line.'
+      ],
+      explanation: '`yield return null` waits for the next frame and continues after every `Update` (before `LateUpdate`). `WaitForFixedUpdate` continues after the `FixedUpdate` calls of the next physics step, useful for applying forces from a coroutine. `WaitForEndOfFrame` runs **after** rendering (for example, to capture the screen), and no `yield` continues at the same instant.'
+    },
+    'scn-23': {
+      topic: 'Coroutines and async',
+      q: 'When the enemy is destroyed, the console fills with `MissingReferenceException`: the method keeps running. How do you fix it?',
+      options: [
+        'Pass `destroyCancellationToken` to the wait: `await Awaitable.NextFrameAsync(destroyCancellationToken);`.',
+        'Change `Awaitable` to `async void`, which stops when the object is destroyed.',
+        'Call `StopAllCoroutines()` in `OnDestroy`.',
+        'Use `await Task.Yield()`, which is tied to the MonoBehaviour lifecycle.'
+      ],
+      explanation: 'Unlike coroutines, `async` methods are **not** tied to the MonoBehaviour: they keep running after it is destroyed. `destroyCancellationToken` is cancelled when the component is destroyed, and the wait throws `OperationCanceledException`, which ends the method. `StopAllCoroutines` does not affect `Awaitable`, and `async void` or `Task.Yield` know nothing about the object\'s lifecycle either.'
+    },
+    'scn-24': {
+      topic: 'Coroutines and async',
+      q: 'You want to compute an expensive path off the main thread and, when it is done, move the character. Which sequence is correct with `Awaitable`?',
+      options: [
+        '`await Awaitable.BackgroundThreadAsync();` → compute → `await Awaitable.MainThreadAsync();` → assign `transform.position`.',
+        '`await Awaitable.BackgroundThreadAsync();` → compute → assign `transform.position` directly.',
+        '`await Awaitable.MainThreadAsync();` → compute → `await Awaitable.BackgroundThreadAsync();` → assign `transform.position`.',
+        '`StartCoroutine` with `yield return new WaitForBackgroundThread()` → compute and assign `transform.position`.'
+      ],
+      explanation: '`BackgroundThreadAsync` continues the method on a thread-pool thread, ideal for pure computation. Most of the Unity API (`transform`, components, `GameObject`) can only be used from the main thread, so you must switch back with `MainThreadAsync` before touching it. `WaitForBackgroundThread` does not exist: coroutines always run on the main thread.'
+    },
+    'scn-25': {
+      topic: 'Instantiation',
+      q: 'A weapon prefab has position `(0, 1, 0)`. You instantiate it with `Instantiate(weaponPrefab, hand)`. Where does it appear?',
+      options: [
+        'As a child of `hand`, with **local** position `(0, 1, 0)`: one meter above the hand, according to its rotation and scale.',
+        'As a child of `hand`, at **world** position `(0, 1, 0)`.',
+        'At world position `(0, 1, 0)` with no parent: the second parameter only sets the scene.',
+        'Exactly at the position of `hand`, because the prefab position is ignored.'
+      ],
+      explanation: '`Instantiate(original, parent)` uses `instantiateInWorldSpace = false` by default: the prefab position, rotation and scale are treated as **local** to the parent. With `Instantiate(weaponPrefab, hand, true)` the world position `(0, 1, 0)` is kept. If you need a specific position, use the overload with `position`, `rotation` and `parent`.'
+    },
+    'scn-26': {
+      topic: 'Instantiation',
+      q: 'The `enemyPrefab` field is declared as `public Enemy enemyPrefab;` (a component on the prefab). What does `Instantiate(enemyPrefab)` return?',
+      options: [
+        'The clone\'s `Enemy` component: the whole GameObject is cloned and no `GetComponent` is needed.',
+        'A copy of the `Enemy` component with no GameObject.',
+        'The clone\'s `GameObject`, which you must cast with `as Enemy`.',
+        'An error: `Instantiate` only accepts `GameObject`.'
+      ],
+      explanation: '`Instantiate<T>(T original)` is generic: if you pass a component, it clones its whole GameObject (with children and other components) and returns the matching component on the clone. Declaring the field with the component type saves a `GetComponent` call and ensures in the Inspector that the prefab has that script.'
     }
   }
 });

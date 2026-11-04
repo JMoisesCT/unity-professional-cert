@@ -278,6 +278,86 @@ UCP.addDomain({
       ],
       answer: [0],
       explanation: 'Cinemachine 3 simplificó la API: `CinemachineCamera` sustituye a `CinemachineVirtualCamera` (y a `CinemachineFreeLook`, que ahora se monta con componentes como Orbital Follow), y el namespace pasó a `Unity.Cinemachine`. `CinemachineBrain` sigue en la cámara real y decide qué cámara está activa según la **Priority**.'
+    },
+    {
+      id: 'core-22',
+      topic: 'Física',
+      q: 'Ninguno de los colliders es trigger. ¿En qué **dos** casos Unity llama a `OnCollisionEnter`? (Elige 2)',
+      options: [
+        'Un `Rigidbody` dinámico choca con un collider estático (sin `Rigidbody`).',
+        'Un `Rigidbody` dinámico choca con un `Rigidbody` cinemático.',
+        'Un `Rigidbody` cinemático choca con un collider estático.',
+        'Dos `Rigidbody` cinemáticos se cruzan.',
+        'Dos colliders estáticos se solapan.'
+      ],
+      answer: [0, 1],
+      explanation: 'Los mensajes de colisión necesitan que **al menos uno** de los dos objetos sea un `Rigidbody` **dinámico** (no cinemático). Cinemático contra estático y cinemático contra cinemático no generan `OnCollisionEnter` con la configuración por defecto, porque ninguno de los dos responde a la física. En cambio, si uno de los colliders fuera **trigger**, un cinemático contra un estático sí generaría `OnTriggerEnter`. Dos estáticos nunca generan mensajes.'
+    },
+    {
+      id: 'core-23',
+      topic: 'Física',
+      q: 'Una plataforma móvil tiene un `Rigidbody` con **Is Kinematic** activado y debe empujar y transportar al jugador (un `Rigidbody` dinámico). ¿Cómo deberías moverla?',
+      options: [
+        'Con `rb.MovePosition(...)` en `FixedUpdate`.',
+        'Asignando `transform.position` en `Update`.',
+        'Con `rb.AddForce(...)` en `FixedUpdate`.',
+        'Asignando `rb.linearVelocity` en `Update`.'
+      ],
+      answer: [0],
+      explanation: '`MovePosition` (y `MoveRotation`) mueve un `Rigidbody` cinemático a través de la simulación: la física calcula la velocidad implícita del movimiento, así que empuja correctamente a los objetos dinámicos y respeta la interpolación. Teletransportarlo con `transform.position` se salta esa velocidad y provoca empujes bruscos o que el jugador atraviese la plataforma. `AddForce` no afecta a los cuerpos cinemáticos, y la velocidad tampoco los mueve.'
+    },
+    {
+      id: 'core-24',
+      topic: 'Física',
+      q: 'Una puerta cuelga de un `HingeJoint` y debe arrancarse de sus bisagras si recibe un golpe muy fuerte. ¿Qué configuras y cómo te enteras por código?',
+      options: [
+        'Pones un valor en **Break Force** y recibes `OnJointBreak(float breakForce)` en el objeto del joint.',
+        'Activas **Use Limits** y recibes `OnCollisionExit` cuando la puerta se suelta.',
+        'Cambias el joint por un `FixedJoint` y compruebas `joint.connectedBody == null` en cada `Update`.',
+        'Activas **Use Motor** con una fuerza negativa y recibes `OnTriggerExit`.'
+      ],
+      answer: [0],
+      explanation: 'Todos los joints tienen **Break Force** y **Break Torque** (por defecto, `Infinity`). Si la fuerza o el par que soporta el joint supera ese valor, Unity **destruye el componente joint** y llama a `OnJointBreak(float breakForce)` en los scripts de ese GameObject. Los límites restringen el ángulo de giro, y el motor hace girar la bisagra: ninguno de los dos rompe el joint.'
+    },
+    {
+      id: 'core-25',
+      topic: 'Rotación',
+      q: 'Una torreta debe girar hacia el enemigo a una velocidad **constante** de 90 grados por segundo y detenerse exactamente al apuntarle. ¿Qué línea usarías en `Update`?',
+      options: [
+        '`transform.rotation = Quaternion.RotateTowards(transform.rotation, target, 90f * Time.deltaTime);`',
+        '`transform.rotation = Quaternion.Lerp(transform.rotation, target, 90f * Time.deltaTime);`',
+        '`transform.rotation = Quaternion.Slerp(transform.rotation, target, 0.1f);`',
+        '`transform.Rotate(0f, 90f, 0f);`'
+      ],
+      answer: [0],
+      explanation: '`RotateTowards` gira como máximo el ángulo indicado (en grados) por llamada y no se pasa del objetivo, así que multiplicar por `Time.deltaTime` da una velocidad angular constante. `Lerp` y `Slerp` interpolan con un parámetro `t` entre 0 y 1: usarlos con `0.1f` en cada frame produce un giro rápido al principio que se va frenando (y depende de los FPS), y `90f * Time.deltaTime` no tiene sentido como `t`. `Rotate(0, 90, 0)` gira 90 grados en **cada frame**.'
+    },
+    {
+      id: 'core-26',
+      topic: 'Rotación',
+      q: 'El objeto está inclinado. ¿Qué diferencia hay entre estas dos líneas?',
+      code: '// A\ntransform.rotation = transform.rotation * Quaternion.Euler(0f, 90f, 0f);\n// B\ntransform.rotation = Quaternion.Euler(0f, 90f, 0f) * transform.rotation;',
+      options: [
+        'A gira 90° alrededor del eje Y **local** del objeto; B, alrededor del eje Y **del mundo**.',
+        'A gira alrededor del eje Y del mundo; B, alrededor del eje Y local.',
+        'Son equivalentes: la multiplicación de quaterniones es conmutativa.',
+        'B no compila: un `Quaternion` solo se puede multiplicar por un `Vector3`.'
+      ],
+      answer: [0],
+      explanation: 'La multiplicación de quaterniones **no es conmutativa**. `rotacionActual * delta` aplica `delta` en el espacio local del objeto (como `transform.Rotate(0, 90, 0)`, que por defecto usa `Space.Self`). `delta * rotacionActual` la aplica en el espacio del mundo (como `transform.Rotate(0, 90, 0, Space.World)`). Si el objeto no estuviera inclinado, ambas darían el mismo resultado, por eso el error pasa desapercibido.'
+    },
+    {
+      id: 'core-27',
+      topic: 'Input',
+      q: 'Usas el componente `PlayerInput` con **Behavior = Send Messages** y una acción llamada `Jump`. ¿Qué método recibe la acción en tus scripts de ese GameObject?',
+      options: [
+        '`void OnJump(InputValue value)`',
+        '`void Jump(InputAction.CallbackContext context)`',
+        '`void OnJumpPerformed()`',
+        '`void OnActionTriggered(string name)`'
+      ],
+      answer: [0],
+      explanation: 'Con **Send Messages** (y **Broadcast Messages**), `PlayerInput` llama a un método llamado `On` + nombre de la acción, que puede recibir un `InputValue` (`value.Get<Vector2>()`, `value.isPressed`). Con **Invoke Unity Events**, en cambio, asignas en el Inspector métodos que reciben `InputAction.CallbackContext`, y con **Invoke C Sharp Events** te suscribes a `onActionTriggered`.'
     }
   ]
 });

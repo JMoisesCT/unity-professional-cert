@@ -8,16 +8,16 @@ Funciona en laptop y en el celular (diseño responsive, tema claro/oscuro), est�
 
 ## Qué incluye
 
-- **129 preguntas** con explicación, escritas para **Unity 6** y repartidas en los 6 temas del examen:
-  1. Interacciones principales (física, input, cámara)
-  2. Pipeline de arte (materiales, iluminación, animación, partículas)
-  3. Sistemas de aplicación (UI, menús, ajustes, progresión, persistencia)
-  4. Escena y entorno (audio, instanciación y pooling, NavMesh)
-  5. Rendimiento y plataformas (Profiler, batching, móviles, IL2CPP, XR)
-  6. Desarrollo en equipo (Git, testing, depuración, arquitectura)
+- **165 preguntas** con explicación, escritas para **Unity 6** y repartidas en los 6 temas del examen:
+  1. Interacciones principales (física, joints, rotaciones, input, cámara)
+  2. Pipeline de arte (materiales, Shader Graph, iluminación, animación, Timeline, partículas y VFX Graph, texturas)
+  3. Sistemas de aplicación (UI, menús, ajustes, escenas, localización, progresión, persistencia)
+  4. Escena y entorno (audio, corrutinas y `Awaitable`, instanciación y pooling, NavMesh)
+  5. Rendimiento y plataformas (Profiler, batching, Jobs y Burst, móviles, IL2CPP, XR)
+  6. Desarrollo en equipo (Git, testing, depuración, ciclo de vida, arquitectura)
 - **Modo práctica** por tema o por subtema, con feedback inmediato. Hay preguntas de una sola respuesta, de varias y con fragmentos de código C#.
 - **Simulacro** con tiempo, preguntas equilibradas entre temas, marcado para revisar, mapa de preguntas y resultado por tema. Si recargas la página, puedes retomarlo.
-- **Conceptos animados**: 10 demos interactivas (bucle de frames y `FixedUpdate`, `Time.deltaTime`, tunneling, `ForceMode`, `LayerMask`, object pooling, Has Exit Time, NavMesh con Carve y costes de área, `material` vs `sharedMaterial`, `Time.timeScale`). Cada una tiene sus claves para el examen y un enlace a las preguntas de ese tema.
+- **Conceptos animados**: 16 demos interactivas (bucle de frames y `FixedUpdate`, orden de `Awake`/`OnEnable`/`Start` entre objetos, `Time.deltaTime`, `Lerp` vs `Slerp` vs `RotateTowards`, tunneling, `ForceMode`, matriz de colisiones y triggers, `LayerMask`, object pooling, corrutinas y sus `yield`, Has Exit Time, NavMesh con Carve y costes de área, `material` vs `sharedMaterial`, modos de luz Realtime/Mixed/Baked, batching y draw calls, `Time.timeScale`). Cada una tiene sus claves para el examen y un enlace a las preguntas de ese tema.
 - **Repaso de errores**: cada pregunta fallada se guarda hasta que la respondas bien.
 - **Guía**: estrategia para el examen, cambios de API en Unity 6, plan de 6 semanas, chuleta de "si ves X, piensa en Y", ciclo de vida de MonoBehaviour y vocabulario en inglés.
 - **Bilingüe:** toda la interfaz, las preguntas, las explicaciones y los tips están en español e inglés. Puedes cambiar de idioma en cualquier momento, incluso a mitad de una pregunta o de un simulacro, sin perder tu respuesta. El idioma elegido se recuerda.

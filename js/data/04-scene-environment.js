@@ -267,6 +267,87 @@ UCP.addDomain({
       ],
       answer: [0],
       explanation: '`FindAnyObjectByType` devuelve cualquier instancia sin garantizar el orden, así que es la más rápida. `FindFirstObjectByType` garantiza la misma instancia que devolvía `FindObjectOfType`, pero es más lenta. Ordenar todas las instancias o buscar por nombre es aún peor. Lo ideal sigue siendo guardar la referencia y no buscarla en cada frame.'
+    },
+    {
+      id: 'scn-21',
+      topic: 'Corrutinas y async',
+      q: 'Al recibir daño, el parpadeo debería detenerse, pero sigue para siempre. ¿Por qué?',
+      code: 'void OnEnable() => StartCoroutine(Blink());\n\nvoid OnHit()\n{\n    StopCoroutine(Blink());\n}\n\nIEnumerator Blink()\n{\n    while (true)\n    {\n        rend.enabled = !rend.enabled;\n        yield return new WaitForSeconds(0.2f);\n    }\n}',
+      options: [
+        '`Blink()` crea un `IEnumerator` nuevo cada vez: hay que guardar el `Coroutine` que devuelve `StartCoroutine` y pasarlo a `StopCoroutine`.',
+        '`StopCoroutine` solo funciona con corrutinas iniciadas desde `Start`.',
+        'Un bucle `while (true)` dentro de una corrutina no se puede detener.',
+        '`StopCoroutine` solo surte efecto en el siguiente `WaitForSeconds` múltiplo de 1 segundo.'
+      ],
+      answer: [0],
+      explanation: 'Cada llamada a `Blink()` devuelve un iterador distinto, así que `StopCoroutine(Blink())` intenta parar uno que nunca se inició. Guarda la referencia: `blinkRoutine = StartCoroutine(Blink());` y luego `StopCoroutine(blinkRoutine);` (también vale guardar el `IEnumerator`). `StopAllCoroutines()` las para todas las del componente.'
+    },
+    {
+      id: 'scn-22',
+      topic: 'Corrutinas y async',
+      q: '¿Qué **dos** afirmaciones sobre el momento en que se reanuda una corrutina son correctas? (Elige 2)',
+      options: [
+        '`yield return null` la reanuda en el siguiente frame, después de que se hayan llamado todos los `Update`.',
+        '`yield return new WaitForFixedUpdate()` la reanuda después de los `FixedUpdate` del siguiente paso de física.',
+        '`yield return null` la reanuda en el mismo frame, justo antes de `LateUpdate`.',
+        '`yield return new WaitForEndOfFrame()` la reanuda antes de renderizar el frame.',
+        '`yield return new WaitForSeconds(0)` la reanuda inmediatamente, en la misma línea.'
+      ],
+      answer: [0, 1],
+      explanation: '`yield return null` espera al siguiente frame y continúa tras todos los `Update` (antes de `LateUpdate`). `WaitForFixedUpdate` continúa tras los `FixedUpdate` del siguiente paso de física, útil para aplicar fuerzas desde una corrutina. `WaitForEndOfFrame` se ejecuta **después** de renderizar (por ejemplo, para capturar la pantalla), y ningún `yield` continúa en el mismo instante.'
+    },
+    {
+      id: 'scn-23',
+      topic: 'Corrutinas y async',
+      q: 'Al destruir al enemigo, la consola se llena de `MissingReferenceException`: el método sigue ejecutándose. ¿Cómo lo arreglas?',
+      code: 'async Awaitable Patrol()\n{\n    while (true)\n    {\n        transform.position += transform.forward * speed * Time.deltaTime;\n        await Awaitable.NextFrameAsync();\n    }\n}',
+      options: [
+        'Pasar `destroyCancellationToken` a la espera: `await Awaitable.NextFrameAsync(destroyCancellationToken);`.',
+        'Cambiar `Awaitable` por `async void`, que se detiene al destruir el objeto.',
+        'Llamar a `StopAllCoroutines()` en `OnDestroy`.',
+        'Usar `await Task.Yield()`, que está ligado al ciclo de vida del MonoBehaviour.'
+      ],
+      answer: [0],
+      explanation: 'A diferencia de las corrutinas, los métodos `async` **no** están ligados al MonoBehaviour: siguen vivos después de destruirlo. `destroyCancellationToken` se cancela al destruir el componente, y la espera lanza `OperationCanceledException`, que termina el método. `StopAllCoroutines` no afecta a `Awaitable`, y `async void` o `Task.Yield` tampoco conocen el ciclo de vida del objeto.'
+    },
+    {
+      id: 'scn-24',
+      topic: 'Corrutinas y async',
+      q: 'Quieres calcular una ruta costosa fuera del hilo principal y, al terminar, mover al personaje. ¿Qué secuencia es correcta con `Awaitable`?',
+      options: [
+        '`await Awaitable.BackgroundThreadAsync();` → calcular → `await Awaitable.MainThreadAsync();` → asignar `transform.position`.',
+        '`await Awaitable.BackgroundThreadAsync();` → calcular → asignar `transform.position` directamente.',
+        '`await Awaitable.MainThreadAsync();` → calcular → `await Awaitable.BackgroundThreadAsync();` → asignar `transform.position`.',
+        '`StartCoroutine` con `yield return new WaitForBackgroundThread()` → calcular y asignar `transform.position`.'
+      ],
+      answer: [0],
+      explanation: '`BackgroundThreadAsync` continúa el método en un hilo del pool, ideal para cálculos puros. La mayoría de la API de Unity (`transform`, componentes, `GameObject`) solo se puede usar desde el hilo principal, así que antes de tocarla hay que volver con `MainThreadAsync`. `WaitForBackgroundThread` no existe: las corrutinas siempre se ejecutan en el hilo principal.'
+    },
+    {
+      id: 'scn-25',
+      topic: 'Instanciación',
+      q: 'El prefab de un arma tiene posición `(0, 1, 0)`. La instancias con `Instantiate(weaponPrefab, hand)`. ¿Dónde aparece?',
+      options: [
+        'Como hijo de `hand`, con posición **local** `(0, 1, 0)`: un metro por encima de la mano, según su rotación y escala.',
+        'Como hijo de `hand`, en la posición del **mundo** `(0, 1, 0)`.',
+        'En la posición del mundo `(0, 1, 0)` y sin padre: el segundo parámetro solo indica la escena.',
+        'Exactamente en la posición de `hand`, porque la posición del prefab se ignora.'
+      ],
+      answer: [0],
+      explanation: '`Instantiate(original, parent)` usa `instantiateInWorldSpace = false` por defecto: la posición, rotación y escala del prefab se interpretan como **locales** respecto al padre. Con `Instantiate(weaponPrefab, hand, true)` se conserva la posición del mundo `(0, 1, 0)`. Si necesitas una posición concreta, usa la sobrecarga con `position`, `rotation` y `parent`.'
+    },
+    {
+      id: 'scn-26',
+      topic: 'Instanciación',
+      q: 'El campo `enemyPrefab` está declarado como `public Enemy enemyPrefab;` (un componente del prefab). ¿Qué devuelve `Instantiate(enemyPrefab)`?',
+      options: [
+        'El componente `Enemy` del clon: se clona el GameObject completo y no hace falta `GetComponent`.',
+        'Una copia del componente `Enemy` sin GameObject.',
+        'El `GameObject` del clon, que hay que convertir con `as Enemy`.',
+        'Un error: `Instantiate` solo acepta `GameObject`.'
+      ],
+      answer: [0],
+      explanation: '`Instantiate<T>(T original)` es genérico: si le pasas un componente, clona todo su GameObject (con hijos y demás componentes) y devuelve el componente equivalente del clon. Declarar el campo con el tipo del componente evita un `GetComponent` y asegura en el Inspector que el prefab tiene ese script.'
     }
   ]
 });

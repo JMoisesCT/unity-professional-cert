@@ -234,6 +234,73 @@ UCP.addTranslation('en', {
         '`Configure`'
       ],
       explanation: 'In Unity 6, URP uses Render Graph by default: passes declare their resources and work in `RecordRenderGraph(RenderGraph, ContextContainer)`. `Execute` and `Configure` belong to the previous API and only work in compatibility mode. `OnRenderImage` is from the Built-in Render Pipeline.'
+    },
+    'art-22': {
+      topic: 'Timeline',
+      q: 'A Timeline cutscene animates the player character, but that character is instantiated at runtime, so the animation track shows no assigned object. How do you fix it before calling `director.Play()`?',
+      options: [
+        'You assign the instantiated `Animator` to the track with `director.SetGenericBinding(track, animator)`.',
+        'You duplicate the Timeline asset for every possible character.',
+        'You call `animator.Play("Timeline")` on the character.',
+        'You make the character a child of the GameObject that has the `PlayableDirector`.'
+      ],
+      explanation: 'The Timeline asset only describes tracks and clips; the concrete objects are assigned by the `PlayableDirector` through **bindings**. `SetGenericBinding(track, object)` links a track to the object created at runtime (you can get the tracks, for example, from `((TimelineAsset)director.playableAsset).GetOutputTracks()`). That way the same asset works for different characters. Parenting it to the director does not create the binding.'
+    },
+    'art-23': {
+      topic: 'Timeline',
+      q: 'At a specific moment in a cutscene you want gameplay code to react (for example, to start a fight). Which Timeline tool is designed for that?',
+      options: [
+        'A **Signal Emitter** on the timeline and a **Signal Receiver** component that responds with a UnityEvent.',
+        'An **Activation Track** that enables a GameObject whose `Start` begins the fight.',
+        'A **Control Track** with a `ParticleSystem`.',
+        'Checking `director.time` every `Update` from a script.'
+      ],
+      explanation: '**Signals** are the intended way to connect Timeline with gameplay: a **Signal Emitter** placed on the timeline emits a **Signal Asset**, and a **Signal Receiver** on the bound object maps that signal to a UnityEvent. The Activation Track enables and disables objects (abusing `Start` as an event is fragile), the Control Track controls sub-timelines, particles or prefabs, and polling `director.time` can easily miss the exact moment.'
+    },
+    'art-24': {
+      topic: 'Shaders',
+      q: 'In the Shader Graph Blackboard you have an exposed property named **Tint Color** with **Reference** `_TintColor`. Which code changes its value correctly and efficiently?',
+      options: [
+        '`Shader.PropertyToID("_TintColor")`',
+        '`Shader.PropertyToID("Tint Color")`',
+        '`Shader.PropertyToID("TintColor")`',
+        '`Shader.PropertyToID("Blackboard/Tint Color")`'
+      ],
+      explanation: 'From code, properties are identified by their **Reference** (the internal shader name, usually with an underscore), not by the name shown in the Blackboard or the Inspector. Caching the ID with `Shader.PropertyToID` in a `static readonly` field avoids converting the string on every call. With a wrong name, `SetColor` throws no error: it simply changes nothing.'
+    },
+    'art-25': {
+      topic: 'Particles',
+      q: 'Which **two** statements about **VFX Graph** compared to the **Particle System** (Shuriken) are correct? (Choose 2)',
+      options: [
+        'VFX Graph simulates particles on the GPU, so it can handle many more particles.',
+        'VFX Graph requires the platform to support compute shaders.',
+        'VFX Graph calls `OnParticleCollision` on your scripts when a particle hits a collider.',
+        'The Particle System cannot collide with the world.',
+        'VFX Graph only works with the Built-in Render Pipeline.'
+      ],
+      explanation: 'VFX Graph simulates on the **GPU** using **compute shaders**, which allows millions of particles, but it requires compatible hardware (it may not be available on low-end mobile devices) and works with URP and HDRP, not Built-in. Since the simulation lives on the GPU, the CPU does not know about each particle: there is no `OnParticleCollision` and no collisions with physics colliders (it uses shapes, SDFs or the depth buffer). The Particle System simulates on the CPU and does have a **Collision** module against the world, with callbacks to scripts.'
+    },
+    'art-26': {
+      topic: 'Textures',
+      q: 'Your game targets current Android and iOS devices. Which texture compression format is the recommended default for both platforms?',
+      options: [
+        '**ASTC**',
+        '**DXT5 / BC3**',
+        '**PVRTC**',
+        'Uncompressed **RGBA32**'
+      ],
+      explanation: '**ASTC** is supported on practically all current iOS and Android devices, gives good quality and lets you choose the block size (4x4 = more quality, 8x8 or larger = less memory). **DXT/BC** are desktop and console formats, **PVRTC** is an old iOS format with lower quality and square power-of-two textures, and **RGBA32** uses far more memory. **ETC2** remains the fallback for older Android devices without ASTC.'
+    },
+    'art-27': {
+      topic: 'Lighting',
+      q: 'A street lamp never moves or changes. You want its bounced (indirect) light baked into the lightmaps, but the character, which is dynamic, must cast **real-time shadows** from that light. Which **Mode** do you give the light?',
+      options: [
+        '**Mixed**',
+        '**Baked**',
+        '**Realtime**',
+        'It does not matter: the mode only affects performance, not shadows.'
+      ],
+      explanation: 'A **Mixed** light stores the part that can be precomputed in the lightmaps (at least the indirect light, and depending on the Lighting Mode also shadows from static objects) and keeps lighting dynamic objects in real time, so they can cast shadows. A **Baked** light does not light dynamic objects directly (it only reaches them through Light Probes) and casts no real-time shadows. **Realtime** does not bake bounced light into the lightmaps.'
     }
   }
 });

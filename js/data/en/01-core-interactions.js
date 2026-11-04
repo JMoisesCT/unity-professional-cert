@@ -230,6 +230,73 @@ UCP.addTranslation('en', {
         '`VirtualCamera3D`'
       ],
       explanation: 'Cinemachine 3 simplified the API: `CinemachineCamera` replaces `CinemachineVirtualCamera` (and `CinemachineFreeLook`, which is now built with components such as Orbital Follow), and the namespace became `Unity.Cinemachine`. `CinemachineBrain` still lives on the real camera and decides which camera is live based on **Priority**.'
+    },
+    'core-22': {
+      topic: 'Physics',
+      q: 'None of the colliders is a trigger. In which **two** cases does Unity call `OnCollisionEnter`? (Choose 2)',
+      options: [
+        'A dynamic `Rigidbody` hits a static collider (no `Rigidbody`).',
+        'A dynamic `Rigidbody` hits a kinematic `Rigidbody`.',
+        'A kinematic `Rigidbody` hits a static collider.',
+        'Two kinematic `Rigidbody` objects cross each other.',
+        'Two static colliders overlap.'
+      ],
+      explanation: 'Collision messages need **at least one** of the two objects to be a **dynamic** (non-kinematic) `Rigidbody`. Kinematic vs static and kinematic vs kinematic do not generate `OnCollisionEnter` with the default settings, because neither of them responds to physics. However, if one of the colliders were a **trigger**, kinematic vs static would generate `OnTriggerEnter`. Two static colliders never generate messages.'
+    },
+    'core-23': {
+      topic: 'Physics',
+      q: 'A moving platform has a `Rigidbody` with **Is Kinematic** enabled and must push and carry the player (a dynamic `Rigidbody`). How should you move it?',
+      options: [
+        'With `rb.MovePosition(...)` in `FixedUpdate`.',
+        'By assigning `transform.position` in `Update`.',
+        'With `rb.AddForce(...)` in `FixedUpdate`.',
+        'By assigning `rb.linearVelocity` in `Update`.'
+      ],
+      explanation: '`MovePosition` (and `MoveRotation`) moves a kinematic `Rigidbody` through the simulation: physics computes the implied velocity of the movement, so it pushes dynamic objects correctly and respects interpolation. Teleporting it with `transform.position` skips that velocity and causes harsh pushes or the player falling through the platform. `AddForce` has no effect on kinematic bodies, and velocity does not move them either.'
+    },
+    'core-24': {
+      topic: 'Physics',
+      q: 'A door hangs from a `HingeJoint` and must be ripped off its hinges if it takes a very strong hit. What do you configure, and how do you find out in code?',
+      options: [
+        'You set a value in **Break Force** and receive `OnJointBreak(float breakForce)` on the joint object.',
+        'You enable **Use Limits** and receive `OnCollisionExit` when the door comes loose.',
+        'You replace the joint with a `FixedJoint` and check `joint.connectedBody == null` every `Update`.',
+        'You enable **Use Motor** with a negative force and receive `OnTriggerExit`.'
+      ],
+      explanation: 'Every joint has **Break Force** and **Break Torque** (`Infinity` by default). If the force or torque on the joint exceeds that value, Unity **destroys the joint component** and calls `OnJointBreak(float breakForce)` on the scripts of that GameObject. Limits restrict the rotation angle and the motor spins the hinge: neither of them breaks the joint.'
+    },
+    'core-25': {
+      topic: 'Rotation',
+      q: 'A turret must turn towards the enemy at a **constant** speed of 90 degrees per second and stop exactly when it is aiming at it. Which line would you use in `Update`?',
+      options: [
+        '`transform.rotation = Quaternion.RotateTowards(transform.rotation, target, 90f * Time.deltaTime);`',
+        '`transform.rotation = Quaternion.Lerp(transform.rotation, target, 90f * Time.deltaTime);`',
+        '`transform.rotation = Quaternion.Slerp(transform.rotation, target, 0.1f);`',
+        '`transform.Rotate(0f, 90f, 0f);`'
+      ],
+      explanation: '`RotateTowards` turns by at most the given angle (in degrees) per call and never overshoots the target, so multiplying by `Time.deltaTime` gives a constant angular speed. `Lerp` and `Slerp` interpolate with a `t` parameter between 0 and 1: using them with `0.1f` every frame produces a turn that starts fast and slows down (and depends on FPS), and `90f * Time.deltaTime` makes no sense as `t`. `Rotate(0, 90, 0)` turns 90 degrees **every frame**.'
+    },
+    'core-26': {
+      topic: 'Rotation',
+      q: 'The object is tilted. What is the difference between these two lines?',
+      options: [
+        'A rotates 90° around the object\'s **local** Y axis; B, around the **world** Y axis.',
+        'A rotates around the world Y axis; B, around the local Y axis.',
+        'They are equivalent: quaternion multiplication is commutative.',
+        'B does not compile: a `Quaternion` can only be multiplied by a `Vector3`.'
+      ],
+      explanation: 'Quaternion multiplication is **not commutative**. `currentRotation * delta` applies `delta` in the object\'s local space (like `transform.Rotate(0, 90, 0)`, which uses `Space.Self` by default). `delta * currentRotation` applies it in world space (like `transform.Rotate(0, 90, 0, Space.World)`). If the object were not tilted, both would give the same result, which is why the bug goes unnoticed.'
+    },
+    'core-27': {
+      topic: 'Input',
+      q: 'You use the `PlayerInput` component with **Behavior = Send Messages** and an action named `Jump`. Which method receives the action in your scripts on that GameObject?',
+      options: [
+        '`void OnJump(InputValue value)`',
+        '`void Jump(InputAction.CallbackContext context)`',
+        '`void OnJumpPerformed()`',
+        '`void OnActionTriggered(string name)`'
+      ],
+      explanation: 'With **Send Messages** (and **Broadcast Messages**), `PlayerInput` calls a method named `On` + the action name, which can take an `InputValue` (`value.Get<Vector2>()`, `value.isPressed`). With **Invoke Unity Events**, instead, you assign methods in the Inspector that take an `InputAction.CallbackContext`, and with **Invoke C Sharp Events** you subscribe to `onActionTriggered`.'
     }
   }
 });

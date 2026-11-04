@@ -280,6 +280,86 @@ UCP.addDomain({
       ],
       answer: [0],
       explanation: 'En Unity 6, URP usa el Render Graph por defecto: los passes declaran sus recursos y su trabajo en `RecordRenderGraph(RenderGraph, ContextContainer)`. `Execute` y `Configure` pertenecen a la API anterior y solo funcionan con el modo de compatibilidad. `OnRenderImage` es del Built-in Render Pipeline.'
+    },
+    {
+      id: 'art-22',
+      topic: 'Timeline',
+      q: 'Una cinemática de Timeline anima al personaje del jugador, pero ese personaje se instancia en tiempo de ejecución, así que la pista de animación aparece sin objeto asignado. ¿Cómo lo resuelves antes de llamar a `director.Play()`?',
+      options: [
+        'Asignas el `Animator` instanciado a la pista con `director.SetGenericBinding(track, animator)`.',
+        'Duplicas el asset de Timeline para cada personaje posible.',
+        'Llamas a `animator.Play("Timeline")` en el personaje.',
+        'Pones el personaje como hijo del GameObject que tiene el `PlayableDirector`.'
+      ],
+      answer: [0],
+      explanation: 'El asset de Timeline solo describe pistas y clips; los objetos concretos los asigna el `PlayableDirector` mediante **bindings**. `SetGenericBinding(track, objeto)` enlaza una pista con el objeto creado en ejecución (las pistas se obtienen, por ejemplo, de `((TimelineAsset)director.playableAsset).GetOutputTracks()`). Así un mismo asset sirve para distintos personajes. Hacerlo hijo del director no crea el binding.'
+    },
+    {
+      id: 'art-23',
+      topic: 'Timeline',
+      q: 'En un momento concreto de una cinemática quieres que el código de gameplay reaccione (por ejemplo, empezar un combate). ¿Qué herramienta de Timeline está pensada para eso?',
+      options: [
+        'Un **Signal Emitter** en la línea de tiempo y un componente **Signal Receiver** que responde con un UnityEvent.',
+        'Una **Activation Track** que activa un GameObject cuyo `Start` inicia el combate.',
+        'Una **Control Track** con un `ParticleSystem`.',
+        'Comprobar `director.time` en cada `Update` desde un script.'
+      ],
+      answer: [0],
+      explanation: 'Los **Signals** son la forma prevista de comunicar Timeline con el gameplay: un **Signal Emitter** colocado en la línea de tiempo emite un **Signal Asset**, y un **Signal Receiver** en el objeto enlazado asocia esa señal a un UnityEvent. La Activation Track activa y desactiva objetos (abusar de `Start` como evento es frágil), la Control Track controla sub-timelines, partículas o prefabs, y sondear `director.time` es propenso a saltarse el instante exacto.'
+    },
+    {
+      id: 'art-24',
+      topic: 'Shaders',
+      q: 'En el Blackboard de Shader Graph tienes una propiedad expuesta con nombre **Tint Color** y **Reference** `_TintColor`. ¿Qué código cambia su valor correctamente y de forma eficiente?',
+      code: 'static readonly int TintId = Shader.PropertyToID(/* ? */);\n\nvoid SetTint(Renderer r, Color c)\n{\n    r.material.SetColor(TintId, c);\n}',
+      options: [
+        '`Shader.PropertyToID("_TintColor")`',
+        '`Shader.PropertyToID("Tint Color")`',
+        '`Shader.PropertyToID("TintColor")`',
+        '`Shader.PropertyToID("Blackboard/Tint Color")`'
+      ],
+      answer: [0],
+      explanation: 'Desde código, las propiedades se identifican por su **Reference** (el nombre interno del shader, normalmente con guion bajo), no por el nombre que se muestra en el Blackboard o en el Inspector. Guardar el ID con `Shader.PropertyToID` en un campo `static readonly` evita convertir el string en cada llamada. Con un nombre incorrecto, `SetColor` no da error: simplemente no cambia nada.'
+    },
+    {
+      id: 'art-25',
+      topic: 'Partículas',
+      q: '¿Qué **dos** afirmaciones sobre **VFX Graph** frente al **Particle System** (Shuriken) son correctas? (Elige 2)',
+      options: [
+        'VFX Graph simula las partículas en la GPU, por lo que puede manejar muchas más partículas.',
+        'VFX Graph necesita que la plataforma soporte compute shaders.',
+        'VFX Graph llama a `OnParticleCollision` en tus scripts cuando una partícula choca con un collider.',
+        'El Particle System no puede colisionar con el mundo.',
+        'VFX Graph solo funciona con el Built-in Render Pipeline.'
+      ],
+      answer: [0, 1],
+      explanation: 'VFX Graph simula en la **GPU** mediante **compute shaders**, lo que permite millones de partículas, pero exige hardware compatible (en móviles de gama baja puede no estar disponible) y funciona con URP y HDRP, no con el Built-in. Como la simulación está en la GPU, la CPU no conoce cada partícula: no hay `OnParticleCollision` ni colisiones con colliders de física (usa formas, SDF o el depth buffer). El Particle System simula en la CPU y sí tiene el módulo **Collision** con el mundo y callbacks a scripts.'
+    },
+    {
+      id: 'art-26',
+      topic: 'Texturas',
+      q: 'Tu juego es para Android e iOS actuales. ¿Qué formato de compresión de texturas es la opción recomendada por defecto para ambas plataformas?',
+      options: [
+        '**ASTC**',
+        '**DXT5 / BC3**',
+        '**PVRTC**',
+        '**RGBA32** sin compresión'
+      ],
+      answer: [0],
+      explanation: '**ASTC** está soportado en prácticamente todos los dispositivos iOS y Android actuales, ofrece buena calidad y permite elegir el tamaño de bloque (4x4 = más calidad, 8x8 o mayor = menos memoria). **DXT/BC** son formatos de escritorio y consola, **PVRTC** es un formato antiguo de iOS con peor calidad y texturas cuadradas en potencia de dos, y **RGBA32** ocupa mucha más memoria. **ETC2** queda como alternativa para Android antiguos sin ASTC.'
+    },
+    {
+      id: 'art-27',
+      topic: 'Iluminación',
+      q: 'Una farola nunca se mueve ni cambia. Quieres que su luz rebotada (indirecta) quede baked en los lightmaps, pero que el personaje, que es dinámico, proyecte **sombras en tiempo real** con esa luz. ¿Qué **Mode** le pones a la luz?',
+      options: [
+        '**Mixed**',
+        '**Baked**',
+        '**Realtime**',
+        'Da igual: el modo solo afecta al rendimiento, no a las sombras.'
+      ],
+      answer: [0],
+      explanation: 'Una luz **Mixed** guarda en los lightmaps la parte que se puede precalcular (al menos la luz indirecta, y según el Lighting Mode también sombras de objetos estáticos) y sigue iluminando en tiempo real a los objetos dinámicos, que pueden proyectar sombras. Una luz **Baked** no ilumina directamente a los objetos dinámicos (solo les llega a través de los Light Probes) ni genera sombras en tiempo real. **Realtime** no hornea luz rebotada en los lightmaps.'
     }
   ]
 });

@@ -257,6 +257,73 @@ UCP.addTranslation('en', {
         '`Thread.Sleep(2000);`'
       ],
       explanation: '`Awaitable` (Unity 2023.1+ / Unity 6) is integrated with the player loop: it respects `Time.timeScale`, resumes on the main thread and accepts `destroyCancellationToken` so it is cancelled if the object is destroyed. `Task.Delay` knows nothing about Unity (it keeps running after you exit Play Mode and does not work well on WebGL), `yield return` only works in coroutines and `Thread.Sleep` freezes the game.'
+    },
+    'team-24': {
+      topic: 'Lifecycle',
+      q: 'In the same scene, `EnemySpawner`\'s `Start` reads a list that `LevelData` fills in **its own** `Awake`. Both objects are active and enabled from the start. Is this safe?',
+      options: [
+        'Yes: when the scene loads, Unity calls `Awake` on every active object before calling any `Start`.',
+        'Only if `LevelData` is higher up in the Hierarchy, because scripts run in that order.',
+        'Only if both scripts are on the same GameObject.',
+        'No: you need to add `[DefaultExecutionOrder]` to `LevelData`, because `Start` and `Awake` of different objects run in any order.'
+      ],
+      explanation: 'For objects that are in the scene when it loads, every `Awake` (and `OnEnable`) call happens before any `Start`. That is why the rule is: initialize your own data in `Awake` and read other objects in `Start`. What is **not** guaranteed is the order between two `Awake` (or two `Start`) calls on different objects; the Hierarchy order does not determine it. `[DefaultExecutionOrder]` would only be needed if both accessed the data in the same method (for example, both in `Awake`).'
+    },
+    'team-25': {
+      topic: 'Lifecycle',
+      q: 'A script has `Awake`, `OnEnable` and `Start`. Which **two** statements are correct? (Choose 2)',
+      options: [
+        'If its GameObject starts **inactive**, `Awake` is not called until the GameObject is activated.',
+        'If the GameObject is active but the **component** is disabled, `Awake` is called, but `Start` is not called until the component is enabled.',
+        '`Start` is called again every time the component is disabled and enabled again.',
+        '`OnEnable` is called when the scene loads even if the GameObject is inactive.',
+        '`Awake` is called every time the GameObject is reactivated.'
+      ],
+      explanation: '`Awake` is called only once, the first time the GameObject is active (even if the component is disabled). `Start` is also called only once, right before the first `Update` in which the component is enabled. What repeats on every activation is `OnEnable` (and `OnDisable` on deactivation), and only when the object is active and the component enabled.'
+    },
+    'team-26': {
+      topic: 'Lifecycle',
+      q: 'You need `InputReader`\'s `Update` to always run **before** any `PlayerController`\'s, and you want that rule written in the code itself. What do you use?',
+      options: [
+        '`[DefaultExecutionOrder(-100)]` on the `InputReader` class.',
+        '`[RequireComponent(typeof(PlayerController))]` on `InputReader`.',
+        '`[ExecuteAlways]` on `InputReader`.',
+        '`[RuntimeInitializeOnLoadMethod]` on `InputReader`\'s `Update` method.'
+      ],
+      explanation: '`[DefaultExecutionOrder(n)]` sets the script\'s execution order: lower values run before higher ones (scripts without an order use 0). It is the same as **Project Settings > Script Execution Order**, but it lives in the code. `RequireComponent` only forces a component to exist, `ExecuteAlways` makes the script also run in Edit Mode and `RuntimeInitializeOnLoadMethod` is for static methods that are called once at startup.'
+    },
+    'team-27': {
+      topic: 'Debugging',
+      q: 'You want to see each enemy\'s detection radius in the Scene view, but **only** for the enemy you have selected, so the scene is not full of circles. What do you use?',
+      options: [
+        '`OnDrawGizmosSelected` with `Gizmos.DrawWireSphere(transform.position, radius)`.',
+        '`OnDrawGizmos` with `Gizmos.DrawWireSphere(transform.position, radius)`.',
+        '`Debug.DrawLine` in `Update` with a long duration.',
+        '`OnGUI` with `GUI.Box` at the enemy\'s position.'
+      ],
+      explanation: '`OnDrawGizmosSelected` is only called when the object (or one of its parents) is selected; `OnDrawGizmos` always draws, for every object. Gizmos also work outside Play Mode and are not included in builds. `Debug.DrawLine` only draws while the game is running and does not depend on selection, and `OnGUI` draws on screen, not in the Scene view.'
+    },
+    'team-28': {
+      topic: 'Debugging',
+      q: 'You use this code to debug an enemy\'s line of sight. You see the line in the Scene view, but not in the Game view. Why?',
+      options: [
+        '`Debug.DrawRay` draws in the Scene view; in the Game view it only appears if you enable that view\'s **Gizmos** button (and never in a build).',
+        'The `duration` parameter is missing: with the default value the line lasts 0 seconds and is not drawn.',
+        '`Debug.DrawRay` only works if you also cast a `Physics.Raycast` from the same origin.',
+        'It only shows in the Game view if you make a **Development Build**.'
+      ],
+      explanation: '`Debug.DrawRay` and `Debug.DrawLine` are Editor tools: they draw in the Scene view and, if you enable **Gizmos** in the Game view toolbar, there too. They do not appear in builds. With the default `duration` (0) the line lasts one frame, which is exactly what you want if you draw it every `Update`. No raycast is needed: it just draws a line.'
+    },
+    'team-29': {
+      topic: 'Code structure',
+      q: 'What is the main advantage of this ScriptableObject "event channel" pattern?',
+      options: [
+        'Senders and listeners only reference the same asset in the Inspector, so they communicate without knowing each other or using singletons, even across different scenes or prefabs.',
+        'The events are saved to disk and fired again when the game is opened.',
+        'Listeners unsubscribe automatically when they are destroyed, so `OnDisable` is not needed.',
+        'The events run on a separate thread and do not affect the frame.'
+      ],
+      explanation: 'The asset acts as a meeting point: the sender calls `Raise()` and the listener subscribes to `OnRaised`, and neither has a reference to the other. This reduces dependencies, lets you test systems separately and lets designers wire things up from the Inspector. It does not save anything to disk (changes to ScriptableObjects do not persist in a build), it is still a normal C# event (you must unsubscribe in `OnDisable`) and it runs on the main thread, synchronously.'
     }
   }
 });
