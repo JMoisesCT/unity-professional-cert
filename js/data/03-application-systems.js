@@ -109,7 +109,7 @@ UCP.addDomain({
         'Asignar `Instance = this` en `OnEnable` en lugar de en `Awake`.'
       ],
       answer: [0],
-      explanation: 'Es el patrón Singleton con persistencia: la primera instancia sobrevive con `DontDestroyOnLoad` y las siguientes se destruyen. Si quitas `DontDestroyOnLoad`, el manager deja de persistir entre escenas. Una clase `static` no puede ser un MonoBehaviour.'
+      explanation: 'Es el patrón Singleton con persistencia: la primera instancia sobrevive con `DontDestroyOnLoad` y las siguientes se destruyen en su `Awake`. Mover el código a `Start` u `OnEnable` no evita el duplicado: el segundo objeto sigue existiendo y además sobrescribe `Instance`.'
     },
     {
       id: 'sys-08',

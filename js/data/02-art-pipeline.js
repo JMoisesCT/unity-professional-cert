@@ -99,7 +99,7 @@ UCP.addDomain({
       topic: 'Animación 3D',
       q: 'Quieres reproducir el sonido de un paso justo cuando el pie toca el suelo en la animación de caminar. ¿Cuál es el enfoque más adecuado?',
       options: [
-        'Un **Animation Event** en el clip que llame a un método público de un script en el mismo GameObject que el `Animator`.',
+        'Un **Animation Event** en el clip que llame a un método de un script en el mismo GameObject que el `Animator`.',
         'Una corrutina que reproduce el sonido cada 0,5 segundos.',
         'Comprobar `animator.GetCurrentAnimatorStateInfo(0).normalizedTime` en `FixedUpdate`.',
         'Un trigger collider en cada pie.'
@@ -170,7 +170,7 @@ UCP.addDomain({
     {
       id: 'art-13',
       topic: 'Iluminación',
-      q: '¿Qué **dos** requisitos debe cumplir una malla para recibir lightmaps baked? (Elige 2)',
+      q: '¿Qué **dos** cosas debes asegurar para que una malla reciba lightmaps baked correctamente? (Elige 2)',
       options: [
         'Estar marcada como **Contribute GI** (Static).',
         'Tener UVs para lightmap (por ejemplo, activando **Generate Lightmap UVs** al importarla).',
@@ -178,7 +178,7 @@ UCP.addDomain({
         'Usar un shader Unlit.'
       ],
       answer: [0, 1],
-      explanation: 'El baking de lightmaps solo procesa objetos marcados como Contribute GI y necesita un segundo set de UVs sin solapamientos (UV1). Unity puede generarlo al importar el modelo. Un shader Unlit, de hecho, ignora la iluminación.'
+      explanation: 'El baking de lightmaps solo procesa objetos marcados como Contribute GI, y necesita UVs sin solapamientos. Lo habitual es usar un segundo set (UV1), que Unity puede generar al importar el modelo; si no existe, se usan las UVs principales, que a menudo se solapan y dan artefactos. Un shader Unlit, de hecho, ignora la iluminación.'
     },
     {
       id: 'art-14',
