@@ -223,6 +223,17 @@ UCP.addTranslation('en', {
         'A Reflection Probe in the area with the Vignette effect enabled.'
       ],
       explanation: 'Local Volumes use a collider to define their area of influence, and the camera (with Post Processing enabled) blends their overrides based on distance. A Global Volume affects the whole scene. Post-process Layer belongs to the old Post Processing Stack v2 of the Built-in pipeline.'
+    },
+    'art-21': {
+      topic: 'Materials',
+      q: 'In Unity 6 URP you write your own `ScriptableRendererFeature`. Which `ScriptableRenderPass` method must you implement so that it works with **Render Graph** (the default mode)?',
+      options: [
+        '`RecordRenderGraph`',
+        '`Execute`',
+        '`OnRenderImage`',
+        '`Configure`'
+      ],
+      explanation: 'In Unity 6, URP uses Render Graph by default: passes declare their resources and work in `RecordRenderGraph(RenderGraph, ContextContainer)`. `Execute` and `Configure` belong to the previous API and only work in compatibility mode. `OnRenderImage` is from the Built-in Render Pipeline.'
     }
   }
 });

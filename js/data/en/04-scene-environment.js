@@ -213,6 +213,17 @@ UCP.addTranslation('en', {
         'Add an `AudioLowPassFilter` to each `AudioSource` at runtime.'
       ],
       explanation: 'Snapshots store the state of all mixer parameters (including group effects), and `TransitionTo` interpolates between them over the specified time, without touching each source individually.'
+    },
+    'scn-20': {
+      topic: 'Object lifecycle',
+      q: 'In Unity 6, `FindObjectOfType<T>()` is obsolete. You need **any** instance of `GameManager` and do not care which one. Which alternative is the fastest?',
+      options: [
+        '`FindAnyObjectByType<GameManager>()`',
+        '`FindFirstObjectByType<GameManager>()`',
+        '`FindObjectsByType<GameManager>(FindObjectsSortMode.InstanceID)[0]`',
+        '`GameObject.Find("GameManager")`'
+      ],
+      explanation: '`FindAnyObjectByType` returns any instance without guaranteeing order, so it is the fastest. `FindFirstObjectByType` guarantees the same instance `FindObjectOfType` used to return, but it is slower. Sorting every instance or searching by name is even worse. Ideally you still cache the reference instead of searching every frame.'
     }
   }
 });

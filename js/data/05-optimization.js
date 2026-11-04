@@ -27,12 +27,12 @@ UCP.addDomain({
       code: 'void Update()\n{\n    GetComponent<Animator>().SetFloat("Speed", speed);\n}',
       options: [
         'Guardar el `Animator` en un campo en `Awake` y usar esa referencia en `Update`.',
-        'Cambiar `GetComponent<Animator>()` por `FindObjectOfType<Animator>()`.',
+        'Cambiar `GetComponent<Animator>()` por `FindFirstObjectByType<Animator>()`.',
         'Mover el código a `FixedUpdate`.',
         'Usar `GetComponentInChildren<Animator>()`.'
       ],
       answer: [0],
-      explanation: 'Buscar componentes tiene un coste. Guardar la referencia una vez (en `Awake` o asignándola por `[SerializeField]`) lo elimina del bucle. `FindObjectOfType` es mucho más lento y además podría devolver otro objeto. Bonus: usa `Animator.StringToHash` para el parámetro.'
+      explanation: 'Buscar componentes tiene un coste. Guardar la referencia una vez (en `Awake` o asignándola por `[SerializeField]`) lo elimina del bucle. `FindFirstObjectByType` (el reemplazo de `FindObjectOfType` en Unity 6) es mucho más lento y además podría devolver otro objeto. Bonus: usa `Animator.StringToHash` para el parámetro.'
     },
     {
       id: 'prf-02',
@@ -283,6 +283,32 @@ UCP.addDomain({
       ],
       answer: [0],
       explanation: 'El Memory Profiler captura snapshots con todos los objetos en memoria (managed y nativos), quién los referencia y cuánto ocupan. Comparando dos snapshots ves qué assets siguen vivos después de cambiar de escena.'
+    },
+    {
+      id: 'prf-23',
+      topic: 'Renderizado',
+      q: 'En un proyecto URP de Unity 6 con miles de objetos estáticos y dinámicos, ¿qué función nueva reduce automáticamente el coste de CPU de dibujarlos usando la API `BatchRendererGroup`?',
+      options: [
+        '**GPU Resident Drawer**',
+        '**Occlusion Culling** clásico',
+        '**Static Batching** en runtime',
+        '**Dynamic Batching**'
+      ],
+      answer: [0],
+      explanation: 'El GPU Resident Drawer (Unity 6) mantiene los datos de los objetos en la GPU y los dibuja con `BatchRendererGroup` e instancing, sin cambiar los GameObjects. Se activa en el URP Asset y requiere, entre otras cosas, el rendering path **Forward+**. Se complementa con **GPU Occlusion Culling**, también nuevo en Unity 6.'
+    },
+    {
+      id: 'prf-24',
+      topic: 'Plataformas',
+      q: 'En Unity 6 quieres tener una build "Demo" y otra "Completa" para Android, con distintas escenas y distintos scripting defines, y cambiar entre ellas fácilmente. ¿Qué usas?',
+      options: [
+        'Dos **Build Profiles** (File > Build Profiles)',
+        'Dos copias del proyecto',
+        'Un `#if DEMO` y editar Player Settings a mano antes de cada build',
+        'Dos Quality Levels distintos'
+      ],
+      answer: [0],
+      explanation: 'Unity 6 sustituye la ventana Build Settings por **Build Profiles**: cada perfil guarda la plataforma, la lista de escenas, los scripting defines y overrides de Player Settings, y se puede versionar como un asset. Así cambias de configuración sin tocar ajustes a mano.'
     }
   ]
 });

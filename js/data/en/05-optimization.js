@@ -236,6 +236,28 @@ UCP.addTranslation('en', {
         'The Console window with a `Debug.Log` in `OnDestroy`.'
       ],
       explanation: 'The Memory Profiler captures snapshots with every object in memory (managed and native), what references them and how much space they take. By comparing two snapshots you can see which assets are still alive after changing scenes.'
+    },
+    'prf-23': {
+      topic: 'Rendering',
+      q: 'In a Unity 6 URP project with thousands of static and dynamic objects, which new feature automatically reduces the CPU cost of drawing them using the `BatchRendererGroup` API?',
+      options: [
+        '**GPU Resident Drawer**',
+        'Classic **Occlusion Culling**',
+        'Runtime **Static Batching**',
+        '**Dynamic Batching**'
+      ],
+      explanation: 'The GPU Resident Drawer (Unity 6) keeps object data on the GPU and draws it with `BatchRendererGroup` and instancing, without changing your GameObjects. You enable it in the URP Asset and it requires, among other things, the **Forward+** rendering path. It pairs with **GPU Occlusion Culling**, also new in Unity 6.'
+    },
+    'prf-24': {
+      topic: 'Platforms',
+      q: 'In Unity 6 you want a "Demo" build and a "Full" build for Android, with different scenes and different scripting defines, and to switch between them easily. What do you use?',
+      options: [
+        'Two **Build Profiles** (File > Build Profiles)',
+        'Two copies of the project',
+        'An `#if DEMO` and editing Player Settings by hand before each build',
+        'Two different Quality Levels'
+      ],
+      explanation: 'Unity 6 replaces the Build Settings window with **Build Profiles**: each profile stores the platform, the scene list, scripting defines and Player Settings overrides, and it can be versioned as an asset. You switch configuration without changing settings by hand.'
     }
   }
 });

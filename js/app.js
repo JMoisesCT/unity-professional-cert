@@ -122,6 +122,13 @@
     };
   }
 
+  const CONCEPTS = UCP.concepts || [];
+
+  // Concepto en el idioma actual.
+  function LC(cc) {
+    return cc.text[lang] || cc.text.es;
+  }
+
   function applyStaticTexts() {
     document.documentElement.lang = t('htmlLang');
     document.title = t('docTitle');
@@ -236,8 +243,11 @@
   // Función que vuelve a pintar la vista actual (se usa al cambiar de idioma).
   let refresh = () => route();
 
+  let cleanupView = null;
+
   function render(html, navName, keepScroll) {
     stopTimer();
+    if (cleanupView) { try { cleanupView(); } catch (e) { /* noop */ } cleanupView = null; }
     keyHandler = null;
     refresh = () => route();
     const y = window.scrollY;
@@ -358,6 +368,8 @@
         '<a href="#/tips"><span class="qicon">📘</span><b>' + t('quickGuide') + '</b><span>' + t('quickGuideSub') + '</span></a>' +
       '</nav>' +
 
+      '<a class="card concepts-banner" href="#/conceptos"><span class="qicon">🧪</span><span><b>' + t('conceptsBanner', CONCEPTS.length) + '</b><span>' + t('conceptsBannerSub') + '</span></span><span class="arrow" aria-hidden="true">→</span></a>' +
+
       '<div class="section-title"><h2>' + t('domainsTitle') + '</h2><span class="muted small">' + t('domainsHint') + '</span></div>' +
       '<div class="grid grid-2">' + domainCards + '</div>',
       'home'
@@ -407,6 +419,11 @@
 
       '<div class="section-title"><h2>' + t('bySubtopic') + '</h2></div>' +
       '<div class="chips">' + chips + '</div>' +
+
+      (CONCEPTS.some((cc) => cc.domain === d.id)
+        ? '<div class="section-title"><h2>' + t('conceptsOfDomain') + '</h2></div><div class="chips">' +
+          CONCEPTS.filter((cc) => cc.domain === d.id).map((cc) => '<a class="chip" href="#/concepto/' + cc.id + '">' + cc.icon + ' ' + esc(LC(cc).title) + '</a>').join('') + '</div>'
+        : '') +
 
       '<div class="section-title"><h2>' + t('keyTips') + '</h2></div>' +
       '<ul class="tips-list">' + ld.tips.map((tip) => '<li>' + fmt(tip) + '</li>').join('') + '</ul>' +
@@ -983,6 +1000,10 @@
       '<div class="section-title"><h2>' + g.aboutTitle + '</h2></div>' +
       '<section class="card"><ul class="list">' + g.about(DOMAINS.length, domainList).map((li) => '<li>' + li + '</li>').join('') + '</ul></section>' +
 
+      '<div class="section-title"><h2>' + g.unity6Title + '</h2></div>' +
+      '<p class="muted">' + g.unity6Intro + '</p>' +
+      table(g.unity6Head, g.unity6, fmt) +
+
       '<div class="section-title"><h2>' + g.strategyTitle + '</h2></div>' +
       '<ul class="tips-list">' + g.strategy.map((li) => '<li>' + li + '</li>').join('') + '</ul>' +
 
@@ -1016,6 +1037,63 @@
     );
   }
 
+  /* =========================================================
+     Conceptos animados
+     ========================================================= */
+
+  function viewConcepts() {
+    const groups = DOMAINS.map((d) => ({ d, list: CONCEPTS.filter((cc) => cc.domain === d.id) })).filter((g) => g.list.length);
+    render(
+      '<section class="card">' +
+        '<h1>' + t('conceptsTitle') + '</h1>' +
+        '<p class="muted" style="margin:0">' + t('conceptsIntro') + '</p>' +
+      '</section>' +
+      groups.map((g) =>
+        '<div class="section-title"><h2>' + g.d.order + '. ' + esc(LD(g.d).title) + '</h2></div>' +
+        '<div class="grid grid-2">' + g.list.map((cc) => {
+          const lc = LC(cc);
+          return '<a class="card concept-card" href="#/concepto/' + cc.id + '"><span class="concept-icon" aria-hidden="true">' + cc.icon + '</span>' +
+            '<span><h3>' + esc(lc.title) + '</h3><span class="muted small">' + esc(plain(lc.summary).split('. ')[0]) + '.</span></span></a>';
+        }).join('') + '</div>'
+      ).join(''),
+      'concepts'
+    );
+  }
+
+  function viewConcept(id) {
+    const idx = CONCEPTS.findIndex((cc) => cc.id === id);
+    if (idx === -1) return viewNotFound();
+    const cc = CONCEPTS[idx];
+    const lc = LC(cc);
+    const d = DOMAIN[cc.domain];
+    const prev = CONCEPTS[(idx - 1 + CONCEPTS.length) % CONCEPTS.length];
+    const next = CONCEPTS[(idx + 1) % CONCEPTS.length];
+    const practiceHref = '#/practica?d=' + cc.practice.d + (cc.practice.t ? '&t=' + encodeURIComponent(cc.practice.t) : '');
+
+    render(
+      '<a class="back" href="#/conceptos">' + t('backConcepts') + '</a>' +
+      '<section class="card">' +
+        '<div class="qmeta"><span class="tag">' + d.order + '. ' + esc(LD(d).title) + '</span><span class="tag tag-soft">' + t('interactive') + '</span></div>' +
+        '<h1>' + cc.icon + ' ' + esc(lc.title) + '</h1>' +
+        '<p>' + fmt(lc.summary) + '</p>' +
+        '<div class="demo" id="demo"></div>' +
+      '</section>' +
+      '<div class="section-title"><h2>' + t('keyPoints') + '</h2></div>' +
+      '<ul class="tips-list">' + lc.points.map((pt) => '<li>' + fmt(pt) + '</li>').join('') + '</ul>' +
+      '<div class="btn-row" style="margin-top:16px">' +
+        '<a class="btn btn-primary" href="' + practiceHref + '">' + t('practiceThis') + '</a>' +
+        '<a class="btn" href="#/concepto/' + prev.id + '">← ' + esc(LC(prev).title) + '</a>' +
+        '<a class="btn" href="#/concepto/' + next.id + '">' + esc(LC(next).title) + ' →</a>' +
+      '</div>',
+      'concepts'
+    );
+    try {
+      cleanupView = cc.mount(document.getElementById('demo'), lang);
+    } catch (e) {
+      document.getElementById('demo').innerHTML = '<p class="muted">' + esc(String(e)) + '</p>';
+    }
+  }
+
   function viewNotFound() {
     render('<section class="card empty"><div class="big">🧭</div><h2>' + t('notFound') + '</h2><p><a href="#/">' + t('backToHome') + '</a></p></section>', 'home');
   }
@@ -1038,6 +1116,8 @@
       case 'resultado': return viewResult();
       case 'repaso': return viewReview();
       case 'tips': return viewTips();
+      case 'conceptos': return viewConcepts();
+      case 'concepto': return viewConcept(parts[1]);
       default: return viewNotFound();
     }
   }

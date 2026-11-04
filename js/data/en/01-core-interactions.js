@@ -193,7 +193,7 @@ UCP.addTranslation('en', {
       options: [
         'Enable **Is Kinematic**.',
         'Set **Interpolate** to `Interpolate`.',
-        'Lower the **Drag** value.',
+        'Lower the **Linear Damping** value (formerly Drag).',
         'Set **Collision Detection** to `Discrete`.'
       ],
       explanation: 'Physics advances at a fixed rate (50 Hz by default) and rendering at a different one. Interpolation smooths the visual position between physics steps, so the mismatch with the camera is less noticeable.'
@@ -208,6 +208,28 @@ UCP.addTranslation('en', {
         '`OnCollision2D(Collision2D c)`'
       ],
       explanation: '2D physics (Box2D) is separate from 3D physics (PhysX) and uses methods with the `2D` suffix. If you write `OnCollisionEnter` in a 2D game, it will never be called, and Unity does not report any error.'
+    },
+    'core-20': {
+      topic: 'Physics',
+      q: 'In Unity 6, the code `rb.velocity = Vector3.zero;` shows an obsolete API warning. Which property should you use?',
+      options: [
+        '`rb.linearVelocity`',
+        '`rb.moveVelocity`',
+        '`rb.worldVelocity`',
+        '`rb.velocityLinear`'
+      ],
+      explanation: 'In Unity 6, `Rigidbody.velocity` was renamed to `linearVelocity` (to distinguish it from `angularVelocity`). `drag` → `linearDamping` and `angularDrag` → `angularDamping` were renamed as well. In 2D, `Rigidbody2D.velocity` also became `linearVelocity`.'
+    },
+    'core-21': {
+      topic: 'Camera',
+      q: 'In **Cinemachine 3** (the recommended package in Unity 6), what is the name of the component that replaces `CinemachineVirtualCamera`?',
+      options: [
+        '`CinemachineCamera`',
+        '`CinemachineBrain`',
+        '`CinemachineFreeLook`',
+        '`VirtualCamera3D`'
+      ],
+      explanation: 'Cinemachine 3 simplified the API: `CinemachineCamera` replaces `CinemachineVirtualCamera` (and `CinemachineFreeLook`, which is now built with components such as Orbital Follow), and the namespace became `Unity.Cinemachine`. `CinemachineBrain` still lives on the real camera and decides which camera is live based on **Priority**.'
     }
   }
 });

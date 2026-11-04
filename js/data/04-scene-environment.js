@@ -254,6 +254,19 @@ UCP.addDomain({
       ],
       answer: [0],
       explanation: 'Los snapshots guardan el estado de todos los parámetros del mixer (incluidos los efectos de los grupos) y `TransitionTo` interpola entre ellos durante el tiempo indicado, sin tocar cada fuente por separado.'
+    },
+    {
+      id: 'scn-20',
+      topic: 'Ciclo de vida de objetos',
+      q: 'En Unity 6, `FindObjectOfType<T>()` está obsoleto. Necesitas **cualquier** instancia de `GameManager` y no te importa cuál. ¿Qué alternativa es la más rápida?',
+      options: [
+        '`FindAnyObjectByType<GameManager>()`',
+        '`FindFirstObjectByType<GameManager>()`',
+        '`FindObjectsByType<GameManager>(FindObjectsSortMode.InstanceID)[0]`',
+        '`GameObject.Find("GameManager")`'
+      ],
+      answer: [0],
+      explanation: '`FindAnyObjectByType` devuelve cualquier instancia sin garantizar el orden, así que es la más rápida. `FindFirstObjectByType` garantiza la misma instancia que devolvía `FindObjectOfType`, pero es más lenta. Ordenar todas las instancias o buscar por nombre es aún peor. Lo ideal sigue siendo guardar la referencia y no buscarla en cada frame.'
     }
   ]
 });

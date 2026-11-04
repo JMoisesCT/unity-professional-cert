@@ -82,7 +82,15 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
-html { -webkit-text-size-adjust: 100%; }
+html {
+  -webkit-text-size-adjust: 100%;
+  /* Evita que el scroll automático deje contenido detrás de la cabecera fija o de la barra inferior. */
+  scroll-padding-top: 76px;
+  scroll-padding-bottom: calc(var(--nav-h) + 24px);
+}
+@media (min-width: 760px) {
+  html { scroll-padding-bottom: 24px; }
+}
 
 body {
   margin: 0;
@@ -763,4 +771,133 @@ table.history th { color: var(--text-soft); font-weight: 600; font-size: .8rem; 
 
 @media (max-width: 370px) {
   .brand-sub { display: none; }
+}
+
+/* ---------- Conceptos animados ---------- */
+
+.concepts-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 12px 0 0;
+  color: var(--text);
+  background:
+    radial-gradient(120% 160% at 0% 0%, color-mix(in srgb, var(--ok) 18%, transparent) 0%, transparent 60%),
+    var(--bg-elev);
+}
+.concepts-banner:hover { text-decoration: none; border-color: var(--accent); }
+.concepts-banner .qicon { font-size: 1.6rem; }
+.concepts-banner > span:nth-child(2) { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.concepts-banner > span:nth-child(2) > span { font-size: .82rem; color: var(--text-soft); }
+.concepts-banner .arrow { color: var(--accent); font-weight: 800; font-size: 1.2rem; }
+
+.concept-card { display: flex; gap: 12px; align-items: flex-start; color: var(--text); margin: 0; }
+.concept-card:hover { text-decoration: none; border-color: var(--accent); }
+.concept-card h3 { margin-bottom: 4px; }
+.concept-icon {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-size: 1.25rem;
+  background: var(--bg-soft);
+}
+
+.demo {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  padding: 12px;
+  margin-top: 6px;
+}
+.demo-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: flex-end;
+  margin-bottom: 10px;
+}
+.demo-btn { min-height: 38px; padding: 7px 12px; font-size: .88rem; }
+.demo-stage { width: 100%; }
+.demo-canvas {
+  display: block;
+  width: 100%;
+  border-radius: 8px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  touch-action: manipulation;
+}
+.demo-readout {
+  margin-top: 10px;
+  font-size: .88rem;
+  line-height: 1.5;
+  min-height: 2.6em;
+}
+.demo-readout p { margin: 6px 0 0; }
+
+.seg-btns {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-elev);
+}
+.seg-btns button {
+  border: 0;
+  background: transparent;
+  color: var(--text-soft);
+  font: inherit;
+  font-size: .85rem;
+  font-weight: 700;
+  padding: 7px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.seg-btns button.on { background: var(--accent); color: var(--accent-text); }
+
+.demo-slider { display: flex; flex-direction: column; gap: 4px; min-width: 180px; flex: 1 1 180px; font-size: .85rem; }
+.demo-slider-top { display: flex; justify-content: space-between; gap: 8px; color: var(--text-soft); }
+.demo-slider-top b { color: var(--text); font-variant-numeric: tabular-nums; }
+.demo-slider input { width: 100%; accent-color: var(--accent); }
+
+.bit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.bit {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  background: var(--bg-elev);
+  color: var(--text-soft);
+  font: inherit;
+  font-size: .78rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+}
+.bit small { font-size: .68rem; font-weight: 600; opacity: .8; }
+.bit.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+
+@media (max-width: 759px) {
+  .nav a { font-size: .66rem; }
+}
+
+/* Cabecera con 5 secciones: el nombre no se parte y, en pantallas medianas, solo queda el logo. */
+.brand-text { white-space: nowrap; }
+@media (min-width: 760px) {
+  .nav a { padding: 8px 10px; }
+}
+@media (min-width: 760px) and (max-width: 940px) {
+  .brand-text { display: none; }
 }
