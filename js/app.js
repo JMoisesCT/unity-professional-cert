@@ -27,6 +27,7 @@
 
   const STORE_KEY = 'ucpp-progress-v1';
   const EXAM_KEY = 'ucpp-exam-v1';
+  const LANG_KEY = 'ucpp-lang';
 
   function readJSON(key) {
     try { return JSON.parse(localStorage.getItem(key)); } catch (e) { return null; }
@@ -71,6 +72,77 @@
   }
 
   /* =========================================================
+     Idioma (español / inglés)
+     ========================================================= */
+
+  const I18N = window.UCP_I18N;
+  const LANGS = ['es', 'en'];
+
+  function detectLang() {
+    let saved = null;
+    try { saved = localStorage.getItem(LANG_KEY); } catch (e) { /* noop */ }
+    if (LANGS.includes(saved)) return saved;
+    const nav = (navigator.language || 'es').toLowerCase();
+    return nav.startsWith('en') ? 'en' : 'es';
+  }
+
+  let lang = detectLang();
+
+  // Texto de la interfaz. Las entradas pueden ser strings o funciones con parámetros.
+  function t(key) {
+    const args = Array.prototype.slice.call(arguments, 1);
+    const v = I18N[lang][key] !== undefined ? I18N[lang][key] : I18N.es[key];
+    return typeof v === 'function' ? v.apply(null, args) : (v === undefined ? key : v);
+  }
+
+  // Pregunta en el idioma actual (con respaldo al español si falta la traducción).
+  function LQ(q) {
+    const tr = lang !== 'es' && UCP.translations[lang] && UCP.translations[lang].questions[q.id];
+    if (!tr) return q;
+    return {
+      topic: tr.topic || q.topic,
+      q: tr.q || q.q,
+      options: tr.options && tr.options.length === q.options.length ? tr.options : q.options,
+      explanation: tr.explanation || q.explanation
+    };
+  }
+
+  // Dominio en el idioma actual.
+  function LD(d) {
+    const tr = lang !== 'es' && UCP.translations[lang] && UCP.translations[lang].domains[d.id];
+    if (lang === 'es' || !tr) {
+      return { title: d.title, subtitle: d.titleEn, description: d.description, objectives: d.objectives, tips: d.tips };
+    }
+    return {
+      title: tr.title || d.titleEn,
+      subtitle: null,
+      description: tr.description || d.description,
+      objectives: tr.objectives || d.objectives,
+      tips: tr.tips || d.tips
+    };
+  }
+
+  function applyStaticTexts() {
+    document.documentElement.lang = t('htmlLang');
+    document.title = t('docTitle');
+    document.querySelectorAll('[data-i18n]').forEach((el) => { el.innerHTML = t(el.dataset.i18n); });
+    document.querySelectorAll('[data-i18n-aria]').forEach((el) => {
+      el.setAttribute('aria-label', t(el.dataset.i18nAria));
+      if (el.tagName === 'BUTTON') el.setAttribute('title', t(el.dataset.i18nAria));
+    });
+    document.querySelectorAll('#langToggle [data-lang]').forEach((el) => {
+      el.classList.toggle('on', el.dataset.lang === lang);
+    });
+  }
+
+  function setLang(next) {
+    lang = next;
+    try { localStorage.setItem(LANG_KEY, next); } catch (e) { /* noop */ }
+    applyStaticTexts();
+    refresh();
+  }
+
+  /* =========================================================
      Utilidades
      ========================================================= */
 
@@ -100,16 +172,16 @@
     while ((m = re.exec(code))) {
       out += esc(code.slice(last, m.index));
       last = re.lastIndex;
-      const t = m[0];
+      const tok = m[0];
       let cls = null;
       if (m[1]) cls = 'c';
       else if (m[2]) cls = 's';
       else if (m[3]) cls = 'p';
       else if (m[4]) cls = 'a';
       else if (m[5]) cls = 'n';
-      else if (KEYWORDS.has(t)) cls = 'k';
-      else if (/^[A-Z]/.test(t)) cls = code[last] === '(' ? 'f' : 't';
-      out += cls ? '<span class="tok-' + cls + '">' + esc(t) + '</span>' : esc(t);
+      else if (KEYWORDS.has(tok)) cls = 'k';
+      else if (/^[A-Z]/.test(tok)) cls = code[last] === '(' ? 'f' : 't';
+      out += cls ? '<span class="tok-' + cls + '">' + esc(tok) + '</span>' : esc(tok);
     }
     out += esc(code.slice(last));
     return out;
@@ -153,7 +225,7 @@
 
   function fmtDate(ts) {
     try {
-      return new Date(ts).toLocaleString('es', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+      return new Date(ts).toLocaleString(t('locale'), { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
     } catch (e) { return new Date(ts).toISOString().slice(0, 16).replace('T', ' '); }
   }
 
@@ -161,12 +233,17 @@
     document.querySelectorAll('.nav a').forEach((a) => a.classList.toggle('active', a.dataset.nav === name));
   }
 
-  function render(html, navName) {
+  // Función que vuelve a pintar la vista actual (se usa al cambiar de idioma).
+  let refresh = () => route();
+
+  function render(html, navName, keepScroll) {
     stopTimer();
     keyHandler = null;
+    refresh = () => route();
+    const y = window.scrollY;
     app.innerHTML = html;
     setNav(navName);
-    window.scrollTo(0, 0);
+    window.scrollTo(0, keepScroll ? y : 0);
   }
 
   let keyHandler = null;
@@ -183,6 +260,7 @@
 
   function questionHTML(item, opts) {
     const q = Q[item.id];
+    const lq = LQ(q);
     const d = DOMAIN[q.domain];
     const multi = q.answer.length > 1;
     const revealed = !!opts.revealed;
@@ -201,7 +279,7 @@
       }
       return '<button type="button" class="' + cls + '" data-opt="' + orig + '" role="' + (multi ? 'checkbox' : 'radio') + '" aria-checked="' + sel + '"' + (revealed ? ' disabled' : '') + '>' +
         '<span class="opt-key">' + LETTERS[i] + '</span>' +
-        '<span class="opt-text">' + fmt(q.options[orig]) + '</span>' +
+        '<span class="opt-text">' + fmt(lq.options[orig]) + '</span>' +
         (mark ? '<span class="opt-mark" aria-hidden="true">' + mark + '</span>' : '') +
         '</button>';
     }).join('');
@@ -209,19 +287,19 @@
     let feedback = '';
     if (revealed && opts.showFeedback !== false) {
       const answered = item.selected.length > 0;
-      const title = correctNow ? '¡Correcto!' : (answered ? 'Incorrecto' : 'Sin responder');
+      const title = correctNow ? t('correct') : (answered ? t('incorrect') : t('unanswered'));
       feedback = '<div class="feedback ' + (correctNow ? 'ok' : 'bad') + '" role="status">' +
         '<div class="fb-title">' + title + '</div>' +
-        '<p>' + fmt(q.explanation) + '</p></div>';
+        '<p>' + fmt(lq.explanation) + '</p></div>';
     }
 
     return '<div class="qmeta">' +
-        '<span class="tag">' + d.order + '. ' + esc(d.title) + '</span>' +
-        '<span class="tag tag-soft">' + esc(q.topic) + '</span>' +
+        '<span class="tag">' + d.order + '. ' + esc(LD(d).title) + '</span>' +
+        '<span class="tag tag-soft">' + esc(lq.topic) + '</span>' +
       '</div>' +
-      '<div class="qtext">' + fmt(q.q) + '</div>' +
+      '<div class="qtext">' + fmt(lq.q) + '</div>' +
       (q.code ? '<pre class="code"><code>' + highlight(q.code) + '</code></pre>' : '') +
-      (multi ? '<div class="hint">Selecciona ' + q.answer.length + ' respuestas</div>' : '') +
+      (multi ? '<div class="hint">' + t('selectN', q.answer.length) + '</div>' : '') +
       '<div class="options" role="' + (multi ? 'group' : 'radiogroup') + '">' + options + '</div>' +
       feedback;
   }
@@ -250,36 +328,37 @@
 
     const domainCards = DOMAINS.map((d) => {
       const s = domainStats(d.questions);
+      const ld = LD(d);
       return '<a class="card domain-card" href="#/tema/' + d.id + '">' +
         '<div class="domain-num">' + d.order + '</div>' +
         '<div class="domain-body">' +
-          '<h3>' + esc(d.title) + '</h3>' +
-          '<div class="domain-en">' + esc(d.titleEn) + '</div>' +
+          '<h3>' + esc(ld.title) + '</h3>' +
+          (ld.subtitle ? '<div class="domain-en">' + esc(ld.subtitle) + '</div>' : '<div class="domain-en"></div>') +
           '<div class="bar ' + pctClass(s.accuracy) + '"><span style="width:' + s.coverage + '%"></span></div>' +
-          '<div class="domain-meta"><span>' + s.seen + ' / ' + s.total + ' respondidas</span>' +
-          '<span>' + (s.accuracy === null ? 'Sin empezar' : s.accuracy + '% aciertos') + '</span></div>' +
+          '<div class="domain-meta"><span>' + t('answeredOf', s.seen, s.total) + '</span>' +
+          '<span>' + (s.accuracy === null ? t('notStarted') : t('pctCorrect', s.accuracy)) + '</span></div>' +
         '</div></a>';
     }).join('');
 
     render(
       '<section class="card hero">' +
-        '<h1>Prepárate para Unity Certified Professional: Programmer</h1>' +
-        '<p>' + QUESTIONS.length + ' preguntas originales en ' + DOMAINS.length + ' temas del temario oficial, con explicaciones, tips y simulacros con tiempo.</p>' +
+        '<h1>' + t('heroTitle') + '</h1>' +
+        '<p>' + t('heroText', QUESTIONS.length, DOMAINS.length) + '</p>' +
         '<div class="stats">' +
-          '<div class="stat"><b>' + all.coverage + '%</b><span>Banco cubierto</span></div>' +
-          '<div class="stat"><b>' + (all.accuracy === null ? '—' : all.accuracy + '%') + '</b><span>Aciertos</span></div>' +
-          '<div class="stat"><b>' + (last ? last.score + '%' : '—') + '</b><span>Último simulacro</span></div>' +
+          '<div class="stat"><b>' + all.coverage + '%</b><span>' + t('statCoverage') + '</span></div>' +
+          '<div class="stat"><b>' + (all.accuracy === null ? '—' : all.accuracy + '%') + '</b><span>' + t('statAccuracy') + '</span></div>' +
+          '<div class="stat"><b>' + (last ? last.score + '%' : '—') + '</b><span>' + t('statLastExam') + '</span></div>' +
         '</div>' +
       '</section>' +
 
-      '<nav class="quick" aria-label="Accesos rápidos">' +
-        '<a href="#/practica?d=all&m=new"><span class="qicon">🎯</span><b>Práctica rápida</b><span>' + (all.total - all.seen) + ' sin responder</span></a>' +
-        '<a href="#/examen"><span class="qicon">⏱️</span><b>Simulacro</b><span>Examen con tiempo</span></a>' +
-        '<a href="#/practica?d=mistakes"><span class="qicon">🔁</span><b>Repasar errores</b><span>' + store.mistakes.length + ' pendientes</span></a>' +
-        '<a href="#/tips"><span class="qicon">📘</span><b>Guía y tips</b><span>Estrategia y chuleta</span></a>' +
+      '<nav class="quick" aria-label="' + esc(t('quickAria')) + '">' +
+        '<a href="#/practica?d=all&m=new"><span class="qicon">🎯</span><b>' + t('quickPractice') + '</b><span>' + t('quickPracticeSub', all.total - all.seen) + '</span></a>' +
+        '<a href="#/examen"><span class="qicon">⏱️</span><b>' + t('quickExam') + '</b><span>' + t('quickExamSub') + '</span></a>' +
+        '<a href="#/practica?d=mistakes"><span class="qicon">🔁</span><b>' + t('quickMistakes') + '</b><span>' + t('quickMistakesSub', store.mistakes.length) + '</span></a>' +
+        '<a href="#/tips"><span class="qicon">📘</span><b>' + t('quickGuide') + '</b><span>' + t('quickGuideSub') + '</span></a>' +
       '</nav>' +
 
-      '<div class="section-title"><h2>Temas del examen</h2><span class="muted small">Toca un tema para practicar</span></div>' +
+      '<div class="section-title"><h2>' + t('domainsTitle') + '</h2><span class="muted small">' + t('domainsHint') + '</span></div>' +
       '<div class="grid grid-2">' + domainCards + '</div>',
       'home'
     );
@@ -292,42 +371,48 @@
   function viewDomain(id) {
     const d = DOMAIN[id];
     if (!d) return viewNotFound();
+    const ld = LD(d);
     const s = domainStats(d.questions);
     const wrong = d.questions.filter((q) => store.mistakes.includes(q.id)).length;
 
+    // El subtema canónico (español) va en la URL; la etiqueta se muestra traducida.
     const topics = {};
-    d.questions.forEach((q) => { topics[q.topic] = (topics[q.topic] || 0) + 1; });
-    const chips = Object.keys(topics).map((t) =>
-      '<a class="chip" href="#/practica?d=' + d.id + '&t=' + encodeURIComponent(t) + '">' + esc(t) + ' <small>' + topics[t] + '</small></a>'
+    const topicLabel = {};
+    d.questions.forEach((q) => {
+      topics[q.topic] = (topics[q.topic] || 0) + 1;
+      if (!topicLabel[q.topic]) topicLabel[q.topic] = LQ(q).topic;
+    });
+    const chips = Object.keys(topics).map((tp) =>
+      '<a class="chip" href="#/practica?d=' + d.id + '&t=' + encodeURIComponent(tp) + '">' + esc(topicLabel[tp]) + ' <small>' + topics[tp] + '</small></a>'
     ).join('');
 
     render(
-      '<a class="back" href="#/">← Inicio</a>' +
+      '<a class="back" href="#/">' + t('backHome') + '</a>' +
       '<section class="card">' +
-        '<span class="tag">Tema ' + d.order + '</span>' +
-        '<h1 style="margin-top:10px">' + esc(d.title) + '</h1>' +
-        '<p class="muted small">' + esc(d.titleEn) + '</p>' +
-        '<p>' + esc(d.description) + '</p>' +
+        '<span class="tag">' + t('domainN', d.order) + '</span>' +
+        '<h1 style="margin-top:10px">' + esc(ld.title) + '</h1>' +
+        (ld.subtitle ? '<p class="muted small">' + esc(ld.subtitle) + '</p>' : '') +
+        '<p>' + esc(ld.description) + '</p>' +
         '<div class="stats">' +
-          '<div class="stat"><b>' + s.total + '</b><span>Preguntas</span></div>' +
-          '<div class="stat"><b>' + s.coverage + '%</b><span>Cubierto</span></div>' +
-          '<div class="stat"><b>' + (s.accuracy === null ? '—' : s.accuracy + '%') + '</b><span>Aciertos</span></div>' +
+          '<div class="stat"><b>' + s.total + '</b><span>' + t('statQuestions') + '</span></div>' +
+          '<div class="stat"><b>' + s.coverage + '%</b><span>' + t('statCovered') + '</span></div>' +
+          '<div class="stat"><b>' + (s.accuracy === null ? '—' : s.accuracy + '%') + '</b><span>' + t('statAccuracy') + '</span></div>' +
         '</div>' +
         '<div class="btn-row" style="margin-top:14px">' +
-          '<a class="btn btn-primary" href="#/practica?d=' + d.id + '">Practicar todo el tema</a>' +
-          '<a class="btn" href="#/practica?d=' + d.id + '&m=new">Solo nuevas (' + (s.total - s.seen) + ')</a>' +
-          '<a class="btn" href="#/practica?d=' + d.id + '&m=wrong">Solo falladas (' + wrong + ')</a>' +
+          '<a class="btn btn-primary" href="#/practica?d=' + d.id + '">' + t('practiceAll') + '</a>' +
+          '<a class="btn" href="#/practica?d=' + d.id + '&m=new">' + t('onlyNew', s.total - s.seen) + '</a>' +
+          '<a class="btn" href="#/practica?d=' + d.id + '&m=wrong">' + t('onlyWrong', wrong) + '</a>' +
         '</div>' +
       '</section>' +
 
-      '<div class="section-title"><h2>Practicar por subtema</h2></div>' +
+      '<div class="section-title"><h2>' + t('bySubtopic') + '</h2></div>' +
       '<div class="chips">' + chips + '</div>' +
 
-      '<div class="section-title"><h2>Tips clave</h2></div>' +
-      '<ul class="tips-list">' + d.tips.map((t) => '<li>' + fmt(t) + '</li>').join('') + '</ul>' +
+      '<div class="section-title"><h2>' + t('keyTips') + '</h2></div>' +
+      '<ul class="tips-list">' + ld.tips.map((tip) => '<li>' + fmt(tip) + '</li>').join('') + '</ul>' +
 
-      '<div class="section-title"><h2>Objetivos del temario</h2></div>' +
-      '<section class="card"><ul class="list">' + d.objectives.map((o) => '<li>' + fmt(o) + '</li>').join('') + '</ul></section>',
+      '<div class="section-title"><h2>' + t('objectives') + '</h2></div>' +
+      '<section class="card"><ul class="list">' + ld.objectives.map((o) => '<li>' + fmt(o) + '</li>').join('') + '</ul></section>',
       'home'
     );
   }
@@ -338,42 +423,52 @@
 
   let practice = null;
 
+  function practiceTitle(p) {
+    let title;
+    if (p.scope === 'mistakes') title = t('mistakesTitle');
+    else if (DOMAIN[p.scope]) title = LD(DOMAIN[p.scope]).title;
+    else title = t('allDomains');
+    if (p.topic) {
+      const sample = (DOMAIN[p.scope] ? DOMAIN[p.scope].questions : QUESTIONS).find((q) => q.topic === p.topic);
+      title += ' · ' + (sample ? LQ(sample).topic : p.topic);
+    }
+    if (p.mode === 'new') title += t('suffixNew');
+    if (p.mode === 'wrong') title += t('suffixWrong');
+    return title;
+  }
+
   function startPractice(params) {
     const scope = params.get('d') || 'all';
     const mode = params.get('m') || 'all';
     const topic = params.get('t');
 
     let pool;
-    let title;
     let backHref = '#/';
     if (scope === 'mistakes') {
       pool = store.mistakes.map((id) => Q[id]).filter(Boolean);
-      title = 'Repaso de errores';
       backHref = '#/repaso';
     } else if (DOMAIN[scope]) {
       pool = DOMAIN[scope].questions;
-      title = DOMAIN[scope].title;
       backHref = '#/tema/' + scope;
     } else {
       pool = QUESTIONS;
-      title = 'Todos los temas';
     }
 
-    if (topic) { pool = pool.filter((q) => q.topic === topic); title += ' · ' + topic; }
-    if (mode === 'new') { pool = pool.filter((q) => !store.stats[q.id]); title += ' · nuevas'; }
-    if (mode === 'wrong') { pool = pool.filter((q) => store.mistakes.includes(q.id)); title += ' · falladas'; }
+    if (topic) pool = pool.filter((q) => q.topic === topic);
+    if (mode === 'new') pool = pool.filter((q) => !store.stats[q.id]);
+    if (mode === 'wrong') pool = pool.filter((q) => store.mistakes.includes(q.id));
 
     if (!pool.length) {
-      const msg = scope === 'mistakes' || mode === 'wrong'
-        ? '<div class="big">🎉</div><h2>No tienes errores pendientes</h2><p>Las preguntas que falles aparecerán aquí hasta que las respondas bien.</p>'
-        : '<div class="big">✅</div><h2>No quedan preguntas en esta selección</h2><p>Ya respondiste todas. Prueba a practicar el tema completo o haz un simulacro.</p>';
-      render('<a class="back" href="' + backHref + '">← Volver</a><section class="card empty">' + msg +
-        '<div class="btn-row" style="max-width:420px;margin:12px auto 0"><a class="btn btn-primary" href="#/examen">Hacer un simulacro</a><a class="btn" href="#/">Inicio</a></div></section>', 'home');
+      const msg = scope === 'mistakes' || mode === 'wrong' ? t('emptyMistakes') : t('emptyDone');
+      render('<a class="back" href="' + backHref + '">' + t('back') + '</a><section class="card empty">' + msg +
+        '<div class="btn-row" style="max-width:420px;margin:12px auto 0"><a class="btn btn-primary" href="#/examen">' + t('doExam') + '</a><a class="btn" href="#/">' + t('home') + '</a></div></section>', 'home');
       return;
     }
 
     practice = {
-      title,
+      scope,
+      mode,
+      topic,
       backHref,
       items: shuffle(pool.map((q) => q.id)).map(makeItem),
       idx: 0,
@@ -384,7 +479,7 @@
     renderPractice();
   }
 
-  function renderPractice() {
+  function renderPractice(keepScroll) {
     const p = practice;
     const item = p.items[p.idx];
     const total = p.items.length;
@@ -393,26 +488,28 @@
 
     let primary;
     if (!p.revealed) {
-      primary = '<button class="btn btn-primary" id="checkBtn"' + (readyToCheck(item) ? '' : ' disabled') + '>Comprobar</button>';
+      primary = '<button class="btn btn-primary" id="checkBtn"' + (readyToCheck(item) ? '' : ' disabled') + '>' + t('check') + '</button>';
     } else {
-      primary = '<button class="btn btn-primary" id="nextBtn">' + (isLast ? 'Ver resultado' : 'Siguiente →') + '</button>';
+      primary = '<button class="btn btn-primary" id="nextBtn">' + (isLast ? t('seeResult') : t('next')) + '</button>';
     }
 
     render(
-      '<a class="back" href="' + p.backHref + '">← ' + esc(p.title) + '</a>' +
-      '<div class="qbar"><span>Pregunta <b>' + (p.idx + 1) + '</b> de ' + total + '</span>' +
+      '<a class="back" href="' + p.backHref + '">← ' + esc(practiceTitle(p)) + '</a>' +
+      '<div class="qbar"><span>' + t('questionOf', p.idx + 1, total) + '</span>' +
         '<span class="score"><span class="ok-c">✓ ' + p.ok + '</span> &nbsp; <span class="bad-c">✗ ' + p.bad + '</span></span></div>' +
       '<div class="bar" style="margin-bottom:14px"><span style="width:' + pct + '%"></span></div>' +
       '<article class="card" id="qcard">' + questionHTML(item, { revealed: p.revealed }) + '</article>' +
       '<div class="actions">' +
-        (p.revealed ? '' : '<button class="btn btn-ghost" id="skipBtn">Saltar</button>') +
+        (p.revealed ? '' : '<button class="btn btn-ghost" id="skipBtn">' + t('skip') + '</button>') +
         primary +
       '</div>' +
-      '<p class="kbd-hint">Atajos: A–E o 1–5 para elegir · Enter para comprobar / continuar</p>',
-      'home'
+      '<p class="kbd-hint">' + t('kbdPractice') + '</p>',
+      'home',
+      keepScroll
     );
+    refresh = () => renderPractice(true);
 
-    bindOptions(item, !p.revealed, renderPractice);
+    bindOptions(item, !p.revealed, () => renderPractice(true));
 
     const check = document.getElementById('checkBtn');
     if (check) check.onclick = checkPractice;
@@ -433,13 +530,8 @@
         else if (p.revealed) nextPractice();
         return;
       }
-      if (!p.revealed) keySelect(e, item, renderPractice);
+      if (!p.revealed) keySelect(e, item, () => renderPractice(true));
     };
-
-    if (p.revealed) {
-      const fb = app.querySelector('.feedback');
-      if (fb && fb.scrollIntoView) fb.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    }
   }
 
   function checkPractice() {
@@ -452,8 +544,9 @@
     record(item.id, correct);
     saveStore();
     p.revealed = true;
-    renderPractice();
-    // renderPractice hace scroll al inicio; luego se desplaza a la explicación.
+    renderPractice(true);
+    const fb = app.querySelector('.feedback');
+    if (fb && fb.scrollIntoView) fb.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
 
   function nextPractice() {
@@ -464,30 +557,32 @@
     renderPractice();
   }
 
-  function renderPracticeSummary() {
+  function renderPracticeSummary(keepScroll) {
     const p = practice;
     const answered = p.ok + p.bad;
     const score = answered ? Math.round((p.ok / answered) * 100) : 0;
     const wrongItems = p.items.filter((it) => it.correct === false);
 
     render(
-      '<a class="back" href="' + p.backHref + '">← Volver</a>' +
+      '<a class="back" href="' + p.backHref + '">' + t('back') + '</a>' +
       '<section class="card center">' +
-        '<h1>Sesión terminada</h1>' +
+        '<h1>' + t('sessionDone') + '</h1>' +
         '<div class="score-ring" style="--p:' + score + ';--c:var(--' + (pctClass(score) || 'accent') + ')"><b>' + score + '%</b></div>' +
-        '<p><span class="ok-c" style="color:var(--ok);font-weight:700">' + p.ok + ' correctas</span> · <span style="color:var(--bad);font-weight:700">' + p.bad + ' incorrectas</span></p>' +
-        '<p class="muted small">' + esc(p.title) + '</p>' +
+        '<p><span style="color:var(--ok);font-weight:700">' + t('nCorrect', p.ok) + '</span> · <span style="color:var(--bad);font-weight:700">' + t('nWrong', p.bad) + '</span></p>' +
+        '<p class="muted small">' + esc(practiceTitle(p)) + '</p>' +
         '<div class="btn-row" style="max-width:520px;margin:0 auto">' +
-          (wrongItems.length ? '<a class="btn btn-primary" href="#/practica?d=mistakes">Repasar errores</a>' : '') +
-          '<a class="btn" href="' + p.backHref + '">Volver al tema</a>' +
-          '<a class="btn" href="#/examen">Hacer un simulacro</a>' +
+          (wrongItems.length ? '<a class="btn btn-primary" href="#/practica?d=mistakes">' + t('reviewMistakes') + '</a>' : '') +
+          '<a class="btn" href="' + p.backHref + '">' + t('backToDomain') + '</a>' +
+          '<a class="btn" href="#/examen">' + t('doExam') + '</a>' +
         '</div>' +
       '</section>' +
       (wrongItems.length
-        ? '<div class="section-title"><h2>Preguntas falladas</h2></div>' + wrongItems.map((it) => reviewDetails(it, false)).join('')
+        ? '<div class="section-title"><h2>' + t('missedQuestions') + '</h2></div>' + wrongItems.map((it) => reviewDetails(it, false)).join('')
         : ''),
-      'home'
+      'home',
+      keepScroll
     );
+    refresh = () => renderPracticeSummary(true);
   }
 
   function bindOptions(item, enabled, rerender) {
@@ -495,26 +590,20 @@
     app.querySelectorAll('.opt').forEach((btn) => {
       btn.onclick = () => {
         toggleSelection(item, Number(btn.dataset.opt));
-        rerenderKeepingScroll(rerender);
+        rerender();
       };
     });
-  }
-
-  function rerenderKeepingScroll(fn) {
-    const y = window.scrollY;
-    fn();
-    window.scrollTo(0, y);
   }
 
   function keySelect(e, item, rerender) {
     let i = -1;
     const k = e.key.toUpperCase();
     if (/^[1-8]$/.test(k)) i = Number(k) - 1;
-    else if (LETTERS.indexOf(k) !== -1 && k.length === 1) i = LETTERS.indexOf(k);
+    else if (k.length === 1 && LETTERS.indexOf(k) !== -1) i = LETTERS.indexOf(k);
     if (i < 0 || i >= item.order.length) return;
     e.preventDefault();
     toggleSelection(item, item.order[i]);
-    rerenderKeepingScroll(rerender);
+    rerender();
   }
 
   /* =========================================================
@@ -537,11 +626,11 @@
       const remaining = exam.endAt ? Math.max(0, (exam.endAt - Date.now()) / 1000) : null;
       render(
         '<section class="card">' +
-          '<h1>Tienes un simulacro en curso</h1>' +
-          '<p class="muted">' + answered + ' de ' + exam.items.length + ' preguntas respondidas' +
-          (remaining !== null ? ' · ' + fmtTime(remaining) + ' restantes' : '') + '.</p>' +
-          '<div class="btn-row"><button class="btn btn-primary" id="resumeBtn">Continuar</button>' +
-          '<button class="btn btn-danger" id="discardBtn">Descartar y empezar otro</button></div>' +
+          '<h1>' + t('inProgressTitle') + '</h1>' +
+          '<p class="muted">' + t('inProgressInfo', answered, exam.items.length) +
+          (remaining !== null ? t('remaining', fmtTime(remaining)) : '') + '.</p>' +
+          '<div class="btn-row"><button class="btn btn-primary" id="resumeBtn">' + t('resume') + '</button>' +
+          '<button class="btn btn-danger" id="discardBtn">' + t('discard') + '</button></div>' +
         '</section>',
         'exam'
       );
@@ -550,7 +639,7 @@
         renderExam();
       };
       document.getElementById('discardBtn').onclick = () => {
-        if (!confirm('¿Descartar el simulacro en curso? No se guardará el resultado.')) return;
+        if (!confirm(t('confirmDiscard'))) return;
         exam = null; saveExam(); viewExamSetup();
       };
       return;
@@ -559,40 +648,40 @@
     const counts = [20, 40, 60, QUESTIONS.length];
     const countHTML = counts.map((n, i) =>
       '<input type="radio" name="count" id="c' + n + '" value="' + n + '"' + (i === 1 ? ' checked' : '') + '>' +
-      '<label for="c' + n + '">' + (n === QUESTIONS.length ? 'Todas (' + n + ')' : n) + '</label>'
+      '<label for="c' + n + '">' + (n === QUESTIONS.length ? t('allN', n) : n) + '</label>'
     ).join('');
 
     const timeModes = [
-      { v: '90', l: 'Normal · 1,5 min/pregunta' },
-      { v: '60', l: 'Exigente · 1 min/pregunta' },
-      { v: '0', l: 'Sin límite' }
+      { v: '90', l: t('timeNormal') },
+      { v: '60', l: t('timeHard') },
+      { v: '0', l: t('timeNone') }
     ];
-    const timeHTML = timeModes.map((t, i) =>
-      '<input type="radio" name="time" id="t' + t.v + '" value="' + t.v + '"' + (i === 0 ? ' checked' : '') + '>' +
-      '<label for="t' + t.v + '">' + t.l + '</label>'
+    const timeHTML = timeModes.map((m, i) =>
+      '<input type="radio" name="time" id="t' + m.v + '" value="' + m.v + '"' + (i === 0 ? ' checked' : '') + '>' +
+      '<label for="t' + m.v + '">' + m.l + '</label>'
     ).join('');
 
     const domainHTML = DOMAINS.map((d) =>
       '<label class="check"><input type="checkbox" name="dom" value="' + d.id + '" checked>' +
-      '<span><b>' + d.order + '.</b> ' + esc(d.title) + ' <span class="muted small">(' + d.questions.length + ')</span></span></label>'
+      '<span><b>' + d.order + '.</b> ' + esc(LD(d).title) + ' <span class="muted small">(' + d.questions.length + ')</span></span></label>'
     ).join('');
 
     const history = store.exams.slice(-3).reverse();
 
     render(
       '<section class="card">' +
-        '<h1>Simulacro de examen</h1>' +
-        '<p class="muted">Preguntas mezcladas de todos los temas, sin ver la respuesta hasta el final, como en el examen real. Puedes marcar preguntas para revisarlas y moverte libremente entre ellas.</p>' +
-        '<div class="setup-group"><span class="label">Número de preguntas</span><div class="seg">' + countHTML + '</div></div>' +
-        '<div class="setup-group"><span class="label">Tiempo</span><div class="seg">' + timeHTML + '</div></div>' +
-        '<div class="setup-group"><span class="label">Temas incluidos</span><div class="checks">' + domainHTML + '</div></div>' +
-        '<button class="btn btn-primary btn-block" id="startExam">Empezar simulacro</button>' +
-        '<p class="muted small" style="margin:10px 0 0">Las preguntas se reparten de forma equilibrada entre los temas elegidos.</p>' +
+        '<h1>' + t('examTitle') + '</h1>' +
+        '<p class="muted">' + t('examIntro') + '</p>' +
+        '<div class="setup-group"><span class="label">' + t('numQuestions') + '</span><div class="seg">' + countHTML + '</div></div>' +
+        '<div class="setup-group"><span class="label">' + t('time') + '</span><div class="seg">' + timeHTML + '</div></div>' +
+        '<div class="setup-group"><span class="label">' + t('domainsIncluded') + '</span><div class="checks">' + domainHTML + '</div></div>' +
+        '<button class="btn btn-primary btn-block" id="startExam">' + t('start') + '</button>' +
+        '<p class="muted small" style="margin:10px 0 0">' + t('balancedNote') + '</p>' +
       '</section>' +
       (history.length
-        ? '<div class="section-title"><h2>Últimos simulacros</h2><a href="#/repaso" class="small">Ver historial</a></div>' +
+        ? '<div class="section-title"><h2>' + t('lastExams') + '</h2><a href="#/repaso" class="small">' + t('seeHistory') + '</a></div>' +
           '<section class="card">' + history.map((h) =>
-            '<div class="breakdown-row"><div class="row-head"><span>' + fmtDate(h.date) + ' · ' + h.total + ' preguntas</span><b>' + h.score + '%</b></div>' +
+            '<div class="breakdown-row"><div class="row-head"><span>' + fmtDate(h.date) + ' · ' + t('nQuestions', h.total) + '</span><b>' + h.score + '%</b></div>' +
             '<div class="bar ' + pctClass(h.score) + '"><span style="width:' + h.score + '%"></span></div></div>'
           ).join('') + '</section>'
         : ''),
@@ -603,7 +692,7 @@
       const count = Number(app.querySelector('input[name="count"]:checked').value);
       const perQ = Number(app.querySelector('input[name="time"]:checked').value);
       const doms = Array.from(app.querySelectorAll('input[name="dom"]:checked')).map((i) => i.value);
-      if (!doms.length) { alert('Elige al menos un tema.'); return; }
+      if (!doms.length) { alert(t('pickDomain')); return; }
       createExam(count, perQ, doms);
       renderExam();
     };
@@ -633,7 +722,7 @@
     saveExam();
   }
 
-  function renderExam() {
+  function renderExam(keepScroll) {
     const ex = exam;
     const item = ex.items[ex.idx];
     const total = ex.items.length;
@@ -645,51 +734,52 @@
       if (it.selected.length) cls += ' answered';
       if (it.flagged) cls += ' flagged';
       if (i === ex.idx) cls += ' current';
-      return '<button type="button" class="' + cls.trim() + '" data-go="' + i + '" aria-label="Pregunta ' + (i + 1) + '">' + (i + 1) + '</button>';
+      return '<button type="button" class="' + cls.trim() + '" data-go="' + i + '" aria-label="' + esc(t('qAria', i + 1)) + '">' + (i + 1) + '</button>';
     }).join('');
 
     render(
       '<div class="exam-top">' +
-        '<span>Pregunta <b>' + (ex.idx + 1) + '</b>/' + total + ' · ' + answered + ' respondidas</span>' +
-        (ex.endAt ? '<span class="timer" id="timer">--:--</span>' : '<span class="muted small">Sin límite</span>') +
+        '<span>' + t('examBar', ex.idx + 1, total, answered) + '</span>' +
+        (ex.endAt ? '<span class="timer" id="timer">--:--</span>' : '<span class="muted small">' + t('noLimit') + '</span>') +
       '</div>' +
       '<article class="card">' + questionHTML(item, { revealed: false }) + '</article>' +
       '<div class="actions">' +
-        '<button class="btn" id="prevBtn"' + (ex.idx === 0 ? ' disabled' : '') + ' aria-label="Anterior">←</button>' +
-        '<button class="btn' + (item.flagged ? ' is-on' : '') + '" id="flagBtn">' + (item.flagged ? '⚑ Marcada' : '⚐ Marcar') + '</button>' +
+        '<button class="btn" id="prevBtn"' + (ex.idx === 0 ? ' disabled' : '') + ' aria-label="' + esc(t('prev')) + '">←</button>' +
+        '<button class="btn' + (item.flagged ? ' is-on' : '') + '" id="flagBtn">' + (item.flagged ? t('flagged') : t('flag')) + '</button>' +
         (isLast
-          ? '<button class="btn btn-primary" id="finishBtn">Terminar</button>'
-          : '<button class="btn btn-primary" id="nextBtn">Siguiente →</button>') +
+          ? '<button class="btn btn-primary" id="finishBtn">' + t('finish') + '</button>'
+          : '<button class="btn btn-primary" id="nextBtn">' + t('next') + '</button>') +
       '</div>' +
       '<section class="card" style="margin-top:8px">' +
-        '<div class="section-title" style="margin:0 0 10px"><h3 style="margin:0">Mapa de preguntas</h3>' +
-        '<button class="btn btn-ghost small" id="finishBtn2" style="min-height:34px;padding:6px 12px">Terminar examen</button></div>' +
+        '<div class="section-title" style="margin:0 0 10px"><h3 style="margin:0">' + t('questionMap') + '</h3>' +
+        '<button class="btn btn-ghost small" id="finishBtn2" style="min-height:34px;padding:6px 12px">' + t('finishExam') + '</button></div>' +
         '<div class="palette">' + palette + '</div>' +
-        '<div class="legend"><span><i style="background:var(--accent-soft)"></i>Respondida</span><span><i style="background:var(--warn)"></i>Marcada</span><span><i style="border:1.5px solid var(--accent)"></i>Actual</span></div>' +
+        '<div class="legend"><span><i style="background:var(--accent-soft)"></i>' + t('legendAnswered') + '</span><span><i style="background:var(--warn)"></i>' + t('legendFlagged') + '</span><span><i style="border:1.5px solid var(--accent)"></i>' + t('legendCurrent') + '</span></div>' +
       '</section>' +
-      '<p class="kbd-hint">Atajos: A–E o 1–5 para elegir · ← → para moverte · M para marcar</p>',
-      'exam'
+      '<p class="kbd-hint">' + t('kbdExam') + '</p>',
+      'exam',
+      keepScroll
     );
+    refresh = () => renderExam(true);
 
-    const rerender = () => { saveExam(); renderExam(); };
+    const rerender = () => { saveExam(); renderExam(true); };
     bindOptions(item, true, rerender);
 
     const go = (i) => { ex.idx = Math.max(0, Math.min(total - 1, i)); saveExam(); renderExam(); };
     document.getElementById('prevBtn').onclick = () => go(ex.idx - 1);
     const next = document.getElementById('nextBtn');
     if (next) next.onclick = () => go(ex.idx + 1);
-    document.getElementById('flagBtn').onclick = () => { item.flagged = !item.flagged; rerenderKeepingScroll(rerender); };
-    const fin = () => confirmFinish();
+    document.getElementById('flagBtn').onclick = () => { item.flagged = !item.flagged; rerender(); };
     const f1 = document.getElementById('finishBtn');
-    if (f1) f1.onclick = fin;
-    document.getElementById('finishBtn2').onclick = fin;
+    if (f1) f1.onclick = confirmFinish;
+    document.getElementById('finishBtn2').onclick = confirmFinish;
     app.querySelectorAll('[data-go]').forEach((b) => { b.onclick = () => go(Number(b.dataset.go)); });
 
     keyHandler = (e) => {
       if (e.key === 'ArrowRight') { e.preventDefault(); if (!isLast) go(ex.idx + 1); return; }
       if (e.key === 'ArrowLeft') { e.preventDefault(); go(ex.idx - 1); return; }
       if (e.key === 'Enter') { e.preventDefault(); if (isLast) confirmFinish(); else go(ex.idx + 1); return; }
-      if (e.key.toLowerCase() === 'm') { e.preventDefault(); item.flagged = !item.flagged; rerenderKeepingScroll(rerender); return; }
+      if (e.key.toLowerCase() === 'm') { e.preventDefault(); item.flagged = !item.flagged; rerender(); return; }
       keySelect(e, item, rerender);
     };
 
@@ -711,10 +801,7 @@
   function confirmFinish() {
     const pending = exam.items.filter((it) => !it.selected.length).length;
     const flagged = exam.items.filter((it) => it.flagged).length;
-    let msg = '¿Terminar el simulacro y ver el resultado?';
-    if (pending) msg += '\n\nTienes ' + pending + ' pregunta(s) sin responder.';
-    if (flagged) msg += '\nTienes ' + flagged + ' pregunta(s) marcada(s) para revisar.';
-    if (confirm(msg)) finishExam(false);
+    if (confirm(t('confirmFinish', pending, flagged))) finishExam(false);
   }
 
   function finishExam(timeUp) {
@@ -760,7 +847,7 @@
     const domRows = DOMAINS.filter((d) => r.perDomain[d.id]).map((d) => {
       const pd = r.perDomain[d.id];
       const p = Math.round((pd.right / pd.total) * 100);
-      return '<div class="breakdown-row"><div class="row-head"><span>' + d.order + '. ' + esc(d.title) + '</span><b>' + pd.right + '/' + pd.total + ' · ' + p + '%</b></div>' +
+      return '<div class="breakdown-row"><div class="row-head"><span>' + d.order + '. ' + esc(LD(d).title) + '</span><b>' + pd.right + '/' + pd.total + ' · ' + p + '%</b></div>' +
         '<div class="bar ' + pctClass(p) + '"><span style="width:' + p + '%"></span></div></div>';
     }).join('');
 
@@ -769,27 +856,27 @@
       .sort((a, b) => a.p - b.p)[0];
 
     let verdict;
-    if (r.score >= 85) verdict = '¡Excelente! Vas muy bien encaminado. Mantén este nivel en varios simulacros seguidos.';
-    else if (r.score >= 70) verdict = 'Buen resultado. Refuerza los temas más flojos y repasa las explicaciones de los fallos.';
-    else verdict = 'Aún hay margen de mejora. Practica por temas, lee los tips y vuelve a intentarlo.';
+    if (r.score >= 85) verdict = t('verdictHigh');
+    else if (r.score >= 70) verdict = t('verdictMid');
+    else verdict = t('verdictLow');
 
     render(
       '<section class="card center">' +
-        '<h1>Resultado del simulacro</h1>' +
-        (r.timeUp ? '<p class="hint">Se acabó el tiempo</p>' : '') +
+        '<h1>' + t('resultTitle') + '</h1>' +
+        (r.timeUp ? '<p class="hint">' + t('timeUp') + '</p>' : '') +
         '<div class="score-ring" style="--p:' + r.score + ';--c:var(--' + (pctClass(r.score) || 'accent') + ')"><b>' + r.score + '%</b></div>' +
-        '<p><b>' + r.right + '</b> de ' + r.total + ' correctas · ' + fmtTime(r.seconds) + '</p>' +
+        '<p>' + t('resultLine', r.right, r.total, fmtTime(r.seconds)) + '</p>' +
         '<p class="muted">' + verdict + '</p>' +
-        (weakest && weakest.p < 1 ? '<p class="small">Tema a reforzar: <a href="#/tema/' + weakest.d.id + '">' + esc(weakest.d.title) + '</a></p>' : '') +
+        (weakest && weakest.p < 1 ? '<p class="small">' + t('weakDomain') + ' <a href="#/tema/' + weakest.d.id + '">' + esc(LD(weakest.d).title) + '</a></p>' : '') +
         '<div class="btn-row" style="max-width:520px;margin:0 auto">' +
-          '<a class="btn btn-primary" href="#/examen">Nuevo simulacro</a>' +
-          '<a class="btn" href="#/practica?d=mistakes">Repasar errores</a>' +
+          '<a class="btn btn-primary" href="#/examen">' + t('newExam') + '</a>' +
+          '<a class="btn" href="#/practica?d=mistakes">' + t('reviewMistakes') + '</a>' +
         '</div>' +
       '</section>' +
-      '<div class="section-title"><h2>Por tema</h2></div>' +
+      '<div class="section-title"><h2>' + t('byDomain') + '</h2></div>' +
       '<section class="card">' + domRows + '</section>' +
-      '<div class="section-title"><h2>Revisión</h2>' +
-        '<label class="small"><input type="checkbox" id="onlyWrong"> Solo incorrectas</label></div>' +
+      '<div class="section-title"><h2>' + t('review') + '</h2>' +
+        '<label class="small"><input type="checkbox" id="onlyWrong"> ' + t('onlyIncorrect') + '</label></div>' +
       '<div id="reviewList">' + r.items.map((it, i) => reviewDetails(it, true, i + 1)).join('') + '</div>',
       'exam'
     );
@@ -806,7 +893,7 @@
     const ok = item.correct === true;
     return '<details class="review-item" data-ok="' + (ok ? 1 : 0) + '">' +
       '<summary><span class="res ' + (ok ? 'ok' : 'bad') + '">' + (ok ? '✓' : '✗') + '</span>' +
-      '<span class="sum-text">' + (withNumber ? '<b>' + n + '.</b> ' : '') + esc(plain(q.q)) + '</span></summary>' +
+      '<span class="sum-text">' + (withNumber ? '<b>' + n + '.</b> ' : '') + esc(plain(LQ(q).q)) + '</span></summary>' +
       '<div class="review-body">' + questionHTML(item, { revealed: true }) + '</div>' +
       '</details>';
   }
@@ -823,46 +910,46 @@
 
     const mistakesHTML = byDomain.length
       ? byDomain.map((x) =>
-          '<div class="breakdown-row"><div class="row-head"><span>' + x.d.order + '. ' + esc(x.d.title) + '</span>' +
-          '<a href="#/practica?d=' + x.d.id + '&m=wrong">' + x.ids.length + ' por repasar →</a></div></div>'
+          '<div class="breakdown-row"><div class="row-head"><span>' + x.d.order + '. ' + esc(LD(x.d).title) + '</span>' +
+          '<a href="#/practica?d=' + x.d.id + '&m=wrong">' + t('toReview', x.ids.length) + '</a></div></div>'
         ).join('')
-      : '<p class="muted" style="margin:0">No tienes errores pendientes. ¡Bien!</p>';
+      : '<p class="muted" style="margin:0">' + t('noMistakes') + '</p>';
 
     const hist = store.exams.slice().reverse();
     const histHTML = hist.length
-      ? '<div class="table-wrap"><table class="history"><thead><tr><th>Fecha</th><th>Preguntas</th><th>Aciertos</th><th>Nota</th><th>Tiempo</th></tr></thead><tbody>' +
+      ? '<div class="table-wrap"><table class="history"><thead><tr><th>' + t('thDate') + '</th><th>' + t('thQuestions') + '</th><th>' + t('thCorrect') + '</th><th>' + t('thScore') + '</th><th>' + t('thTime') + '</th></tr></thead><tbody>' +
         hist.map((h) => '<tr><td>' + fmtDate(h.date) + '</td><td>' + h.total + '</td><td>' + h.right + '</td><td><b style="color:var(--' + pctClass(h.score) + ')">' + h.score + '%</b></td><td>' + fmtTime(h.seconds) + '</td></tr>').join('') +
         '</tbody></table></div>'
-      : '<p class="muted" style="margin:0">Todavía no has hecho ningún simulacro.</p>';
+      : '<p class="muted" style="margin:0">' + t('noExams') + '</p>';
 
     const avg = hist.length ? Math.round(hist.slice(0, 5).reduce((s, h) => s + h.score, 0) / Math.min(5, hist.length)) : null;
 
     render(
       '<section class="card">' +
-        '<h1>Repaso</h1>' +
-        '<p class="muted">Cada pregunta que fallas se guarda aquí hasta que la respondas bien. El progreso se guarda en este navegador.</p>' +
+        '<h1>' + t('reviewTitle') + '</h1>' +
+        '<p class="muted">' + t('reviewIntro') + '</p>' +
         '<div class="stats">' +
-          '<div class="stat"><b>' + store.mistakes.length + '</b><span>Errores pendientes</span></div>' +
-          '<div class="stat"><b>' + store.exams.length + '</b><span>Simulacros</span></div>' +
-          '<div class="stat"><b>' + (avg === null ? '—' : avg + '%') + '</b><span>Media (últ. 5)</span></div>' +
+          '<div class="stat"><b>' + store.mistakes.length + '</b><span>' + t('statMistakes') + '</span></div>' +
+          '<div class="stat"><b>' + store.exams.length + '</b><span>' + t('statExams') + '</span></div>' +
+          '<div class="stat"><b>' + (avg === null ? '—' : avg + '%') + '</b><span>' + t('statAvg') + '</span></div>' +
         '</div>' +
         '<div class="btn-row" style="margin-top:14px">' +
-          '<a class="btn btn-primary" href="#/practica?d=mistakes"' + (store.mistakes.length ? '' : ' aria-disabled="true"') + '>Repasar todos los errores</a>' +
-          (store.lastExam ? '<a class="btn" href="#/resultado">Ver último resultado</a>' : '') +
+          '<a class="btn btn-primary" href="#/practica?d=mistakes">' + t('reviewAll') + '</a>' +
+          (store.lastExam ? '<a class="btn" href="#/resultado">' + t('seeLastResult') + '</a>' : '') +
         '</div>' +
       '</section>' +
-      '<div class="section-title"><h2>Errores por tema</h2></div>' +
+      '<div class="section-title"><h2>' + t('mistakesByDomain') + '</h2></div>' +
       '<section class="card">' + mistakesHTML + '</section>' +
-      '<div class="section-title"><h2>Historial de simulacros</h2></div>' +
+      '<div class="section-title"><h2>' + t('history') + '</h2></div>' +
       '<section class="card">' + histHTML + '</section>' +
-      '<div class="section-title"><h2>Datos</h2></div>' +
-      '<section class="card"><p class="muted small">Borra todo tu progreso, errores e historial de este dispositivo.</p>' +
-        '<button class="btn btn-danger" id="resetBtn">Reiniciar progreso</button></section>',
+      '<div class="section-title"><h2>' + t('data') + '</h2></div>' +
+      '<section class="card"><p class="muted small">' + t('resetInfo') + '</p>' +
+        '<button class="btn btn-danger" id="resetBtn">' + t('reset') + '</button></section>',
       'review'
     );
 
     document.getElementById('resetBtn').onclick = () => {
-      if (!confirm('¿Seguro que quieres borrar todo tu progreso? Esta acción no se puede deshacer.')) return;
+      if (!confirm(t('confirmReset'))) return;
       store.stats = {}; store.mistakes = []; store.exams = []; store.lastExam = null;
       saveStore();
       exam = null; saveExam();
@@ -875,118 +962,62 @@
      ========================================================= */
 
   function viewTips() {
-    const domainList = DOMAINS.map((d) =>
-      '<li><a href="#/tema/' + d.id + '"><b>' + esc(d.title) + '</b></a> <span class="muted small">— ' + esc(d.titleEn) + '</span></li>'
-    ).join('');
+    const g = t('guide');
+    const domainList = '<ul class="list" style="margin-top:8px">' + DOMAINS.map((d) => {
+      const ld = LD(d);
+      return '<li><a href="#/tema/' + d.id + '"><b>' + esc(ld.title) + '</b></a>' +
+        (ld.subtitle ? ' <span class="muted small">— ' + esc(ld.subtitle) + '</span>' : '') + '</li>';
+    }).join('') + '</ul>';
 
-    const cheat = [
-      ['Fuerzas, velocidad o física continua', '`FixedUpdate`'],
-      ['Seguimiento de cámara', '`LateUpdate`'],
-      ['Leer input de un frame (`GetKeyDown`, `WasPressedThisFrame`)', '`Update`'],
-      ['Objeto rápido que atraviesa paredes', 'Collision Detection **Continuous**'],
-      ['Trigger que no se dispara', '¿Hay `Rigidbody`? ¿Is Trigger? ¿Layer Collision Matrix?'],
-      ['Cambiar el color de un solo objeto', '`.material` (instancia) o `MaterialPropertyBlock`'],
-      ['Objetos dinámicos en una escena baked', '**Light Probes**'],
-      ['Reflejos correctos del entorno', '**Reflection Probes**'],
-      ['Animación que reacciona tarde', 'Desactivar **Has Exit Time**'],
-      ['Pausa', '`Time.timeScale = 0` + UI con tiempo *unscaled*'],
-      ['Guardar ajustes simples', '`PlayerPrefs`'],
-      ['Guardar partida', '`JsonUtility` + `File` en `persistentDataPath`'],
-      ['Datos de diseño compartidos', '`ScriptableObject`'],
-      ['Muchos objetos que se crean y destruyen', 'Object pooling (`ObjectPool<T>`)'],
-      ['Sonido al destruir un objeto', '`AudioSource.PlayClipAtPoint`'],
-      ['Puerta que bloquea agentes', '`NavMeshObstacle` + **Carve**'],
-      ['Agente que salta un hueco', '`NavMeshLink`'],
-      ['NavMesh de un nivel procedural', '`NavMeshSurface.BuildNavMesh()`'],
-      ['Basura (GC) en cada frame', 'Caché, versiones `NonAlloc`, `CompareTag`, evitar strings'],
-      ['Muchos draw calls (2D)', '**Sprite Atlas**'],
-      ['Muchas copias de la misma malla', '**GPU Instancing** / SRP Batcher'],
-      ['Clase usada por reflexión que falta en IL2CPP', '`link.xml` / `[Preserve]`'],
-      ['Mareo en VR', 'Teletransporte, snap turn, FPS estables'],
-      ['Referencias rotas tras un pull', 'Faltan archivos `.meta`'],
-      ['Test que necesita frames o física', '`[UnityTest]` + `IEnumerator` (Play Mode)']
-    ];
-
-    const glossary = [
-      ['Choose two / Select all that apply', 'Elige dos / Selecciona todas las correctas'],
-      ['Most efficient / best approach', 'Lo más eficiente / el mejor enfoque'],
-      ['Which statement is NOT true', '¿Qué afirmación NO es correcta?'],
-      ['Garbage collection (GC) spike', 'Pico del recolector de basura'],
-      ['Draw call / batching', 'Llamada de dibujo / agrupación'],
-      ['Baked lighting / lightmap', 'Iluminación precalculada / mapa de luz'],
-      ['Pathfinding / NavMesh agent', 'Búsqueda de rutas / agente de navegación'],
-      ['Merge conflict / branch', 'Conflicto de fusión / rama']
-    ];
+    const table = (head, rows, format) =>
+      '<section class="card table-wrap"><table class="cheat"><thead><tr><th>' + head[0] + '</th><th>' + head[1] + '</th></tr></thead><tbody>' +
+      rows.map((r) => '<tr><td>' + format(r[0]) + '</td><td>' + format(r[1]) + '</td></tr>').join('') +
+      '</tbody></table></section>';
 
     render(
       '<section class="card">' +
-        '<h1>Guía de estudio</h1>' +
-        '<p class="muted">Estrategia, plan de estudio y una chuleta con los patrones que más se repiten.</p>' +
+        '<h1>' + g.title + '</h1>' +
+        '<p class="muted">' + g.intro + '</p>' +
       '</section>' +
 
-      '<div class="section-title"><h2>Sobre el examen</h2></div>' +
-      '<section class="card"><ul class="list">' +
-        '<li>La certificación <b>Unity Certified Professional: Programmer</b> evalúa a programadores con experiencia práctica en Unity. Cubre <b>' + DOMAINS.length + ' áreas</b>:<ul class="list" style="margin-top:8px">' + domainList + '</ul></li>' +
-        '<li>Las preguntas son de opción múltiple: algunas tienen <b>una</b> respuesta y otras piden <b>varias</b> ("choose two", "select all that apply").</li>' +
-        '<li>Muchas preguntas muestran <b>fragmentos de código C#</b>: debes predecir qué hacen, encontrar el error o elegir la línea que falta.</li>' +
-        '<li>El examen está en <b>inglés</b>: aprende el nombre en inglés de cada concepto y de cada API (aquí se mantienen en inglés a propósito).</li>' +
-        '<li>Unity actualiza a veces el formato (duración, número de preguntas, nota mínima, versión de Unity). <b>Revisa la Exam Guide oficial</b> antes de reservar fecha.</li>' +
-      '</ul></section>' +
+      '<div class="section-title"><h2>' + g.aboutTitle + '</h2></div>' +
+      '<section class="card"><ul class="list">' + g.about(DOMAINS.length, domainList).map((li) => '<li>' + li + '</li>').join('') + '</ul></section>' +
 
-      '<div class="section-title"><h2>Estrategia el día del examen</h2></div>' +
-      '<ul class="tips-list">' +
-        '<li>Lee el <b>final de la pregunta primero</b>: ¿pide lo correcto, lo incorrecto (NOT), lo más eficiente o el mejor enfoque?</li>' +
-        '<li>Descarta lo imposible: APIs que no existen, métodos en el lugar equivocado del ciclo de vida, o soluciones que funcionan pero son claramente ineficientes.</li>' +
-        '<li>En el código, revisa <b>dónde</b> se ejecuta (<code>Update</code> / <code>FixedUpdate</code> / <code>Awake</code>), <b>qué tipo</b> devuelve (struct vs. clase) y si hay <b>asignaciones</b> por frame.</li>' +
-        '<li>Si dudas, responde, <b>marca</b> la pregunta y sigue. No te quedes atascado: vuelve al final con el tiempo que te sobre.</li>' +
-        '<li>No dejes preguntas sin responder.</li>' +
-        '<li>Cuando dos respuestas parecen correctas, elige la que sigue las <b>buenas prácticas recomendadas por Unity</b> (caché de referencias, pooling, eventos, <code>[SerializeField] private</code>).</li>' +
-      '</ul>' +
+      '<div class="section-title"><h2>' + g.strategyTitle + '</h2></div>' +
+      '<ul class="tips-list">' + g.strategy.map((li) => '<li>' + li + '</li>').join('') + '</ul>' +
 
-      '<div class="section-title"><h2>Plan de estudio sugerido (6 semanas)</h2></div>' +
-      '<section class="card"><ol class="list">' +
-        '<li><b>Semana 1:</b> Interacciones principales (física, input, cámara). Haz un mini proyecto con Rigidbody, raycasts y el Input System.</li>' +
-        '<li><b>Semana 2:</b> Pipeline de arte. Practica Animator (blend trees, layers, eventos), materiales por código y partículas.</li>' +
-        '<li><b>Semana 3:</b> Sistemas de aplicación. Menú principal, pausa, opciones con AudioMixer y guardado en JSON.</li>' +
-        '<li><b>Semana 4:</b> Escena y entorno. Object pooling, audio 3D y NavMesh (obstacles, links, áreas).</li>' +
-        '<li><b>Semana 5:</b> Rendimiento y plataformas. Perfila tu proyecto, reduce el GC Alloc, prueba en móvil y repasa XR.</li>' +
-        '<li><b>Semana 6:</b> Desarrollo en equipo y simulacros. Git + LFS, Unity Test Framework y <b>un simulacro completo cada 2 días</b>, repasando los errores.</li>' +
-      '</ol><p class="muted small" style="margin:0">Meta orientativa: superar el <b>80–85 %</b> de forma constante en los simulacros antes de presentarte.</p></section>' +
+      '<div class="section-title"><h2>' + g.planTitle + '</h2></div>' +
+      '<section class="card"><ol class="list">' + g.plan.map((li) => '<li>' + li + '</li>').join('') + '</ol>' +
+        '<p class="muted small" style="margin:0">' + g.planGoal + '</p></section>' +
 
-      '<div class="section-title"><h2>Ciclo de vida de MonoBehaviour</h2></div>' +
+      '<div class="section-title"><h2>' + g.lifecycleTitle + '</h2></div>' +
       '<section class="card">' +
-        '<p class="small muted">Inicialización</p>' +
+        '<p class="small muted">' + g.lcInit + '</p>' +
         '<div class="flow"><code>Awake</code><span class="arrow">→</span><code>OnEnable</code><span class="arrow">→</span><code>Start</code></div>' +
-        '<p class="small muted" style="margin-top:12px">Cada frame</p>' +
+        '<p class="small muted" style="margin-top:12px">' + g.lcFrame + '</p>' +
         '<div class="flow"><code>FixedUpdate</code><span class="arrow">→</span><code>OnTrigger/OnCollision</code><span class="arrow">→</span><code>Update</code><span class="arrow">→</span><code>yield null / WaitForSeconds</code><span class="arrow">→</span><code>LateUpdate</code><span class="arrow">→</span><code>Render</code></div>' +
-        '<p class="small muted" style="margin-top:12px">Desactivación y destrucción</p>' +
+        '<p class="small muted" style="margin-top:12px">' + g.lcEnd + '</p>' +
         '<div class="flow"><code>OnDisable</code><span class="arrow">→</span><code>OnDestroy</code></div>' +
-        '<p class="small" style="margin:12px 0 0"><code>FixedUpdate</code> puede ejecutarse 0, 1 o varias veces por frame (por defecto cada 0,02 s).</p>' +
+        '<p class="small" style="margin:12px 0 0">' + g.lcNote + '</p>' +
       '</section>' +
 
-      '<div class="section-title"><h2>Chuleta: si ves… piensa en…</h2></div>' +
-      '<section class="card table-wrap"><table class="cheat"><thead><tr><th>Situación</th><th>Respuesta típica</th></tr></thead><tbody>' +
-        cheat.map((r) => '<tr><td>' + fmt(r[0]) + '</td><td>' + fmt(r[1]) + '</td></tr>').join('') +
-      '</tbody></table></section>' +
+      '<div class="section-title"><h2>' + g.cheatTitle + '</h2></div>' +
+      table(g.cheatHead, g.cheat, fmt) +
 
-      '<div class="section-title"><h2>Vocabulario en inglés del examen</h2></div>' +
-      '<section class="card table-wrap"><table class="cheat"><thead><tr><th>Inglés</th><th>Español</th></tr></thead><tbody>' +
-        glossary.map((r) => '<tr><td>' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td></tr>').join('') +
-      '</tbody></table></section>' +
+      (g.glossaryTitle
+        ? '<div class="section-title"><h2>' + g.glossaryTitle + '</h2></div>' + table(g.glossaryHead, g.glossary, esc)
+        : '') +
 
-      '<div class="section-title"><h2>Recursos oficiales</h2></div>' +
+      '<div class="section-title"><h2>' + g.resourcesTitle + '</h2></div>' +
       '<section class="card"><ul class="list">' +
-        '<li><a href="https://unity.com/products/unity-certifications" target="_blank" rel="noopener">Unity Certifications</a>: información del examen y Exam Guide.</li>' +
-        '<li><a href="https://learn.unity.com/" target="_blank" rel="noopener">Unity Learn</a>: rutas y cursos de preparación.</li>' +
-        '<li><a href="https://docs.unity3d.com/Manual/index.html" target="_blank" rel="noopener">Unity Manual</a> y <a href="https://docs.unity3d.com/ScriptReference/index.html" target="_blank" rel="noopener">Scripting API</a>: la fuente más fiable para resolver dudas.</li>' +
-        '<li><a href="https://docs.unity3d.com/Manual/ExecutionOrder.html" target="_blank" rel="noopener">Orden de ejecución de las funciones de eventos</a>.</li>' +
+        g.resources.map((r) => '<li><a href="' + r[0] + '" target="_blank" rel="noopener">' + r[1] + '</a>' + r[2] + '</li>').join('') +
       '</ul></section>',
       'tips'
     );
   }
 
   function viewNotFound() {
-    render('<section class="card empty"><div class="big">🧭</div><h2>Página no encontrada</h2><p><a href="#/">Volver al inicio</a></p></section>', 'home');
+    render('<section class="card empty"><div class="big">🧭</div><h2>' + t('notFound') + '</h2><p><a href="#/">' + t('backToHome') + '</a></p></section>', 'home');
   }
 
   /* =========================================================
@@ -1014,7 +1045,7 @@
   window.addEventListener('hashchange', route);
 
   /* =========================================================
-     Tema claro / oscuro
+     Tema claro / oscuro e idioma
      ========================================================= */
 
   document.getElementById('themeToggle').addEventListener('click', () => {
@@ -1026,5 +1057,10 @@
     try { localStorage.setItem('ucpp-theme', next); } catch (e) { /* noop */ }
   });
 
+  document.getElementById('langToggle').addEventListener('click', () => {
+    setLang(lang === 'es' ? 'en' : 'es');
+  });
+
+  applyStaticTexts();
   route();
 })();

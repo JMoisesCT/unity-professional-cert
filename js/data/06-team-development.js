@@ -165,7 +165,7 @@ UCP.addDomain({
         'Solo se ejecutan si hay un depurador conectado; en caso contrario se ignoran.'
       ],
       answer: [0],
-      explanation: 'Unity no elimina `Debug.Log` de las builds. Un wrapper con `[System.Diagnostics.Conditional("ENABLE_LOGS")]` hace que el compilador elimine la llamada (y sus argumentos) si no defines ese símbolo. También puedes desactivar el logger con `Debug.unityLogger.logEnabled = false`.'
+      explanation: 'Unity no elimina `Debug.Log` de las builds. Un wrapper con `[System.Diagnostics.Conditional("ENABLE_LOGS")]` hace que el compilador elimine la llamada (y sus argumentos) si no defines ese símbolo. `Debug.unityLogger.logEnabled = false` desactiva la salida del log, pero las llamadas (y la construcción de sus strings) se siguen ejecutando.'
     },
     {
       id: 'team-13',

@@ -159,7 +159,7 @@ UCP.addDomain({
       q: 'Para un salto instantáneo que **tenga en cuenta la masa** del `Rigidbody`, ¿qué `ForceMode` usarías?',
       options: ['`ForceMode.Force`', '`ForceMode.Acceleration`', '`ForceMode.Impulse`', '`ForceMode.VelocityChange`'],
       answer: [2],
-      explanation: '`Impulse` aplica un cambio de momento instantáneo dividido por la masa. `VelocityChange` también es instantáneo pero ignora la masa. `Force` y `Acceleration` están pensados para aplicarse de forma continua en cada paso de física.'
+      explanation: '`Impulse` aplica un impulso instantáneo: el cambio de velocidad resultante es el impulso dividido por la masa. `VelocityChange` también es instantáneo pero ignora la masa. `Force` y `Acceleration` están pensados para aplicarse de forma continua en cada paso de física.'
     },
     {
       id: 'core-13',
