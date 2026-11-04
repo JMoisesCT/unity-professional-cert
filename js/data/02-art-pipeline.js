@@ -267,6 +267,19 @@ UCP.addDomain({
       ],
       answer: [0],
       explanation: 'Los Volumes locales usan un collider para definir su área de influencia, y la cámara (con Post Processing activado) mezcla sus overrides según la distancia. Un Volume global afecta a toda la escena. Post-process Layer pertenece al antiguo Post Processing Stack v2 del Built-in.'
+    },
+    {
+      id: 'art-21',
+      topic: 'Materiales',
+      q: 'En URP de Unity 6 escribes un `ScriptableRendererFeature` propio. ¿Qué método de `ScriptableRenderPass` debes implementar para que funcione con el **Render Graph** (el modo por defecto)?',
+      options: [
+        '`RecordRenderGraph`',
+        '`Execute`',
+        '`OnRenderImage`',
+        '`Configure`'
+      ],
+      answer: [0],
+      explanation: 'En Unity 6, URP usa el Render Graph por defecto: los passes declaran sus recursos y su trabajo en `RecordRenderGraph(RenderGraph, ContextContainer)`. `Execute` y `Configure` pertenecen a la API anterior y solo funcionan con el modo de compatibilidad. `OnRenderImage` es del Built-in Render Pipeline.'
     }
   ]
 });

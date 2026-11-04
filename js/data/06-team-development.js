@@ -160,7 +160,7 @@ UCP.addDomain({
       q: '¿Qué ocurre con las llamadas a `Debug.Log` en una build de release (sin Development Build)?',
       options: [
         'Se siguen ejecutando y tienen coste; para eliminarlas hay que usar, por ejemplo, un wrapper con `[Conditional]`.',
-        'El compilador las elimina automáticamente al desactivar Development Build en las Build Settings.',
+        'El compilador las elimina automáticamente al desactivar Development Build en el Build Profile.',
         'Se ejecutan, pero Unity descarta los argumentos sin evaluarlos, así que no tienen ningún coste.',
         'Solo se ejecutan si hay un depurador conectado; en caso contrario se ignoran.'
       ],
@@ -293,6 +293,20 @@ UCP.addDomain({
       ],
       answer: [0],
       explanation: 'Unity Version Control está pensado para proyectos con muchos assets: integración en el Editor, bloqueo de archivos y un modo para artistas (Gluon) que solo trabaja con los archivos que necesitan. Los binarios como PSD no se pueden fusionar, por eso se bloquean.'
+    },
+    {
+      id: 'team-23',
+      topic: 'Estructura de código',
+      q: 'En Unity 6 quieres esperar 2 segundos dentro de un método `async` de un MonoBehaviour, sin corrutinas y respetando el ciclo de vida de Unity. ¿Qué usas?',
+      code: 'async void Start()\n{\n    // esperar 2 segundos\n    ???\n    SpawnBoss();\n}',
+      options: [
+        '`await Awaitable.WaitForSecondsAsync(2f, destroyCancellationToken);`',
+        '`await Task.Delay(2000);`',
+        '`yield return new WaitForSeconds(2f);`',
+        '`Thread.Sleep(2000);`'
+      ],
+      answer: [0],
+      explanation: '`Awaitable` (Unity 2023.1+ / Unity 6) se integra con el player loop: respeta `Time.timeScale`, vuelve al hilo principal y acepta `destroyCancellationToken` para cancelarse si el objeto se destruye. `Task.Delay` no sabe nada de Unity (sigue aunque salgas de Play Mode y no funciona bien en WebGL), `yield return` solo vale en corrutinas y `Thread.Sleep` congela el juego.'
     }
   ]
 });

@@ -246,6 +246,17 @@ UCP.addTranslation('en', {
         'It removes the need to version `.meta` files, because it manages GUIDs on its own.'
       ],
       explanation: 'Unity Version Control is designed for asset-heavy projects: Editor integration, file locking and a mode for artists (Gluon) that works only with the files they need. Binary files such as PSD cannot be merged, which is why they are locked.'
+    },
+    'team-23': {
+      topic: 'Code structure',
+      q: 'In Unity 6 you want to wait 2 seconds inside an `async` method of a MonoBehaviour, without coroutines and respecting the Unity lifecycle. What do you use?',
+      options: [
+        '`await Awaitable.WaitForSecondsAsync(2f, destroyCancellationToken);`',
+        '`await Task.Delay(2000);`',
+        '`yield return new WaitForSeconds(2f);`',
+        '`Thread.Sleep(2000);`'
+      ],
+      explanation: '`Awaitable` (Unity 2023.1+ / Unity 6) is integrated with the player loop: it respects `Time.timeScale`, resumes on the main thread and accepts `destroyCancellationToken` so it is cancelled if the object is destroyed. `Task.Delay` knows nothing about Unity (it keeps running after you exit Play Mode and does not work well on WebGL), `yield return` only works in coroutines and `Thread.Sleep` freezes the game.'
     }
   }
 });

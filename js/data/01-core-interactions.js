@@ -234,7 +234,7 @@ UCP.addDomain({
       options: [
         'Activar **Is Kinematic**.',
         'Poner **Interpolate** en `Interpolate`.',
-        'Bajar el valor de **Drag**.',
+        'Bajar el valor de **Linear Damping** (antes Drag).',
         'Cambiar **Collision Detection** a `Discrete`.'
       ],
       answer: [1],
@@ -252,6 +252,32 @@ UCP.addDomain({
       ],
       answer: [1],
       explanation: 'La física 2D (Box2D) está separada de la 3D (PhysX) y usa métodos con sufijo `2D`. Si escribes `OnCollisionEnter` en un juego 2D, nunca se llamará, y Unity no da ningún error.'
+    },
+    {
+      id: 'core-20',
+      topic: 'Física',
+      q: 'En Unity 6, el código `rb.velocity = Vector3.zero;` muestra un aviso de API obsoleta. ¿Qué propiedad debes usar?',
+      options: [
+        '`rb.linearVelocity`',
+        '`rb.moveVelocity`',
+        '`rb.worldVelocity`',
+        '`rb.velocityLinear`'
+      ],
+      answer: [0],
+      explanation: 'En Unity 6, `Rigidbody.velocity` pasó a llamarse `linearVelocity` (para diferenciarla de `angularVelocity`). También cambiaron `drag` → `linearDamping` y `angularDrag` → `angularDamping`. En 2D, `Rigidbody2D.velocity` también pasó a `linearVelocity`.'
+    },
+    {
+      id: 'core-21',
+      topic: 'Cámara',
+      q: 'En **Cinemachine 3** (el paquete recomendado en Unity 6), ¿cómo se llama el componente que sustituye a `CinemachineVirtualCamera`?',
+      options: [
+        '`CinemachineCamera`',
+        '`CinemachineBrain`',
+        '`CinemachineFreeLook`',
+        '`VirtualCamera3D`'
+      ],
+      answer: [0],
+      explanation: 'Cinemachine 3 simplificó la API: `CinemachineCamera` sustituye a `CinemachineVirtualCamera` (y a `CinemachineFreeLook`, que ahora se monta con componentes como Orbital Follow), y el namespace pasó a `Unity.Cinemachine`. `CinemachineBrain` sigue en la cámara real y decide qué cámara está activa según la **Priority**.'
     }
   ]
 });
