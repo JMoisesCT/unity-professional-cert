@@ -26,8 +26,8 @@ UCP.addDomain({
       q: 'Un arma dispara muy rápido. Con `audioSource.Play()`, cada disparo corta el sonido del anterior. ¿Qué deberías usar?',
       options: [
         '`audioSource.PlayOneShot(shotClip)`',
-        '`audioSource.PlayDelayed(0.1f)`',
-        '`audioSource.loop = true`',
+        '`audioSource.PlayDelayed(0.1f)` en cada disparo',
+        '`audioSource.loop = true` mientras se dispara',
         'Un `AudioListener` por disparo'
       ],
       answer: [0],
@@ -38,8 +38,8 @@ UCP.addDomain({
       topic: 'Audio',
       q: 'El sonido de una cascada se oye con el mismo volumen en toda la escena. Quieres que dependa de la distancia. ¿Qué ajustas en su `AudioSource`?',
       options: [
-        '**Spatial Blend** en 1 (3D).',
-        '**Priority** en 0, para que tenga preferencia sobre los demás sonidos.',
+        '**Spatial Blend** en 1 (3D), con su curva de rolloff.',
+        '**Priority** en 0, para que tenga preferencia.',
         '**Doppler Level** alto, para que cambie según la velocidad del jugador.',
         'Añadir un `AudioListener` a la cascada para que mida la distancia.'
       ],
@@ -67,7 +67,7 @@ UCP.addDomain({
       code: 'Destroy(enemy);\nDebug.Log(enemy == null);',
       options: [
         '`True`: `Destroy` libera el objeto inmediatamente.',
-        '`False`: se destruye al final del frame.',
+        '`False`: se destruye más tarde, al final del frame.',
         'Lanza `MissingReferenceException` al acceder a `enemy`.',
         '`True`, porque el `==` sobrecargado detecta que está marcado para destruirse.'
       ],
@@ -79,8 +79,8 @@ UCP.addDomain({
       topic: 'Ciclo de vida de objetos',
       q: '¿Por qué **no** se recomienda usar `target?.TakeDamage()` o `target ?? fallback` cuando `target` deriva de `UnityEngine.Object`?',
       options: [
-        'No usan el `==` sobrecargado de Unity, así que un objeto destruido pasaría la comprobación.',
-        'Esos operadores no existen en la versión de C# que usa Unity.',
+        'No usan el `==` sobrecargado, así que no detectan objetos destruidos.',
+        'Esos operadores no existen en la versión de C# que usa Unity y no compilan.',
         'Son mucho más lentos que un `if (target != null)` cuando se compila con IL2CPP.',
         'Provocan boxing del objeto y generan basura en cada llamada.'
       ],
@@ -103,7 +103,7 @@ UCP.addDomain({
       options: [
         'Reduce los picos del Garbage Collector y las asignaciones de memoria.',
         'Evita el coste repetido de `Instantiate` y `Destroy`.',
-        'Reduce automáticamente el número de draw calls.',
+        'Reduce automáticamente los draw calls, porque las instancias comparten material.',
         'Libera la memoria de los objetos que no se usan.'
       ],
       answer: [0, 1],
@@ -127,13 +127,13 @@ UCP.addDomain({
       topic: 'Navegación',
       q: '¿Cuál es la forma más fiable de saber si un `NavMeshAgent` ha llegado a su destino?',
       options: [
-        '`agent.velocity.sqrMagnitude < 0.01f`',
+        '`agent.velocity.sqrMagnitude < 0.01f` durante varios frames seguidos',
         '`Vector3.Distance(transform.position, agent.destination) == 0f`',
         '`!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance`',
-        '`agent.isStopped && !agent.hasPath`'
+        '`agent.remainingDistance <= agent.stoppingDistance`, sin comprobar nada más'
       ],
       answer: [2],
-      explanation: 'El path se calcula de forma asíncrona: mientras `pathPending` es true, `remainingDistance` no es fiable. Comparar posiciones exactas de floats casi nunca funciona, y `isStopped` indica si lo has detenido tú, no si llegó.'
+      explanation: 'El path se calcula de forma asíncrona: mientras `pathPending` es true, `remainingDistance` no es fiable, así que compararla sin más puede dar un falso "llegó". Comparar posiciones exactas de floats casi nunca funciona, y una velocidad casi nula también se da cuando el agente está bloqueado o esperando una ruta.'
     },
     {
       id: 'scn-10',
@@ -164,7 +164,7 @@ UCP.addDomain({
         'No es posible: la NavMesh solo se puede generar en el Editor antes de la build.',
         'Con `NavMeshSurface.BuildNavMesh()` (paquete AI Navigation).',
         'Llamando a `NavMesh.CalculatePath` en cada agente para que genere la malla.',
-        'Activando Carve en los `NavMeshObstacle` de todo el nivel generado.'
+        'Activando Carve en todos los `NavMeshObstacle` del nivel.'
       ],
       answer: [1],
       explanation: '`NavMeshSurface` permite hacer el bake en runtime (y `UpdateNavMesh` para actualizarlo de forma asíncrona). `CalculatePath` calcula una ruta sobre una NavMesh que ya existe, pero no la crea.'
@@ -174,26 +174,26 @@ UCP.addDomain({
       topic: 'Navegación',
       q: 'Quieres que un enemigo aparezca en un punto aleatorio y asegurarte de que está sobre la NavMesh. ¿Qué API usas?',
       options: [
-        '`NavMesh.SamplePosition(randomPoint, out NavMeshHit hit, maxDistance, NavMesh.AllAreas)`',
-        '`Physics.Raycast(randomPoint, Vector3.down)`',
+        '`NavMesh.SamplePosition(randomPoint, out hit, maxDistance, NavMesh.AllAreas)`',
+        '`Physics.Raycast(randomPoint + Vector3.up * 10f, Vector3.down, out RaycastHit hit)`',
         '`agent.SetDestination(randomPoint)`',
-        '`NavMesh.Raycast(randomPoint, randomPoint, out hit, 0)`'
+        '`NavMesh.Raycast(randomPoint, randomPoint, out NavMeshHit hit, NavMesh.AllAreas)`'
       ],
       answer: [0],
-      explanation: '`SamplePosition` busca el punto más cercano de la NavMesh dentro de un radio y devuelve `true` si lo encuentra (en `hit.position`). Un raycast físico solo detecta colliders, no la NavMesh.'
+      explanation: '`SamplePosition` busca el punto más cercano de la NavMesh dentro de un radio y devuelve `true` si lo encuentra (en `hit.position`). Un raycast físico solo detecta colliders, no la NavMesh. `NavMesh.Raycast` traza una línea sobre la NavMesh entre dos puntos para ver si hay obstáculos, pero no busca el punto más cercano.'
     },
     {
       id: 'scn-14',
       topic: 'Navegación',
       q: 'Los agentes deben evitar un pantano si hay otro camino, pero cruzarlo si es la única opción. ¿Cómo lo configuras?',
       options: [
-        'Marcar el pantano como Not Walkable.',
-        'Crear un **área** de navegación "Pantano" con un **coste** mayor y asignarla al pantano.',
+        'Marcar el pantano como Not Walkable con un `NavMeshModifier`.',
+        'Crear un **área** "Pantano" con más **coste** y asignarla al pantano.',
         'Poner un `NavMeshObstacle` con Carve en el pantano.',
-        'Bajar la `speed` del agente cuando pisa el pantano.'
+        'Bajar la `speed` del agente mientras pisa el pantano, desde un trigger.'
       ],
       answer: [1],
-      explanation: 'El pathfinding (A*) minimiza el coste total del camino. Un área con más coste hace que el agente prefiera otras rutas sin que quede prohibida. Not Walkable y Carve la bloquearían por completo. Con `agent.SetAreaCost` puedes cambiar el coste por agente.'
+      explanation: 'El pathfinding (A*) minimiza el coste total del camino. Un área con más coste hace que el agente prefiera otras rutas sin que quede prohibida. Not Walkable y Carve la bloquearían por completo, y cambiar la `speed` no altera la ruta elegida. Con `agent.SetAreaCost` puedes cambiar el coste por agente.'
     },
     {
       id: 'scn-15',
@@ -208,9 +208,9 @@ UCP.addDomain({
       topic: 'Ciclo de vida de objetos',
       q: 'Un spawner usa `StartCoroutine(SpawnWaves())` en `Start`. Tras desactivar el GameObject (`SetActive(false)`) y volver a activarlo, las oleadas no continúan. ¿Por qué?',
       options: [
-        'Al desactivar el GameObject, sus corrutinas se detienen y no se reanudan solas. Reinícialas en `OnEnable`.',
-        'Las corrutinas solo duran 60 segundos.',
-        '`WaitForSeconds` no funciona en objetos reactivados.',
+        'Sus corrutinas se detuvieron y `Start` no vuelve a ejecutarse: lánzalas en `OnEnable`.',
+        'Las corrutinas tienen un límite de tiempo y Unity las cancela al superarlo.',
+        'La corrutina sigue activa, pero `WaitForSeconds` deja de contar tras reactivar el objeto.',
         'Hay que usar `InvokeRepeating`, porque las corrutinas no se pueden pausar.'
       ],
       answer: [0],
@@ -221,39 +221,39 @@ UCP.addDomain({
       topic: 'Gestión de assets',
       q: 'Cargas prefabs con `Addressables.LoadAssetAsync<GameObject>(key)`. Tras varias horas de juego, la memoria no deja de crecer. ¿Qué falta?',
       options: [
-        'Liberar con `Addressables.Release(handle)` cuando ya no se necesitan (o `ReleaseInstance` si usaste `InstantiateAsync`).',
+        'Llamar a `Addressables.Release(handle)` al dejar de usarlos.',
         'Llamar a `Resources.UnloadUnusedAssets()` en cada frame.',
-        'Llamar a `GC.Collect()` después de cada carga.',
+        'Llamar a `GC.Collect()` después de cada carga para liberar los bundles.',
         'Nada: Addressables libera la memoria automáticamente al cambiar de escena.'
       ],
       answer: [0],
-      explanation: 'Addressables usa recuento de referencias: cada carga incrementa el contador, y el asset (y su bundle) no se descarga hasta que se libera tantas veces como se cargó. Olvidar `Release` es la causa más común de fugas con Addressables.'
+      explanation: 'Addressables usa recuento de referencias: cada carga incrementa el contador, y el asset (y su bundle) no se descarga hasta que se libera tantas veces como se cargó. Olvidar `Release` es la causa más común de fugas con Addressables. Si instanciaste con `Addressables.InstantiateAsync`, libera con `Addressables.ReleaseInstance`.'
     },
     {
       id: 'scn-18',
       topic: 'Gestión de assets',
       q: '¿Por qué se desaconseja usar la carpeta `Resources` para grandes cantidades de assets?',
       options: [
-        'Todo su contenido se incluye en la build y aumenta el tiempo de arranque y la memoria.',
+        'Todo su contenido va a la build y se indexa al arrancar.',
         '`Resources.Load` solo funciona en el Editor y falla en las builds.',
         'Los assets de `Resources` no se pueden cargar de forma asíncrona.',
-        'Unity no comprime las texturas que están dentro de `Resources`.'
+        'Unity no comprime las texturas de `Resources`.'
       ],
       answer: [0],
-      explanation: 'Unity incluye todos los assets de `Resources` en la build y construye un índice al arrancar. Además, es difícil gestionar la memoria con precisión. Las alternativas recomendadas son las referencias directas y Addressables.'
+      explanation: 'Unity incluye todos los assets de `Resources` en la build y construye un índice al arrancar. Ese índice crece con cada asset, y además es difícil gestionar la memoria con precisión. `Resources.LoadAsync` sí existe y funciona en builds. Las alternativas recomendadas son las referencias directas y Addressables.'
     },
     {
       id: 'scn-19',
       topic: 'Audio',
       q: 'Al sumergirse en el agua, todo el audio debe pasar de forma gradual a sonar filtrado (low-pass), y volver al salir. ¿Cuál es el enfoque más adecuado?',
       options: [
-        'Crear dos **snapshots** en el AudioMixer (Normal y Bajo el agua) y llamar a `underwaterSnapshot.TransitionTo(0.5f)`.',
+        'Crear dos **snapshots** en el mixer y llamar a `TransitionTo(0.5f)`.',
         'Cambiar el volumen de cada `AudioSource` en `Update`.',
-        'Reemplazar todos los clips por versiones filtradas.',
-        'Añadir un `AudioLowPassFilter` a cada `AudioSource` en tiempo real.'
+        'Reemplazar todos los clips por versiones filtradas al entrar en el agua.',
+        'Añadir un `AudioLowPassFilter` a cada `AudioSource` y animar su `cutoffFrequency` desde un script.'
       ],
       answer: [0],
-      explanation: 'Los snapshots guardan el estado de todos los parámetros del mixer (incluidos los efectos de los grupos) y `TransitionTo` interpola entre ellos durante el tiempo indicado, sin tocar cada fuente por separado.'
+      explanation: 'Los snapshots guardan el estado de todos los parámetros del mixer (incluidos los efectos de los grupos) y `TransitionTo` interpola entre ellos durante el tiempo indicado, sin tocar cada fuente por separado. Un `AudioLowPassFilter` por fuente funcionaría, pero obliga a gestionar cada `AudioSource` (y las que se creen después) desde código.'
     },
     {
       id: 'scn-20',
@@ -267,6 +267,147 @@ UCP.addDomain({
       ],
       answer: [0],
       explanation: '`FindAnyObjectByType` devuelve cualquier instancia sin garantizar el orden, así que es la más rápida. `FindFirstObjectByType` garantiza la misma instancia que devolvía `FindObjectOfType`, pero es más lenta. Ordenar todas las instancias o buscar por nombre es aún peor. Lo ideal sigue siendo guardar la referencia y no buscarla en cada frame.'
+    },
+    {
+      id: 'scn-21',
+      topic: 'Instanciación',
+      q: 'El campo `enemyPrefab` es de tipo `Enemy` (un componente del prefab), no `GameObject`. ¿Qué ocurre al ejecutar `Spawn`?',
+      code: '[SerializeField] private Enemy enemyPrefab;\n\nvoid Spawn()\n{\n    var e = Instantiate(enemyPrefab, spawnPoint.position, Quaternion.identity);\n    e.SetTarget(player);\n}',
+      options: [
+        'Se clona todo el GameObject del prefab y `e` es su componente `Enemy`.',
+        'No compila: `Instantiate` siempre devuelve un `GameObject` y no tiene `SetTarget`.',
+        'Se crea un GameObject vacío que solo tiene una copia del componente `Enemy`.',
+        'Compila, pero `e` es un `Object` y hay que convertirlo con `as Enemy`.'
+      ],
+      answer: [0],
+      explanation: '`Instantiate<T>(T original)` es genérico y devuelve el mismo tipo que recibe. Si el original es un componente, Unity clona su GameObject completo (con hijos y demás componentes) y devuelve el componente equivalente en la copia. Así te ahorras un `GetComponent<Enemy>()` después de instanciar.'
+    },
+    {
+      id: 'scn-22',
+      topic: 'Instanciación',
+      q: 'El prefab tiene su raíz en la posición (0, 1, 0). `slot` está en (10, 0, 0) del mundo, sin rotación ni escala. ¿Dónde aparecen `a` y `b` en coordenadas de mundo?',
+      code: 'var a = Instantiate(prefab, slot);\nvar b = Instantiate(prefab, slot, true);',
+      options: [
+        '`a` en (0, 1, 0) y `b` en (10, 1, 0): `true` aplica la posición relativa al padre.',
+        '`a` en (10, 1, 0) y `b` en (0, 1, 0), aunque los dos son hijos de `slot`.',
+        'Los dos en (10, 1, 0): el tercer parámetro solo decide si se conserva la rotación.',
+        'Los dos en (0, 1, 0): el padre no influye en la posición inicial.'
+      ],
+      answer: [1],
+      explanation: 'El tercer parámetro es `instantiateInWorldSpace`. Con `Instantiate(prefab, parent)` (equivale a `false`), la posición del prefab se toma como **local** respecto al padre: (10, 0, 0) + (0, 1, 0) = (10, 1, 0). Con `true`, la posición del prefab se mantiene en el **mundo**: (0, 1, 0), aunque el objeto queda como hijo de `slot`. Afecta a posición, rotación y escala, no solo a la rotación.'
+    },
+    {
+      id: 'scn-23',
+      topic: 'Instanciación',
+      q: 'En Unity 6 creas una multitud con `InstantiateAsync`. `npcPrefab` es de tipo `Npc` (un componente). ¿Qué **dos** afirmaciones son correctas? (Elige 2)',
+      code: 'IEnumerator SpawnCrowd()\n{\n    var op = InstantiateAsync(npcPrefab, 50, spawnRoot);\n    yield return op;\n\n    foreach (Npc npc in op.Result)\n        npc.Init();\n}',
+      options: [
+        '`yield return op` no compila: a `InstantiateAsync` solo se le puede esperar con `await`.',
+        '`op.Result` es un array `Npc[]` con los 50 clones.',
+        'Los clones se crean desactivados y tienes que llamar a `SetActive(true)` en cada uno.',
+        'Solo acepta prefabs cargados con Addressables; con una referencia directa falla.',
+        'Parte del trabajo va fuera del hilo principal y la integración se reparte entre frames.'
+      ],
+      answer: [1, 4],
+      explanation: '`InstantiateAsync` devuelve un `AsyncInstantiateOperation<T>`, que deriva de `AsyncOperation`, así que puedes hacer `yield return` en una corrutina. Su `Result` es un array de `T` con tantos elementos como indique `count`. La preparación de las copias se hace en segundo plano, y la integración en la escena (con las llamadas a `Awake`) ocurre en el hilo principal con un presupuesto de tiempo por frame. Funciona con cualquier `Object`, no solo con Addressables.'
+    },
+    {
+      id: 'scn-24',
+      topic: 'Object pooling',
+      q: 'Tras pasar unos minutos, los enemigos que salen del pool mueren al primer golpe. ¿Cuál es la causa?',
+      code: '// Spawner\npool = new ObjectPool<Enemy>(\n    createFunc: () => Instantiate(enemyPrefab),\n    actionOnGet: e => e.gameObject.SetActive(true),\n    actionOnRelease: e => e.gameObject.SetActive(false),\n    actionOnDestroy: e => Destroy(e.gameObject));\n\n// Enemy.cs\nvoid Start() => health = maxHealth;\n\npublic void TakeDamage(int dmg)\n{\n    health -= dmg;\n    if (health <= 0) pool.Release(this);\n}',
+      options: [
+        '`SetActive(false)` en `actionOnRelease` destruye el componente y Unity lo recrea sin valores.',
+        '`Start` no se repite al reutilizarlo; reinicia la vida en `OnEnable` o en `actionOnGet`.',
+        '`Get` copia el estado del último objeto liberado en el nuevo, incluida su vida.',
+        'Falta `collectionCheck: true`, sin el cual `Get` devuelve objetos que siguen en uso.'
+      ],
+      answer: [1],
+      explanation: 'Un objeto reutilizado no se vuelve a crear, así que `Awake` y `Start` no se repiten: el enemigo vuelve con la vida que tenía al liberarse (0 o menos). Reinicia el estado cada vez que sale del pool, en `actionOnGet` o en `OnEnable` (que se llama al reactivarlo). Desactivar no destruye componentes, y `collectionCheck` solo detecta liberar dos veces el mismo objeto.'
+    },
+    {
+      id: 'scn-25',
+      topic: 'Object pooling',
+      q: 'Creas un `ObjectPool<T>` con `collectionCheck: true`, `defaultCapacity: 10` y `maxSize: 10`. ¿Qué **dos** afirmaciones son correctas? (Elige 2)',
+      options: [
+        'En el Editor, llamar dos veces a `Release` con el mismo objeto lanza una excepción.',
+        '`Get` lanza una excepción si ya hay 10 objetos fuera del pool.',
+        '`defaultCapacity: 10` crea 10 instancias por adelantado, llamando a `createFunc` al construir el pool.',
+        'Si liberas un objeto con 10 ya guardados, se llama a `actionOnDestroy` con él.',
+        '`collectionCheck` se comprueba también en las builds, sin ningún coste extra.'
+      ],
+      answer: [0, 3],
+      explanation: '`collectionCheck` detecta que liberas un objeto que ya está en el pool, pero solo en el Editor (no en las builds). `maxSize` limita cuántos objetos **inactivos** guarda el pool: si se supera, el objeto liberado no se guarda y se pasa a `actionOnDestroy`. `Get` nunca falla por `maxSize`: si no hay objetos libres, llama a `createFunc`. `defaultCapacity` solo reserva espacio en la colección interna; no crea instancias (para precalentar el pool, haz `Get` y `Release` al cargar).'
+    },
+    {
+      id: 'scn-26',
+      topic: 'Gestión de assets',
+      q: 'Tras llamar a `Clear`, los enemigos desaparecen, pero el prefab y su bundle siguen en memoria. ¿Qué corriges?',
+      code: 'public AssetReferenceGameObject enemyRef;\nreadonly List<GameObject> spawned = new();\n\nasync void Spawn()\n{\n    var handle = enemyRef.InstantiateAsync(spawnPoint.position, Quaternion.identity);\n    spawned.Add(await handle.Task);\n}\n\nvoid Clear()\n{\n    foreach (var go in spawned) Destroy(go);\n    spawned.Clear();\n}',
+      options: [
+        'Llamar antes a `enemyRef.LoadAssetAsync()` para cuadrar el recuento.',
+        'Cambiar `Destroy(go)` por `DestroyImmediate(go, true)` para que también se descargue el asset.',
+        'Sustituir `Destroy(go)` por `Addressables.ReleaseInstance(go)` en el bucle de `Clear`.',
+        'Llamar a `Resources.UnloadUnusedAssets()` tras el bucle para que Addressables suelte el bundle.'
+      ],
+      answer: [2],
+      explanation: 'Cada `InstantiateAsync` de Addressables suma una referencia al asset. `Destroy` elimina el GameObject, pero Addressables no se entera y el recuento nunca baja, así que el prefab y su bundle siguen cargados. `ReleaseInstance` destruye la instancia **y** libera su referencia. Cargar el asset otra vez sumaría otra referencia, `UnloadUnusedAssets` no descarga lo que Addressables sigue reteniendo, y `DestroyImmediate(go, true)` sirve para destruir assets en el Editor, no para esto.'
+    },
+    {
+      id: 'scn-27',
+      topic: 'Ciclo de vida de objetos',
+      q: 'Desde el `Update` de otro script ejecutas `Destroy(crate.gameObject)` sobre una caja activa y luego escribes un log. ¿En qué orden aparecen los mensajes?',
+      code: 'public class Crate : MonoBehaviour\n{\n    void OnDisable() => Debug.Log("OnDisable");\n    void OnDestroy() => Debug.Log("OnDestroy");\n}\n\n// In another script, inside Update():\nDestroy(crate.gameObject);\nDebug.Log("After Destroy");',
+      options: [
+        '`OnDisable` → `OnDestroy` → `After Destroy`, porque `Destroy` es síncrono.',
+        '`After Destroy` → `OnDisable` → `OnDestroy`',
+        '`After Destroy` → `OnDestroy`',
+        '`OnDestroy` → `OnDisable` → `After Destroy`'
+      ],
+      answer: [1],
+      explanation: '`Destroy` no es inmediato: marca el objeto y lo destruye después del bucle de Update del frame actual, así que primero se imprime `After Destroy`. Al destruir un objeto activo, Unity llama a `OnDisable` y después a `OnDestroy`. Solo `DestroyImmediate` llamaría a esos métodos antes de la línea siguiente, y se reserva para código de Editor.'
+    },
+    {
+      id: 'scn-28',
+      topic: 'Audio',
+      q: 'Este `AudioSource` reproduce la música del nivel y también los sonidos de recoger monedas. ¿Qué **dos** afirmaciones son correctas? (Elige 2)',
+      code: 'void Start()\n{\n    source.clip = music;\n    source.loop = true;\n    source.Play();\n}\n\nvoid OnCoinCollected()\n{\n    source.PlayOneShot(coinClip, 0.5f);\n}',
+      options: [
+        'La moneda suena encima de la música, sin interrumpirla ni reiniciarla.',
+        '`PlayOneShot` asigna `coinClip` a `source.clip` y corta la música.',
+        'Como `loop` es `true`, la moneda también se repite en bucle hasta llamar a `Stop()`.',
+        'La moneda se oye siempre en 3D, porque `PlayOneShot` fuerza `spatialBlend = 1`.',
+        '`0.5f` escala el volumen de la moneda respecto al `volume` de la fuente.'
+      ],
+      answer: [0, 4],
+      explanation: '`PlayOneShot` reproduce un clip extra en la misma fuente sin tocar `clip` ni cortar lo que ya suena, y su segundo parámetro (`volumeScale`) se multiplica por `source.volume`. Los one-shots no hacen bucle y usan la misma configuración espacial de la fuente (`spatialBlend`, rolloff, mixer). Si en lugar de eso hicieras `source.clip = coinClip; source.Play();`, la música se cortaría.'
+    },
+    {
+      id: 'scn-29',
+      topic: 'Navegación',
+      q: 'Un enemigo con `NavMeshAgent` queda aturdido unos segundos. Al terminar el aturdimiento no vuelve a moverse, aunque `SetDestination` devuelve `true`. ¿Por qué?',
+      code: 'public void Stun(float seconds) => StartCoroutine(StunRoutine(seconds));\n\nIEnumerator StunRoutine(float seconds)\n{\n    agent.isStopped = true;\n    yield return new WaitForSeconds(seconds);\n    agent.SetDestination(player.position);\n}',
+      options: [
+        '`SetDestination` no funciona dentro de corrutinas; hay que llamarlo desde `Update`.',
+        '`WaitForSeconds` no termina nunca mientras el agente está detenido.',
+        '`isStopped` sigue en `true`; `SetDestination` no lo cambia. Pon `agent.isStopped = false`.',
+        'Con `isStopped`, el agente se separa de la NavMesh y necesita `agent.Warp` para volver.'
+      ],
+      answer: [2],
+      explanation: '`isStopped = true` detiene el movimiento del agente por su ruta, y sigue así hasta que lo pongas a `false`. `SetDestination` calcula la nueva ruta, pero no reanuda el agente. Las corrutinas pueden llamar a cualquier API del hilo principal, `WaitForSeconds` depende de `Time.timeScale` (no del agente), y el agente sigue sobre la NavMesh mientras está detenido.'
+    },
+    {
+      id: 'scn-30',
+      topic: 'Gestión de assets',
+      q: 'Tu juego tendrá 200 skins que se descargarán de un CDN. No deben ir dentro de la build y solo debe cargarse la que elija el jugador. ¿Qué enfoque usas?',
+      options: [
+        'Un `GameObject[]` con las 200 skins asignadas en el Inspector.',
+        'Ponerlas en `Resources` y cargarlas con `Resources.LoadAsync` para no bloquear.',
+        'Un campo `AssetReferenceGameObject` en grupos remotos de Addressables.',
+        'Ponerlas en `Resources` y llamar a `Resources.UnloadAsset` sobre cada prefab.'
+      ],
+      answer: [2],
+      explanation: 'Un `AssetReference` guarda solo la referencia, no el asset: no se carga hasta que llamas a `LoadAssetAsync` o `InstantiateAsync`, y con grupos remotos los bundles se descargan del CDN. Un array de referencias directas carga las 200 skins junto con la escena. `Resources` siempre va dentro de la build y, además, `Resources.UnloadAsset` no puede descargar GameObjects ni prefabs.'
     }
   ]
 });
