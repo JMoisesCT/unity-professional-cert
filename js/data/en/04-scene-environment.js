@@ -35,7 +35,7 @@ UCP.addTranslation('en', {
       topic: 'Audio',
       q: 'The sound of a waterfall is heard at the same volume throughout the scene. You want it to depend on distance. What do you adjust on its `AudioSource`?',
       options: [
-        'Set **Spatial Blend** to 1 (3D), with its rolloff curve.',
+        'Set **Spatial Blend** to 1 (3D), so it fades with distance along its rolloff curve.',
         'Set **Priority** to 0, so it takes precedence.',
         'Set a high **Doppler Level**, so it changes with the player speed.',
         'Add an `AudioListener` to the waterfall so it measures the distance.'
@@ -46,7 +46,7 @@ UCP.addTranslation('en', {
       topic: 'Audio',
       q: 'The explosion is never heard. Why, and how do you fix it?',
       options: [
-        'The `AudioSource` dies with the object; use `AudioSource.PlayClipAtPoint`.',
+        'The `AudioSource` dies with the object; use `PlayClipAtPoint`.',
         '`PlayOneShot` cannot be called from physics methods such as `OnCollisionEnter`.',
         'You must call `Destroy` before `PlayOneShot` to free the audio channel.',
         'The clip must have its Load Type set to Streaming to play instantly.'
@@ -68,7 +68,7 @@ UCP.addTranslation('en', {
       topic: 'Object lifecycle',
       q: 'Why is it **not** recommended to use `target?.TakeDamage()` or `target ?? fallback` when `target` derives from `UnityEngine.Object`?',
       options: [
-        'They skip the overloaded `==`, so they do not detect destroyed objects.',
+        'They skip Unity\'s overloaded `==`, so they do not detect objects that were already destroyed.',
         'Those operators do not exist in the C# version Unity uses and do not compile.',
         'They are much slower than an `if (target != null)` when compiled with IL2CPP.',
         'They cause boxing of the object and generate garbage on every call.'
@@ -119,7 +119,7 @@ UCP.addTranslation('en', {
       q: 'A door opens and closes during gameplay. When it is closed, agents must find another path. What do you use?',
       options: [
         'Rebake the NavMesh every time the door changes state.',
-        'A `NavMeshObstacle` on the door with **Carve** enabled.',
+        'A `NavMeshObstacle` on the door with **Carve** enabled, so it cuts the NavMesh.',
         'Only a `BoxCollider` on the door.',
         'A `NavMeshLink` on the door.'
       ],
@@ -138,7 +138,7 @@ UCP.addTranslation('en', {
         'It is not possible: the NavMesh can only be generated in the Editor before the build.',
         'With `NavMeshSurface.BuildNavMesh()` (AI Navigation package).',
         'By calling `NavMesh.CalculatePath` on each agent so that it generates the mesh.',
-        'By enabling Carve on every `NavMeshObstacle` in the level.'
+        'By enabling Carve on every `NavMeshObstacle` once the level is generated.'
       ],
       explanation: '`NavMeshSurface` lets you bake at runtime (and use `UpdateNavMesh` to update it asynchronously). `CalculatePath` calculates a path on a NavMesh that already exists, but does not create it.'
     },
@@ -176,7 +176,7 @@ UCP.addTranslation('en', {
       options: [
         'Its coroutines were stopped and `Start` does not run again: start them in `OnEnable`.',
         'Coroutines have a time limit, and Unity cancels them when they exceed it.',
-        'The coroutine is still running, but `WaitForSeconds` stops counting after reactivation.',
+        'The coroutine is still running, but `WaitForSeconds` stops counting.',
         'You must use `InvokeRepeating`, because coroutines cannot be paused.'
       ],
       explanation: 'Coroutines belong to the MonoBehaviour that started them and stop when its GameObject is deactivated or destroyed. `Start` only runs once, so nothing starts them again on reactivation. Note: setting `enabled = false` on the component does **not** stop coroutines.'
@@ -186,7 +186,7 @@ UCP.addTranslation('en', {
       q: 'You load prefabs with `Addressables.LoadAssetAsync<GameObject>(key)`. After several hours of play, memory keeps growing. What is missing?',
       options: [
         'Calling `Addressables.Release(handle)` once you stop using them.',
-        'Calling `Resources.UnloadUnusedAssets()` every frame.',
+        'Calling `Resources.UnloadUnusedAssets()` every frame from a manager.',
         'Calling `GC.Collect()` after each load so the bundles are freed.',
         'Nothing: Addressables frees memory automatically when the scene changes.'
       ],
@@ -229,7 +229,7 @@ UCP.addTranslation('en', {
       topic: 'Instantiation',
       q: 'The `enemyPrefab` field is of type `Enemy` (a component on the prefab), not `GameObject`. What happens when `Spawn` runs?',
       options: [
-        'The whole prefab GameObject is cloned and `e` is its `Enemy` component.',
+        'The whole prefab GameObject is cloned (children included) and `e` is the clone\'s `Enemy` component.',
         'It does not compile: `Instantiate` always returns a `GameObject`, which has no `SetTarget`.',
         'An empty GameObject is created that only holds a copy of the `Enemy` component.',
         'It compiles, but `e` is an `Object` that needs `as Enemy`.'
@@ -243,7 +243,7 @@ UCP.addTranslation('en', {
         '`a` at (0, 1, 0) and `b` at (10, 1, 0): `true` applies the position relative to the parent.',
         '`a` at (10, 1, 0) and `b` at (0, 1, 0), even though both are children of `slot`.',
         'Both at (10, 1, 0): the third parameter only decides whether the rotation is kept.',
-        'Both at (0, 1, 0): the parent does not affect the initial position.'
+        'Both at (0, 1, 0): the parent has no effect on the initial position of the clone.'
       ],
       explanation: 'The third parameter is `instantiateInWorldSpace`. With `Instantiate(prefab, parent)` (equivalent to `false`), the prefab position is treated as **local** to the parent: (10, 0, 0) + (0, 1, 0) = (10, 1, 0). With `true`, the prefab position is kept in **world** space: (0, 1, 0), although the object is still a child of `slot`. It affects position, rotation and scale, not only rotation.'
     },
@@ -264,7 +264,7 @@ UCP.addTranslation('en', {
       q: 'After a few minutes, enemies taken from the pool die on the first hit. What is the cause?',
       options: [
         '`SetActive(false)` in `actionOnRelease` destroys the component and Unity recreates it with no values.',
-        '`Start` does not run again on reuse; reset the health in `OnEnable` or in `actionOnGet`.',
+        '`Start` does not run again on reuse: reset the health in `OnEnable`.',
         '`Get` copies the state of the last released object into the new one, health included.',
         '`collectionCheck: true` is missing; without it, `Get` returns objects still in use.'
       ],
@@ -274,7 +274,7 @@ UCP.addTranslation('en', {
       topic: 'Object pooling',
       q: 'You create an `ObjectPool<T>` with `collectionCheck: true`, `defaultCapacity: 10` and `maxSize: 10`. Which **two** statements are correct? (Choose 2)',
       options: [
-        'In the Editor, calling `Release` twice with the same object throws an exception.',
+        'In the Editor, releasing an object that is already in the pool throws an exception.',
         '`Get` throws an exception if 10 objects are already out of the pool.',
         '`defaultCapacity: 10` creates 10 instances up front, calling `createFunc` when the pool is built.',
         'If you release an object while 10 are already stored, `actionOnDestroy` is called on it.',
@@ -320,10 +320,10 @@ UCP.addTranslation('en', {
       topic: 'Navigation',
       q: 'An enemy with a `NavMeshAgent` is stunned for a few seconds. When the stun ends it never moves again, even though `SetDestination` returns `true`. Why?',
       options: [
-        '`SetDestination` does not work inside coroutines; you must call it from `Update`.',
+        '`SetDestination` does not work in coroutines; call it from `Update`.',
         '`WaitForSeconds` never finishes while the agent is stopped.',
         '`isStopped` stays `true`; `SetDestination` does not reset it. Set it to `false`.',
-        'With `isStopped`, the agent detaches from the NavMesh and needs `agent.Warp` to get back.'
+        'When stopped, the agent detaches from the NavMesh and needs `agent.Warp`.'
       ],
       explanation: '`isStopped = true` stops the agent moving along its path, and it stays that way until you set it to `false`. `SetDestination` calculates the new path but does not resume the agent. Coroutines can call any main-thread API, `WaitForSeconds` depends on `Time.timeScale` (not on the agent), and the agent stays on the NavMesh while it is stopped.'
     },
@@ -333,7 +333,7 @@ UCP.addTranslation('en', {
       options: [
         'A `GameObject[]` with the 200 skins assigned in the Inspector.',
         'Put them in `Resources` and load them with `Resources.LoadAsync` to avoid blocking.',
-        'An `AssetReferenceGameObject` field, in remote Addressables groups.',
+        'An `AssetReferenceGameObject` field in remote Addressables groups, loading only the chosen one.',
         'Put them in `Resources` and call `Resources.UnloadAsset` on each prefab.'
       ],
       explanation: 'An `AssetReference` stores only the reference, not the asset: nothing is loaded until you call `LoadAssetAsync` or `InstantiateAsync`, and with remote groups the bundles are downloaded from the CDN. An array of direct references loads all 200 skins together with the scene. `Resources` always goes inside the build and, in addition, `Resources.UnloadAsset` cannot unload GameObjects or prefabs.'

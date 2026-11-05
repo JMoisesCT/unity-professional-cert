@@ -38,7 +38,7 @@ UCP.addDomain({
       topic: 'Audio',
       q: 'El sonido de una cascada se oye con el mismo volumen en toda la escena. Quieres que dependa de la distancia. ¿Qué ajustas en su `AudioSource`?',
       options: [
-        '**Spatial Blend** en 1 (3D), con su curva de rolloff.',
+        '**Spatial Blend** en 1 (3D), para que se atenúe con la distancia según su curva de rolloff.',
         '**Priority** en 0, para que tenga preferencia.',
         '**Doppler Level** alto, para que cambie según la velocidad del jugador.',
         'Añadir un `AudioListener` a la cascada para que mida la distancia.'
@@ -52,7 +52,7 @@ UCP.addDomain({
       q: 'La explosión no se oye nunca. ¿Por qué, y cómo lo solucionas?',
       code: 'void OnCollisionEnter(Collision c)\n{\n    audioSource.PlayOneShot(explosionClip);\n    Destroy(gameObject);\n}',
       options: [
-        'El `AudioSource` se destruye con el objeto; usa `AudioSource.PlayClipAtPoint`.',
+        'El `AudioSource` muere con el objeto; usa `PlayClipAtPoint`.',
         '`PlayOneShot` no se puede llamar desde métodos de física como `OnCollisionEnter`.',
         'Hay que llamar a `Destroy` antes que a `PlayOneShot` para liberar el canal de audio.',
         'El clip debe tener Load Type en Streaming para reproducirse al instante.'
@@ -79,7 +79,7 @@ UCP.addDomain({
       topic: 'Ciclo de vida de objetos',
       q: '¿Por qué **no** se recomienda usar `target?.TakeDamage()` o `target ?? fallback` cuando `target` deriva de `UnityEngine.Object`?',
       options: [
-        'No usan el `==` sobrecargado, así que no detectan objetos destruidos.',
+        'No usan el `==` sobrecargado de Unity, así que no detectan los objetos ya destruidos.',
         'Esos operadores no existen en la versión de C# que usa Unity y no compilan.',
         'Son mucho más lentos que un `if (target != null)` cuando se compila con IL2CPP.',
         'Provocan boxing del objeto y generan basura en cada llamada.'
@@ -141,7 +141,7 @@ UCP.addDomain({
       q: 'Una puerta se abre y se cierra durante el juego. Cuando está cerrada, los agentes deben buscar otro camino. ¿Qué usas?',
       options: [
         'Volver a hacer el bake de la NavMesh cada vez que cambia la puerta.',
-        'Un `NavMeshObstacle` en la puerta con **Carve** activado.',
+        'Un `NavMeshObstacle` en la puerta con **Carve** activado, que recorta la NavMesh.',
         'Solo un `BoxCollider` en la puerta.',
         'Un `NavMeshLink` en la puerta.'
       ],
@@ -164,7 +164,7 @@ UCP.addDomain({
         'No es posible: la NavMesh solo se puede generar en el Editor antes de la build.',
         'Con `NavMeshSurface.BuildNavMesh()` (paquete AI Navigation).',
         'Llamando a `NavMesh.CalculatePath` en cada agente para que genere la malla.',
-        'Activando Carve en todos los `NavMeshObstacle` del nivel.'
+        'Activando Carve en todos los `NavMeshObstacle` del nivel tras generarlo.'
       ],
       answer: [1],
       explanation: '`NavMeshSurface` permite hacer el bake en runtime (y `UpdateNavMesh` para actualizarlo de forma asíncrona). `CalculatePath` calcula una ruta sobre una NavMesh que ya existe, pero no la crea.'
@@ -210,7 +210,7 @@ UCP.addDomain({
       options: [
         'Sus corrutinas se detuvieron y `Start` no vuelve a ejecutarse: lánzalas en `OnEnable`.',
         'Las corrutinas tienen un límite de tiempo y Unity las cancela al superarlo.',
-        'La corrutina sigue activa, pero `WaitForSeconds` deja de contar tras reactivar el objeto.',
+        'La corrutina sigue viva, pero `WaitForSeconds` deja de contar.',
         'Hay que usar `InvokeRepeating`, porque las corrutinas no se pueden pausar.'
       ],
       answer: [0],
@@ -222,7 +222,7 @@ UCP.addDomain({
       q: 'Cargas prefabs con `Addressables.LoadAssetAsync<GameObject>(key)`. Tras varias horas de juego, la memoria no deja de crecer. ¿Qué falta?',
       options: [
         'Llamar a `Addressables.Release(handle)` al dejar de usarlos.',
-        'Llamar a `Resources.UnloadUnusedAssets()` en cada frame.',
+        'Llamar a `Resources.UnloadUnusedAssets()` en cada frame desde un manager.',
         'Llamar a `GC.Collect()` después de cada carga para liberar los bundles.',
         'Nada: Addressables libera la memoria automáticamente al cambiar de escena.'
       ],
@@ -274,7 +274,7 @@ UCP.addDomain({
       q: 'El campo `enemyPrefab` es de tipo `Enemy` (un componente del prefab), no `GameObject`. ¿Qué ocurre al ejecutar `Spawn`?',
       code: '[SerializeField] private Enemy enemyPrefab;\n\nvoid Spawn()\n{\n    var e = Instantiate(enemyPrefab, spawnPoint.position, Quaternion.identity);\n    e.SetTarget(player);\n}',
       options: [
-        'Se clona todo el GameObject del prefab y `e` es su componente `Enemy`.',
+        'Se clona todo el GameObject del prefab (con sus hijos) y `e` es el componente `Enemy` del clon.',
         'No compila: `Instantiate` siempre devuelve un `GameObject` y no tiene `SetTarget`.',
         'Se crea un GameObject vacío que solo tiene una copia del componente `Enemy`.',
         'Compila, pero `e` es un `Object` y hay que convertirlo con `as Enemy`.'
@@ -291,7 +291,7 @@ UCP.addDomain({
         '`a` en (0, 1, 0) y `b` en (10, 1, 0): `true` aplica la posición relativa al padre.',
         '`a` en (10, 1, 0) y `b` en (0, 1, 0), aunque los dos son hijos de `slot`.',
         'Los dos en (10, 1, 0): el tercer parámetro solo decide si se conserva la rotación.',
-        'Los dos en (0, 1, 0): el padre no influye en la posición inicial.'
+        'Los dos en (0, 1, 0): el padre no influye en la posición inicial del clon.'
       ],
       answer: [1],
       explanation: 'El tercer parámetro es `instantiateInWorldSpace`. Con `Instantiate(prefab, parent)` (equivale a `false`), la posición del prefab se toma como **local** respecto al padre: (10, 0, 0) + (0, 1, 0) = (10, 1, 0). Con `true`, la posición del prefab se mantiene en el **mundo**: (0, 1, 0), aunque el objeto queda como hijo de `slot`. Afecta a posición, rotación y escala, no solo a la rotación.'
@@ -318,7 +318,7 @@ UCP.addDomain({
       code: '// Spawner\npool = new ObjectPool<Enemy>(\n    createFunc: () => Instantiate(enemyPrefab),\n    actionOnGet: e => e.gameObject.SetActive(true),\n    actionOnRelease: e => e.gameObject.SetActive(false),\n    actionOnDestroy: e => Destroy(e.gameObject));\n\n// Enemy.cs\nvoid Start() => health = maxHealth;\n\npublic void TakeDamage(int dmg)\n{\n    health -= dmg;\n    if (health <= 0) pool.Release(this);\n}',
       options: [
         '`SetActive(false)` en `actionOnRelease` destruye el componente y Unity lo recrea sin valores.',
-        '`Start` no se repite al reutilizarlo; reinicia la vida en `OnEnable` o en `actionOnGet`.',
+        '`Start` no se repite al reutilizarlo: reinicia la vida en `OnEnable`.',
         '`Get` copia el estado del último objeto liberado en el nuevo, incluida su vida.',
         'Falta `collectionCheck: true`, sin el cual `Get` devuelve objetos que siguen en uso.'
       ],
@@ -330,7 +330,7 @@ UCP.addDomain({
       topic: 'Object pooling',
       q: 'Creas un `ObjectPool<T>` con `collectionCheck: true`, `defaultCapacity: 10` y `maxSize: 10`. ¿Qué **dos** afirmaciones son correctas? (Elige 2)',
       options: [
-        'En el Editor, llamar dos veces a `Release` con el mismo objeto lanza una excepción.',
+        'En el Editor, liberar un objeto que ya está en el pool lanza una excepción.',
         '`Get` lanza una excepción si ya hay 10 objetos fuera del pool.',
         '`defaultCapacity: 10` crea 10 instancias por adelantado, llamando a `createFunc` al construir el pool.',
         'Si liberas un objeto con 10 ya guardados, se llama a `actionOnDestroy` con él.',
@@ -391,7 +391,7 @@ UCP.addDomain({
         '`SetDestination` no funciona dentro de corrutinas; hay que llamarlo desde `Update`.',
         '`WaitForSeconds` no termina nunca mientras el agente está detenido.',
         '`isStopped` sigue en `true`; `SetDestination` no lo cambia. Pon `agent.isStopped = false`.',
-        'Con `isStopped`, el agente se separa de la NavMesh y necesita `agent.Warp` para volver.'
+        'Al detenerse, el agente se separa de la NavMesh y necesita `agent.Warp`.'
       ],
       answer: [2],
       explanation: '`isStopped = true` detiene el movimiento del agente por su ruta, y sigue así hasta que lo pongas a `false`. `SetDestination` calcula la nueva ruta, pero no reanuda el agente. Las corrutinas pueden llamar a cualquier API del hilo principal, `WaitForSeconds` depende de `Time.timeScale` (no del agente), y el agente sigue sobre la NavMesh mientras está detenido.'
@@ -403,7 +403,7 @@ UCP.addDomain({
       options: [
         'Un `GameObject[]` con las 200 skins asignadas en el Inspector.',
         'Ponerlas en `Resources` y cargarlas con `Resources.LoadAsync` para no bloquear.',
-        'Un campo `AssetReferenceGameObject` en grupos remotos de Addressables.',
+        'Un campo `AssetReferenceGameObject` en grupos remotos de Addressables, cargando solo la elegida.',
         'Ponerlas en `Resources` y llamar a `Resources.UnloadAsset` sobre cada prefab.'
       ],
       answer: [2],

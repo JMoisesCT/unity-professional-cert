@@ -34,7 +34,7 @@ UCP.addDomain({
       q: 'Un compañero subió nuevos assets pero **no** sus archivos `.meta`. ¿Qué ocurrirá probablemente al hacer pull?',
       options: [
         'Se rompen las referencias en escenas y prefabs, porque Unity genera GUIDs nuevos.',
-        'Nada: Unity regenera los `.meta` con los mismos GUIDs a partir del nombre del archivo.',
+        'Nada: Unity regenera los `.meta` con los mismos GUIDs a partir del nombre.',
         'Unity no importa esos assets hasta que alguien suba los `.meta`.',
         'Los assets se importan bien y solo pierden su configuración de compresión.'
       ],
@@ -69,7 +69,7 @@ UCP.addDomain({
       options: [
         'UnityYAMLMerge (Smart Merge)',
         'Unity Accelerator (servidor de caché)',
-        'Asset Database v2',
+        'Asset Database v2 (importador de assets)',
         'Unity Build Automation (Cloud Build)'
       ],
       answer: [0],
@@ -110,7 +110,7 @@ UCP.addDomain({
         'Porque necesita dejar pasar tiempo y frames usando `yield`.',
         'Porque `[Test]` no permite usar `Assert.Less` con valores float.',
         'Porque `[UnityTest]` se ejecuta en un hilo aparte y es más rápido.',
-        'Porque los tests con `[Test]` no pueden crear GameObjects.'
+        'Porque los tests con `[Test]` no pueden crear GameObjects nuevos.'
       ],
       answer: [0],
       explanation: '`[UnityTest]` se ejecuta como una corrutina: puedes usar `yield return null` (un frame), `WaitForSeconds`, `WaitForFixedUpdate`, etc. Un `[Test]` normal se ejecuta de forma síncrona en una sola llamada. Para la física, este test debe ejecutarse en Play Mode.'
@@ -120,7 +120,7 @@ UCP.addDomain({
       topic: 'Testing',
       q: 'Creaste una carpeta de tests con su Assembly Definition, pero los tests no encuentran las clases de tu juego (error de compilación). ¿Cuál es la causa más probable?',
       options: [
-        'El juego se compila en `Assembly-CSharp`, que un asmdef no puede referenciar.',
+        'El juego se compila en `Assembly-CSharp`, que un asmdef no puede referenciar: dale su propio asmdef.',
         'Los tests deben estar dentro de una carpeta llamada `Editor` para poder compilar.',
         'Las clases del juego deben ser `public static` para que los tests puedan verlas.',
         'Hay que añadir `using NUnit.Framework;` en cada clase del juego.'
@@ -186,7 +186,7 @@ UCP.addDomain({
       q: '¿Qué ventaja tiene este diseño?',
       code: 'public interface IDamageable { void TakeDamage(int amount); }\n\nvoid OnTriggerEnter(Collider other)\n{\n    if (other.TryGetComponent(out IDamageable target))\n        target.TakeDamage(10);\n}',
       options: [
-        'Daña a cualquier objeto que implemente `IDamageable`, sin conocer su tipo.',
+        'Daña a cualquier `IDamageable` sin conocer su tipo concreto.',
         'Hace que `OnTriggerEnter` se ejecute antes que el resto de callbacks de física.',
         'Evita tener que añadir colliders a los objetos que reciben daño.',
         'Ninguna: `TryGetComponent` no funciona con interfaces, así que no compila.'
@@ -201,7 +201,7 @@ UCP.addDomain({
       code: 'void OnEnable()\n{\n    GameEvents.OnScoreChanged += UpdateUI; // static event\n}\n\nvoid UpdateUI(int score)\n{\n    scoreText.text = score.ToString();\n}',
       options: [
         'Desuscribirse en `OnDisable` con `GameEvents.OnScoreChanged -= UpdateUI;`.',
-        'Suscribirse en `Start` en lugar de `OnEnable`, que se llama antes de que la escena esté lista.',
+        'Suscribirse en `Start` en lugar de en `OnEnable`.',
         'Comprobar en `UpdateUI` si `GameEvents` es `null` antes de usarlo.',
         'Marcar `scoreText` como `static` para que sobreviva al cambio de escena.'
       ],
@@ -223,7 +223,7 @@ UCP.addDomain({
       options: [
         'Con el atributo `[RequireComponent(typeof(Rigidbody))]` en la clase.',
         'Llamando a `AddComponent<Rigidbody>()` en cada `Update`.',
-        'Con un comentario en el código que avise a los diseñadores de la dependencia.',
+        'Con un comentario en el código que avise de la dependencia.',
         'Con el atributo `[ExecuteAlways]` en la clase.'
       ],
       answer: [0],
@@ -273,7 +273,7 @@ UCP.addDomain({
       topic: 'Estructura de código',
       q: 'Tu clase `Timer` choca con otra clase `Timer` de un asset de la Asset Store y el proyecto no compila. ¿Cuál es la mejor práctica?',
       options: [
-        'Meter tu código en un **namespace** propio, como `MiEstudio.Gameplay`.',
+        'Usar un **namespace** propio, como `MiEstudio.Gameplay`.',
         'Marcar tu clase como `internal` para que no choque con la del asset.',
         'Mover tu script a la carpeta `Plugins` para que se compile antes.',
         'Hacer tu clase `partial` para que se combine con la del asset.'
@@ -315,7 +315,7 @@ UCP.addDomain({
       code: 'public class Probe : MonoBehaviour\n{\n    void Awake()     { Debug.Log("Awake"); }\n    void OnEnable()  { Debug.Log("OnEnable"); }\n    void Start()     { Debug.Log("Start"); }\n    void OnDisable() { Debug.Log("OnDisable"); }\n}',
       options: [
         'Solo `Awake`; el resto espera a que se active el componente.',
-        '`Awake` y `OnEnable`; solo `Start` espera a que se active.',
+        '`Awake` y `OnEnable`; solo `Start` espera a que se active el componente.',
         'Nada: un componente desactivado no recibe ningún mensaje de Unity.',
         '`Awake`, `OnEnable` y `Start`, porque el GameObject está activo.'
       ],
@@ -358,9 +358,9 @@ UCP.addDomain({
       options: [
         'Sin el parámetro `duration` (0 por defecto), la línea solo dura un frame.',
         'Las líneas de `Debug.DrawRay` se ven en Scene; en Game, solo si activas Gizmos.',
-        '`Debug.DrawRay` solo dibuja si se llama desde `OnDrawGizmos` u `OnDrawGizmosSelected`.',
+        '`Debug.DrawRay` solo dibuja si se llama desde `OnDrawGizmos`.',
         'El rayo tiene que impactar en un Collider para que se dibuje la línea.',
-        'Las llamadas a `Debug.Draw*` solo funcionan en una Development Build, no en el Editor.'
+        '`Debug.Draw*` solo funciona en una Development Build, no en el Editor.'
       ],
       answer: [0, 1],
       explanation: 'Con `duration` = 0, la línea se dibuja durante un solo frame, y como `Start` se ejecuta una vez, apenas se ve. Usa `Debug.DrawRay(origen, dir, color, 5f)` o llámalo en `Update`. Además, `Debug.DrawLine` y `Debug.DrawRay` se dibujan en la vista Scene, y en la ventana Game solo si el botón **Gizmos** está activado. `OnDrawGizmos` es para la API `Gizmos` (`Gizmos.DrawRay`), y `Debug.DrawRay` no hace ningún raycast, así que no necesita colliders. Estas líneas son una ayuda del Editor: no se ven en las builds.'
@@ -428,7 +428,7 @@ UCP.addDomain({
       q: '`Door` llama a `doorOpened.Raise()` cuando se abre. ¿Cuál es la principal ventaja de este diseño frente a que `Door` tenga una referencia directa a `DoorUI`?',
       code: '[CreateAssetMenu]\npublic class VoidEventChannel : ScriptableObject\n{\n    public event Action OnRaised;\n    public void Raise() => OnRaised?.Invoke();\n}\n\npublic class DoorUI : MonoBehaviour\n{\n    [SerializeField] VoidEventChannel doorOpened;\n\n    void OnEnable()  => doorOpened.OnRaised += Show;\n    void OnDisable() => doorOpened.OnRaised -= Show;\n    void Show() { /* show the "Door open" message */ }\n}',
       options: [
-        '`Door` y `DoorUI` no se referencian entre sí: solo comparten el asset del canal.',
+        '`Door` y `DoorUI` no se referencian entre sí: solo comparten el asset del canal de eventos.',
         'Las suscripciones al evento se guardan en el asset y persisten entre sesiones.',
         '`OnRaised` se invoca en otro hilo, así que la UI nunca bloquea el juego.',
         'Como el canal es un asset, ya no hace falta desuscribirse en `OnDisable`.'
@@ -442,7 +442,7 @@ UCP.addDomain({
       q: 'Instalaste Git LFS (`git lfs install`) en el repositorio, pero los nuevos `.psd` se siguen guardando enteros en el historial normal de Git. ¿Qué falta?',
       options: [
         'Registrar el patrón con `git lfs track "*.psd"` y versionar `.gitattributes`.',
-        'Añadir `*.psd` al `.gitignore` para que Git delegue esos archivos en LFS.',
+        'Añadir `*.psd` al `.gitignore` para que Git delegue esos archivos en el almacenamiento LFS.',
         'Cambiar Asset Serialization a Force Binary para que LFS reconozca los PSD.',
         'Ejecutar `git gc --aggressive` para que Git mueva los PSD al almacenamiento LFS.'
       ],

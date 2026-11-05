@@ -38,7 +38,7 @@ UCP.addTranslation('en', {
         'Update the text only on the frame where the score changes.',
         'Use `"Score: " + score.ToString()` to avoid boxing the integer.',
         'Call `System.GC.Collect()` every few frames to free the garbage.',
-        'Move the line to `LateUpdate`, which does not allocate.'
+        'Move the line to `LateUpdate`, which does not allocate memory.'
       ],
       explanation: 'Concatenating strings creates a new string (garbage) every time. Doing it only when the value changes reduces allocations to practically zero. TextMeshPro also offers `SetText("Score: {0}", score)`, which avoids the allocation. Forcing the GC every frame is much worse.'
     },
@@ -57,7 +57,7 @@ UCP.addTranslation('en', {
       topic: 'Profiler',
       q: 'What is the main drawback of **Deep Profile**?',
       options: [
-        'It adds huge overhead that distorts the measured timings.',
+        'It adds huge overhead that distorts timings, especially of small functions.',
         'It does not show method calls from your own scripts.',
         'It only works in release builds, not in the Editor.',
         'It disables the Profiler memory module while it is active.'
@@ -96,7 +96,7 @@ UCP.addTranslation('en', {
       topic: 'Rendering',
       q: 'A city has many buildings hidden behind others, yet the GPU still processes them. You already have frustum culling. Which technique do you add?',
       options: [
-        '**Occlusion Culling**, with the occlusion data precomputed (baked).',
+        '**Occlusion Culling**, with the occlusion data precomputed (baked) in the Editor.',
         'Static Batching on all the buildings to reduce the number of draw calls.',
         'Reduce the camera Far Clip Plane until they stop being drawn.',
         'A LOD Group on each building, with a Culled level at the end.'
@@ -159,7 +159,7 @@ UCP.addTranslation('en', {
       options: [
         'Only in Android builds, never in the Editor.',
         'In the Editor (with Android active) and in Android builds.',
-        'On all mobile platforms.',
+        'On all mobile platforms, including Android and iOS.',
         'Only if the Android device has a vibration motor.'
       ],
       explanation: 'Platform compilation symbols (`UNITY_ANDROID`, `UNITY_IOS`, `UNITY_STANDALONE`, `UNITY_EDITOR`...) remove code at compile time. In the Editor with Android active, `UNITY_ANDROID` and `UNITY_EDITOR` are both true, so the condition is false.'
@@ -213,7 +213,7 @@ UCP.addTranslation('en', {
       topic: 'XR',
       q: 'What is the recommended way to display a menu in a VR application?',
       options: [
-        'A **World Space** Canvas at a comfortable reading distance.',
+        'A **World Space** Canvas placed at a comfortable reading distance and size.',
         'A Screen Space - Overlay Canvas drawn over both eyes.',
         'A Screen Space - Camera Canvas a few centimeters from the eyes.',
         'Show the menu only on the PC monitor (mirror).'
@@ -275,12 +275,12 @@ UCP.addTranslation('en', {
       topic: 'UI',
       q: 'Your pause menu has hundreds of elements and is opened and closed often. Every time it appears, the Profiler shows a spike of Canvas rebuilding and `OnEnable` calls across the whole hierarchy. What is the best alternative to this code?',
       options: [
-        'Disable the menu\'s `Canvas` component instead of its GameObject.',
+        'Disable only the menu\'s `Canvas` component, not its GameObject.',
         'Destroy the menu when closing it and instantiate the prefab again when opening it.',
         'Call `Canvas.ForceUpdateCanvases()` right after the `SetActive` call.',
-        'Set its `CanvasGroup` `alpha` to 0 and leave the menu active all the time.'
+        'Set its `CanvasGroup` `alpha` to 0, which also stops the menu from blocking clicks.'
       ],
-      explanation: 'When you disable the component (`canvas.enabled = false`), the menu stops being drawn but keeps its geometry, and its children do not receive `OnDisable`/`OnEnable`, so showing it again does not trigger a full rebuild. Deactivating the GameObject discards that geometry and fires the callbacks of the whole hierarchy. Instantiating and destroying is even more expensive (and generates garbage), `ForceUpdateCanvases` forces exactly the rebuild you want to avoid, and a `CanvasGroup` with `alpha` 0 keeps the menu active in the hierarchy and, unless you also turn off `blocksRaycasts`, it still blocks clicks.'
+      explanation: 'When you disable the component (`canvas.enabled = false`), the menu stops being drawn but keeps its geometry, and its children do not receive `OnDisable`/`OnEnable`, so showing it again does not trigger a full rebuild. Deactivating the GameObject discards that geometry and fires the callbacks of the whole hierarchy. Instantiating and destroying is even more expensive (and generates garbage), `ForceUpdateCanvases` forces exactly the rebuild you want to avoid, and a `CanvasGroup` `alpha` does not change clicks: the menu stays active in the hierarchy and blocks clicks as long as `blocksRaycasts` is on.'
     },
     'prf-27': {
       topic: 'Efficient scripting',
@@ -298,7 +298,7 @@ UCP.addTranslation('en', {
       topic: 'Efficient scripting',
       q: 'Two hundred spawners run this coroutine, and the Profiler shows constant small **GC Alloc** allocations that end up causing garbage collector hitches. What is the best solution?',
       options: [
-        'Create the `WaitForSeconds` once in a field and always return that instance.',
+        'Create the `WaitForSeconds` once in a field and always return that same instance.',
         'Use `new WaitForSecondsRealtime(0.5f)`, which does not depend on `Time.timeScale`.',
         'Use `yield return 0.5f;`, which Unity interprets as a wait in seconds.',
         'Call `System.GC.Collect()` on every loop iteration.'
@@ -309,7 +309,7 @@ UCP.addTranslation('en', {
       topic: 'Efficient scripting',
       q: 'This script is on 500 enemies, and the Profiler flags its `Update` as the most expensive thing in the frame. What is the main problem?',
       options: [
-        '`GameObject.Find` searches the scene every frame; cache the player in `Start`.',
+        '`GameObject.Find` scans the scene every frame; cache the player in `Start`.',
         '`Vector3.Distance` uses a square root; switching to `sqrMagnitude` solves it.',
         '`.material` creates a new material every frame; you must use `sharedMaterial`.',
         'Reading another object\'s position in `Update` is slow; it belongs in `LateUpdate`.'
@@ -331,12 +331,12 @@ UCP.addTranslation('en', {
       topic: 'Profiler',
       q: 'Your mobile game drops to 20 FPS in one level. Profiling on the device, you see that the main thread spends much of each frame in `Gfx.WaitForPresentOnGfxThread`. What does it mean and what do you do first?',
       options: [
-        'The game is GPU bound: review overdraw, shaders and render resolution.',
-        'The scripts are slow: enable Deep Profile to find the method blocking the thread.',
+        'The game is most likely GPU bound: review overdraw, shaders and render resolution.',
+        'The scripts are slow: enable Deep Profile to find the culprit method.',
         'It is the VSync wait: set `QualitySettings.vSyncCount = 0` to remove that time.',
         'There is too much garbage: the GC pauses the thread every frame.'
       ],
-      explanation: '`Gfx.WaitForPresentOnGfxThread` means the main thread is ready for the next frame, but the render thread is still waiting for the GPU to finish presenting the previous one: the typical sign of a **GPU bound** game. Optimizing scripts will not help; review overdraw, shader cost, post-processing, shadows or render resolution. Waiting for VSync or `targetFrameRate` shows up as `WaitForTargetFPS`, and garbage collector pauses show up as `GC.Collect`.'
+      explanation: '`Gfx.WaitForPresentOnGfxThread` means the main thread is ready for the next frame, but the render thread is still waiting for the GPU to finish presenting the previous one: the typical sign of a **GPU bound** game (you can confirm it in the Timeline view, where the render thread sits in `Gfx.PresentFrame` instead of submitting draw calls). Optimizing scripts will not help; review overdraw, shader cost, post-processing, shadows or render resolution. On mobile, `vSyncCount` is ignored (the OS always syncs to the display), so setting it to 0 changes nothing, and garbage collector pauses show up as `GC.Collect`, not as this wait.'
     },
     'prf-32': {
       topic: 'Profiler',
@@ -354,7 +354,7 @@ UCP.addTranslation('en', {
       topic: 'Rendering',
       q: 'In a URP project, you change the color of 300 units based on their team with this code. The Frame Debugger shows that those units no longer go through the **SRP Batcher**. What is the best solution?',
       options: [
-        'Use one material per team with the same shader, without `MaterialPropertyBlock`.',
+        'Use one material per team with the same shader, without any `MaterialPropertyBlock`.',
         'Create the `MaterialPropertyBlock` only once in a `static` field and reuse it.',
         'Enable Dynamic Batching in the URP Asset to group the objects that use a block.',
         'Use the `_Color` property instead of `_BaseColor`, which the SRP Batcher rejects.'

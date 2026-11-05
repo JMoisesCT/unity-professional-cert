@@ -43,7 +43,7 @@ UCP.addDomain({
         'Actualizar el texto solo en el frame en que cambia la puntuación.',
         'Usar `"Score: " + score.ToString()` para evitar el boxing del entero.',
         'Llamar a `System.GC.Collect()` cada pocos frames para liberar la basura.',
-        'Mover la línea a `LateUpdate`, que no genera asignaciones.'
+        'Mover la línea a `LateUpdate`, que no genera asignaciones de memoria.'
       ],
       answer: [0],
       explanation: 'Concatenar strings crea un string nuevo (basura) cada vez. Hacerlo solo cuando el valor cambia reduce las asignaciones prácticamente a cero. Con TextMeshPro también existe `SetText("Score: {0}", score)`, que evita la asignación. Forzar el GC en cada frame es mucho peor.'
@@ -66,7 +66,7 @@ UCP.addDomain({
       topic: 'Profiler',
       q: '¿Cuál es la principal desventaja de **Deep Profile**?',
       options: [
-        'Añade un overhead enorme que distorsiona los tiempos medidos.',
+        'Añade un overhead enorme que distorsiona los tiempos, sobre todo en funciones pequeñas.',
         'No muestra las llamadas a métodos de tus propios scripts.',
         'Solo funciona en builds de release, no en el Editor.',
         'Desactiva el módulo de memoria del Profiler mientras está activo.'
@@ -113,7 +113,7 @@ UCP.addDomain({
       topic: 'Renderizado',
       q: 'Una ciudad tiene muchos edificios ocultos detrás de otros, y aun así la GPU los procesa. Ya tienes frustum culling. ¿Qué técnica añades?',
       options: [
-        '**Occlusion Culling**, con los datos de oclusión precalculados (bake).',
+        '**Occlusion Culling**, con los datos de oclusión precalculados (bake) en el Editor.',
         'Static Batching de todos los edificios para reducir los draw calls.',
         'Reducir el Far Clip Plane de la cámara hasta que dejen de dibujarse.',
         'Un LOD Group en cada edificio, con un nivel Culled al final.'
@@ -189,7 +189,7 @@ UCP.addDomain({
       options: [
         'Solo en builds de Android, nunca en el Editor.',
         'En el Editor (con Android activo) y en builds de Android.',
-        'En todas las plataformas móviles.',
+        'En todas las plataformas móviles, Android e iOS incluidos.',
         'Solo si el dispositivo Android tiene motor de vibración.'
       ],
       answer: [0],
@@ -255,7 +255,7 @@ UCP.addDomain({
       topic: 'XR',
       q: '¿Cuál es la forma recomendada de mostrar un menú en una aplicación VR?',
       options: [
-        'Un Canvas en **World Space**, a una distancia cómoda de lectura.',
+        'Un Canvas en **World Space**, a una distancia y con un tamaño cómodos para leer.',
         'Un Canvas en Screen Space - Overlay, encima de todo en ambos ojos.',
         'Un Canvas en Screen Space - Camera, a pocos centímetros de los ojos.',
         'Mostrar el menú solo en el monitor del PC (mirror).'
@@ -330,13 +330,13 @@ UCP.addDomain({
       q: 'Tu menú de pausa tiene cientos de elementos y se abre y se cierra a menudo. Cada vez que aparece, el Profiler muestra un pico de reconstrucción del Canvas y de llamadas a `OnEnable` en toda la jerarquía. ¿Cuál es la mejor alternativa a este código?',
       code: 'public void ShowPause(bool show)\n{\n    pauseMenuRoot.SetActive(show);\n}',
       options: [
-        'Desactivar el componente `Canvas` del menú en lugar de su GameObject.',
+        'Desactivar solo el componente `Canvas` del menú, no su GameObject.',
         'Destruir el menú al cerrarlo y volver a instanciar el prefab al abrirlo.',
         'Llamar a `Canvas.ForceUpdateCanvases()` justo después del `SetActive`.',
-        'Poner el `alpha` de su `CanvasGroup` a 0 y dejar el menú siempre activo.'
+        'Poner el `alpha` de su `CanvasGroup` a 0, que además hace que el menú deje de bloquear los clics.'
       ],
       answer: [0],
-      explanation: 'Al desactivar el componente (`canvas.enabled = false`), el menú deja de dibujarse pero conserva su geometría, y sus hijos no reciben `OnDisable`/`OnEnable`, así que al volver a mostrarlo no hay una reconstrucción completa. Desactivar el GameObject descarta esa geometría y dispara los callbacks de toda la jerarquía. Instanciar y destruir es todavía más caro (y genera basura), `ForceUpdateCanvases` fuerza justo la reconstrucción que quieres evitar, y un `CanvasGroup` con `alpha` 0 deja el menú activo en la jerarquía y, si no desactivas también `blocksRaycasts`, sigue bloqueando los clics.'
+      explanation: 'Al desactivar el componente (`canvas.enabled = false`), el menú deja de dibujarse pero conserva su geometría, y sus hijos no reciben `OnDisable`/`OnEnable`, así que al volver a mostrarlo no hay una reconstrucción completa. Desactivar el GameObject descarta esa geometría y dispara los callbacks de toda la jerarquía. Instanciar y destruir es todavía más caro (y genera basura), `ForceUpdateCanvases` fuerza justo la reconstrucción que quieres evitar, y el `alpha` de un `CanvasGroup` no cambia los clics: el menú sigue activo en la jerarquía y bloquea los clics mientras `blocksRaycasts` siga activado.'
     },
     {
       id: 'prf-27',
@@ -359,7 +359,7 @@ UCP.addDomain({
       q: 'Doscientos spawners ejecutan esta corrutina, y el Profiler muestra pequeñas asignaciones de **GC Alloc** constantes que acaban provocando tirones por el recolector de basura. ¿Cuál es la mejor solución?',
       code: 'IEnumerator SpawnLoop()\n{\n    while (true)\n    {\n        SpawnEnemy();\n        yield return new WaitForSeconds(0.5f);\n    }\n}',
       options: [
-        'Crear el `WaitForSeconds` una vez en un campo y devolver esa instancia.',
+        'Crear el `WaitForSeconds` una vez en un campo y devolver siempre esa misma instancia.',
         'Usar `new WaitForSecondsRealtime(0.5f)`, que no depende de `Time.timeScale`.',
         'Usar `yield return 0.5f;`, que Unity interpreta como una espera en segundos.',
         'Llamar a `System.GC.Collect()` en cada vuelta del bucle.'
@@ -387,7 +387,7 @@ UCP.addDomain({
       q: 'Al final de cada combate generas un informe con cientos de golpes, y el Profiler muestra un pico de varios MB de **GC Alloc** en esta función. ¿Qué cambio lo reduce más?',
       code: 'string BuildReport(List<Hit> hits)\n{\n    string report = "";\n    foreach (Hit h in hits)\n        report += h.attacker + " -> " + h.damage + "\\n";\n    return report;\n}',
       options: [
-        'Usar un `StringBuilder` reutilizado (con `Clear()`) y llamar a `ToString()` al final.',
+        'Usar un `StringBuilder` reutilizado (con `Clear()`) y `ToString()` al final.',
         'Usar `string.Format` en el bucle, que escribe sobre el mismo string sin copiarlo.',
         'Cambiar el `foreach` por un `for`, porque `foreach` asigna un enumerador por vuelta.',
         'Usar interpolación (`$"{h.attacker} -> {h.damage}"`), que el compilador hace constante.'
@@ -400,13 +400,13 @@ UCP.addDomain({
       topic: 'Profiler',
       q: 'Tu juego móvil baja a 20 FPS en un nivel. Al profilear en el dispositivo, ves que el hilo principal pasa gran parte de cada frame en `Gfx.WaitForPresentOnGfxThread`. ¿Qué indica y qué haces primero?',
       options: [
-        'Está limitado por la GPU: revisa overdraw, shaders y resolución de render.',
-        'Los scripts son lentos: activa Deep Profile para encontrar el método que bloquea el hilo.',
-        'Es la espera del VSync: pon `QualitySettings.vSyncCount = 0` para eliminar ese tiempo.',
+        'Probablemente está limitado por la GPU: revisa overdraw, shaders y resolución de render.',
+        'Los scripts son lentos: activa Deep Profile para encontrar el método culpable.',
+        'Es la espera del VSync: pon `QualitySettings.vSyncCount = 0` para eliminarla.',
         'Hay demasiada basura: el recolector pausa el hilo en cada frame.'
       ],
       answer: [0],
-      explanation: '`Gfx.WaitForPresentOnGfxThread` indica que el hilo principal ya está listo para el siguiente frame, pero el hilo de render sigue esperando a que la GPU termine de presentar el anterior: la señal típica de un juego **GPU bound**. Optimizar scripts no ayudará; revisa overdraw, coste de los shaders, post-procesado, sombras o resolución de render. La espera por VSync o por `targetFrameRate` aparece como `WaitForTargetFPS`, y las pausas del recolector aparecen como `GC.Collect`.'
+      explanation: '`Gfx.WaitForPresentOnGfxThread` indica que el hilo principal ya está listo para el siguiente frame, pero el hilo de render sigue esperando a que la GPU termine de presentar el anterior: la señal típica de un juego **GPU bound** (puedes confirmarlo en la vista Timeline, viendo que el hilo de render está en `Gfx.PresentFrame` y no enviando draw calls). Optimizar scripts no ayudará; revisa overdraw, coste de los shaders, post-procesado, sombras o resolución de render. En móviles, `vSyncCount` se ignora (el sistema siempre sincroniza con la pantalla), así que ponerlo a 0 no cambia nada, y las pausas del recolector aparecen como `GC.Collect`, no como esta espera.'
     },
     {
       id: 'prf-32',
@@ -441,7 +441,7 @@ UCP.addDomain({
       topic: 'Plataformas',
       q: 'Tu juego va a 60 FPS estables en un móvil durante los primeros minutos, pero después baja poco a poco a 40 FPS sin que cambie la escena. En el Editor no pasa. ¿Cuál es la causa más probable?',
       options: [
-        'El dispositivo se calienta y reduce su frecuencia (*thermal throttling*).',
+        'El dispositivo se calienta y reduce la frecuencia de su CPU y GPU (*thermal throttling*).',
         'IL2CPP recompila el código a los pocos minutos y deja de estar optimizado.',
         'La memoria se llena de basura y hay que llamar a `GC.Collect()` cada minuto.',
         'Las texturas se descomprimen poco a poco en memoria y saturan la GPU.'

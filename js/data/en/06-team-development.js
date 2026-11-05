@@ -31,7 +31,7 @@ UCP.addTranslation('en', {
       q: 'A teammate committed new assets but **not** their `.meta` files. What is most likely to happen when you pull?',
       options: [
         'References in scenes and prefabs break, because Unity generates new GUIDs.',
-        'Nothing: Unity regenerates the `.meta` files with the same GUIDs based on the file name.',
+        'Nothing: Unity regenerates the `.meta` files with the same GUIDs.',
         'Unity does not import those assets until someone commits the `.meta` files.',
         'The assets import correctly and only lose their compression settings.'
       ],
@@ -60,7 +60,7 @@ UCP.addTranslation('en', {
       options: [
         'UnityYAMLMerge (Smart Merge)',
         'Unity Accelerator (cache server)',
-        'Asset Database v2',
+        'Asset Database v2 (asset importer)',
         'Unity Build Automation (Cloud Build)'
       ],
       explanation: 'UnityYAMLMerge understands the structure of Unity files and can merge changes that a generic text tool would flag as conflicts. You configure it as the merge tool in Git or in Unity Version Control.'
@@ -94,7 +94,7 @@ UCP.addTranslation('en', {
         'Because it needs to let time and frames pass using `yield`.',
         'Because `[Test]` does not allow `Assert.Less` with float values.',
         'Because `[UnityTest]` runs on a separate thread and is faster.',
-        'Because tests with `[Test]` cannot create GameObjects.'
+        'Because tests with `[Test]` cannot create new GameObjects in the scene.'
       ],
       explanation: '`[UnityTest]` runs as a coroutine: you can use `yield return null` (one frame), `WaitForSeconds`, `WaitForFixedUpdate`, etc. A regular `[Test]` runs synchronously in a single call. Because it relies on physics, this test must run in Play Mode.'
     },
@@ -102,7 +102,7 @@ UCP.addTranslation('en', {
       topic: 'Testing',
       q: 'You created a tests folder with its own Assembly Definition, but the tests cannot find your game classes (compilation error). What is the most likely cause?',
       options: [
-        'The game compiles into `Assembly-CSharp`, which an asmdef cannot reference.',
+        'The game compiles into `Assembly-CSharp`, which an asmdef cannot reference: give the game its own asmdef.',
         'Tests must be inside a folder named `Editor`, or the test assembly cannot compile.',
         'Game classes must be `public static` so that the test assembly can see them.',
         'You must add `using NUnit.Framework;` to every game class.'
@@ -157,7 +157,7 @@ UCP.addTranslation('en', {
       topic: 'Code structure',
       q: 'What is the advantage of this design?',
       options: [
-        'It can damage any `IDamageable` object without knowing its concrete type.',
+        'It damages any `IDamageable` without knowing its concrete type.',
         'It makes `OnTriggerEnter` run before the other physics callbacks.',
         'It avoids having to add colliders to the objects that take damage.',
         'None: `TryGetComponent` does not work with interfaces, so it does not compile.'
@@ -169,7 +169,7 @@ UCP.addTranslation('en', {
       q: 'After changing scenes, a `MissingReferenceException` appears inside `UpdateUI`. What is missing?',
       options: [
         'Unsubscribing in `OnDisable` with `GameEvents.OnScoreChanged -= UpdateUI;`.',
-        'Subscribing in `Start` instead of `OnEnable`, which is called before the scene is ready.',
+        'Subscribing in `Start` instead of in `OnEnable`.',
         'Checking in `UpdateUI` whether `GameEvents` is `null` before using it.',
         'Marking `scoreText` as `static` so that it survives the scene change.'
       ],
@@ -187,7 +187,7 @@ UCP.addTranslation('en', {
       options: [
         'With the `[RequireComponent(typeof(Rigidbody))]` attribute on the class.',
         'By calling `AddComponent<Rigidbody>()` in every `Update`.',
-        'With a comment in the code that warns the designers about this dependency.',
+        'With a code comment that warns about the dependency.',
         'With the `[ExecuteAlways]` attribute on the class.'
       ],
       explanation: '`RequireComponent` automatically adds the component when the script is added and prevents it from being removed while the script is present. It documents the dependency and prevents setup errors.'
@@ -229,7 +229,7 @@ UCP.addTranslation('en', {
       topic: 'Code structure',
       q: 'Your `Timer` class clashes with another `Timer` class from an Asset Store asset and the project does not compile. What is the best practice?',
       options: [
-        'Put your code in its own **namespace**, for example `MyStudio.Gameplay`.',
+        'Use your own **namespace**, such as `MyStudio.Gameplay`.',
         'Mark your class as `internal` so it does not clash with the asset class.',
         'Move your script to the `Plugins` folder so that it compiles first.',
         'Make your class `partial` so that it merges with the asset class.'
@@ -263,7 +263,7 @@ UCP.addTranslation('en', {
       q: 'In the scene, the GameObject is **active**, but the `Probe` component is **disabled** (checkbox cleared in the Inspector). What is printed when the scene loads?',
       options: [
         'Only `Awake`; the rest waits until the component is enabled.',
-        '`Awake` and `OnEnable`; only `Start` waits until it is enabled.',
+        '`Awake` and `OnEnable`; only `Start` waits until the component is enabled.',
         'Nothing: a disabled component does not receive any Unity messages.',
         '`Awake`, `OnEnable` and `Start`, because the GameObject is active.'
       ],
@@ -298,7 +298,7 @@ UCP.addTranslation('en', {
       options: [
         'Without the `duration` parameter (0 by default), the line lasts only one frame.',
         '`Debug.DrawRay` lines show in the Scene view; in Game, only if Gizmos is enabled.',
-        '`Debug.DrawRay` only draws when it is called from `OnDrawGizmos` or `OnDrawGizmosSelected`.',
+        '`Debug.DrawRay` only draws when called from `OnDrawGizmos`.',
         'The ray has to hit a Collider for the line to be drawn.',
         '`Debug.Draw*` calls only work in a Development Build, not in the Editor.'
       ],
@@ -354,7 +354,7 @@ UCP.addTranslation('en', {
       topic: 'Code structure',
       q: '`Door` calls `doorOpened.Raise()` when it opens. What is the main advantage of this design over giving `Door` a direct reference to `DoorUI`?',
       options: [
-        '`Door` and `DoorUI` do not reference each other: they only share the channel asset.',
+        '`Door` and `DoorUI` do not reference each other: they only share the event channel asset.',
         'The event subscriptions are saved in the asset and persist between sessions.',
         '`OnRaised` is invoked on another thread, so the UI never blocks the game.',
         'Because the channel is an asset, you no longer need to unsubscribe in `OnDisable`.'
@@ -366,9 +366,9 @@ UCP.addTranslation('en', {
       q: 'You installed Git LFS (`git lfs install`) in the repository, but new `.psd` files are still stored in full in the regular Git history. What is missing?',
       options: [
         'Register the pattern with `git lfs track "*.psd"` and commit `.gitattributes`.',
-        'Add `*.psd` to `.gitignore` so that Git hands those files over to LFS.',
+        'Add `*.psd` to `.gitignore` so that Git hands those files over to LFS storage.',
         'Switch Asset Serialization to Force Binary so that LFS recognizes PSD files.',
-        'Run `git gc --aggressive` so that Git moves the PSD files to LFS storage.'
+        'Run `git gc --aggressive` so that Git moves the existing PSD files to LFS storage.'
       ],
       explanation: '`git lfs install` only sets up the LFS hooks. For a file type to go to LFS, you must register it with `git lfs track`, which writes the rule to `.gitattributes`. That file must be committed so the whole team uses the same rules. Files already in the history do not change (you would have to migrate them with `git lfs migrate`). `.gitignore` removes files from Git entirely, and asset serialization has no effect on PSD files.'
     }
