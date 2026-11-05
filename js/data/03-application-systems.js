@@ -77,7 +77,7 @@ UCP.addDomain({
       options: [
         'Poner el **Update Mode** del Animator en `Unscaled Time`.',
         'Poner `Time.timeScale = 0.0001f` en lugar de 0.',
-        'Llamar a `animator.Update(Time.deltaTime)` manualmente en cada frame.',
+        'Llamar a mano a `animator.Update(Time.deltaTime)`.',
         'Mover las animaciones a `FixedUpdate`.'
       ],
       answer: [0],
@@ -104,7 +104,7 @@ UCP.addDomain({
       code: 'public class GameManager : MonoBehaviour\n{\n    public static GameManager Instance;\n\n    void Awake()\n    {\n        Instance = this;\n        DontDestroyOnLoad(gameObject);\n    }\n}',
       options: [
         'En `Awake`, si ya existe otra `Instance`, destruir este objeto y salir con `return`.',
-        'Mover el código de `Awake` a `Start` para que se ejecute después de cargar la escena.',
+        'Mover el código de `Awake` a `Start`, que se ejecuta más tarde.',
         'Llamar a `DontDestroyOnLoad` en `OnDestroy` en lugar de en `Awake`.',
         'Asignar `Instance = this` en `OnEnable` en lugar de en `Awake`.'
       ],
@@ -161,7 +161,7 @@ UCP.addDomain({
       options: [
         'Un `CanvasGroup`, animando `alpha` y desactivando `blocksRaycasts`.',
         '`gameObject.SetActive(false)` al empezar el fundido, para que deje de bloquear clics.',
-        'Animar hasta 0 el alfa del color del `Image` del panel.',
+        'Animar hasta 0 el alfa del color del `Image` del panel, para que deje de recibir clics.',
         'Mover el panel a otro Canvas con un `sortingOrder` más bajo durante el fundido.'
       ],
       answer: [0],
@@ -187,7 +187,7 @@ UCP.addDomain({
       q: '`mixer.SetFloat("MusicVolume", -10f)` devuelve `false` y el volumen no cambia. ¿Cuál es la causa más probable?',
       options: [
         'El parámetro no está **expuesto** (Expose to script) o el nombre no coincide.',
-        'Hay que llamar a `mixer.Apply()` después de `SetFloat` para aplicar el cambio.',
+        'Hay que llamar a `mixer.Apply()` después de `SetFloat`.',
         'El AudioMixer solo acepta valores entre 0 y 1, no decibelios negativos.',
         '`SetFloat` solo funciona si el AudioMixer está asignado a un `AudioListener`.'
       ],
@@ -227,8 +227,8 @@ UCP.addDomain({
       options: [
         'Un `ScriptableObject` por tipo de arma, referenciado donde se use.',
         'Un prefab por arma con los datos copiados en cada instancia.',
-        'Una clase estática con un `switch` que devuelve los datos de cada arma.',
-        'Escribirlos en `PlayerPrefs` al iniciar y leerlos con `GetString` al usarlos.'
+        'Una clase estática con un `switch` que devuelve los datos.',
+        'Escribirlos en `PlayerPrefs` al iniciar y leerlos con `GetString`.'
       ],
       answer: [0],
       explanation: 'Los ScriptableObjects son assets de datos: todas las referencias apuntan a la misma instancia (sin duplicar memoria) y los diseñadores pueden editarlos en el Inspector. Ojo: en una build, los cambios que hagas en runtime **no se guardan** entre sesiones; no sirven como sistema de guardado.'
@@ -308,7 +308,7 @@ UCP.addDomain({
       q: 'Al pausar, el texto "Pulsa Start para continuar" debería parpadear, pero cambia una sola vez y se queda fijo. ¿Qué cambio lo arregla?',
       code: 'public void Pause()\n{\n    Time.timeScale = 0f;\n    pausePanel.SetActive(true);\n    StartCoroutine(BlinkHint());\n}\n\nIEnumerator BlinkHint()\n{\n    while (true)\n    {\n        hint.enabled = !hint.enabled;\n        yield return new WaitForSeconds(0.5f);\n    }\n}',
       options: [
-        'Esperar con `yield return new WaitForSecondsRealtime(0.5f);`.',
+        'Cambiar la espera por `WaitForSecondsRealtime(0.5f)`, que cuenta tiempo real.',
         'Llamar a `StartCoroutine` antes de poner `Time.timeScale = 0f`.',
         'Esperar con `yield return new WaitForFixedUpdate();` en el bucle.',
         'Poner también `Time.fixedDeltaTime = 0f` al pausar.'
@@ -324,8 +324,8 @@ UCP.addDomain({
         'Girar el icono en `Update` multiplicando la velocidad por `Time.unscaledDeltaTime`.',
         'Poner `AudioListener.pause = true` y `ignoreListenerPause = true` en el `AudioSource` de la UI.',
         'Confiar en `Time.timeScale = 0`, que ya pausa automáticamente todos los `AudioSource` de la escena.',
-        'Girar el icono en `Update` multiplicando `Time.deltaTime` por `1f / Time.timeScale`.',
-        'Girar el icono en `FixedUpdate`, que sigue ejecutándose aunque `timeScale` sea 0.'
+        'Girar el icono en `Update` multiplicando `Time.deltaTime` por `1f / Time.timeScale` para compensar la pausa.',
+        'Girar el icono en `FixedUpdate`, que sigue ejecutándose a su ritmo fijo aunque `timeScale` sea 0.'
       ],
       answer: [0, 1],
       explanation: '`unscaledDeltaTime` no depende de `timeScale`, así que la rotación sigue durante la pausa. `AudioListener.pause` pausa todo el audio, y los `AudioSource` con `ignoreListenerPause = true` (como los de la UI) siguen sonando. `timeScale` **no** afecta a la reproducción de audio; dividir entre `timeScale` con valor 0 da un resultado no válido (0 × infinito); y `FixedUpdate` deja de ejecutarse con timeScale 0.'
@@ -351,7 +351,7 @@ UCP.addDomain({
       code: 'public class PlayerXp : MonoBehaviour\n{\n    public event Action<int> OnXpChanged;\n    int xp;\n\n    public void AddXp(int amount)\n    {\n        xp += amount;\n        OnXpChanged(xp);\n    }\n}',
       options: [
         'Si nadie se ha suscrito, `OnXpChanged(xp)` lanza una `NullReferenceException`.',
-        'Cambiar la llamada por `OnXpChanged?.Invoke(xp);` evita el error cuando no hay suscriptores.',
+        'Usar `OnXpChanged?.Invoke(xp);` evita el error si no hay suscriptores.',
         'Por ser `event`, otras clases pueden suscribirse y también invocarlo directamente.',
         'Un evento sin suscriptores se ignora en silencio, igual que un `UnityEvent` vacío.',
         'Para suscribirse desde otro script, hay que marcar el evento con `[SerializeField]`.'
@@ -366,7 +366,7 @@ UCP.addDomain({
       code: 'void Start()\n{\n    musicSlider.value = PlayerPrefs.GetFloat("music");\n    fullscreenToggle.isOn = PlayerPrefs.GetInt("fullscreen") == 1;\n}\n\npublic void SaveSettings()\n{\n    PlayerPrefs.SetFloat("music", musicSlider.value);\n    PlayerPrefs.SetInt("fullscreen", fullscreenToggle.isOn ? 1 : 0);\n    PlayerPrefs.Save();\n}',
       options: [
         'Leer con `PlayerPrefs.GetFloat("music", 1f)` para tener un valor por defecto.',
-        'Llamar a `PlayerPrefs.Save()` al principio de `Start`, antes de leer los valores.',
+        'Llamar a `PlayerPrefs.Save()` al principio de `Start`.',
         'Guardar el volumen con `SetString` y convertirlo con `float.Parse` al leerlo.',
         'Leerlo con `GetInt`, porque `GetFloat` redondea a 0 los valores entre 0 y 1.'
       ],
@@ -393,13 +393,13 @@ UCP.addDomain({
       q: 'El panel del menú se activa y desactiva con `SetActive`. Después de cerrarlo y volver a abrirlo dos veces, un clic en **Jugar** llama a `StartGame` tres veces. ¿Por qué?',
       code: 'void OnEnable()\n{\n    playButton.onClick.AddListener(() => StartGame());\n}\n\nvoid OnDisable()\n{\n    playButton.onClick.RemoveListener(() => StartGame());\n}',
       options: [
-        'Cada lambda es un delegado nuevo, y `RemoveListener` no encuentra el que añadiste.',
+        'Cada lambda es un delegado distinto: `RemoveListener` no encuentra el añadido.',
         '`RemoveListener` solo quita listeners persistentes, los añadidos desde el Inspector.',
         '`OnDisable` no se llama cuando el GameObject se desactiva con `SetActive(false)`.',
         'Los listeners añadidos por código se serializan y se recuperan al reactivar el objeto.'
       ],
       answer: [0],
-      explanation: 'Dos lambdas, aunque tengan el mismo cuerpo, son delegados distintos, así que `RemoveListener` no encuentra el que se añadió y no quita nada: en cada `OnEnable` se acumula uno más. Solución: pasa el método directamente (`AddListener(StartGame)` y `RemoveListener(StartGame)`) o guarda la lambda en un campo `UnityAction`. `RemoveListener` actúa sobre los listeners añadidos por código (no sobre los persistentes del Inspector), `OnDisable` sí se llama con `SetActive(false)` y los listeners de runtime no se serializan.'
+      explanation: 'Dos lambdas, aunque tengan el mismo cuerpo, se compilan como métodos distintos, así que sus delegados no son iguales y `RemoveListener` no encuentra el que se añadió y no quita nada: en cada `OnEnable` se acumula uno más. Solución: pasa el método directamente (`AddListener(StartGame)` y `RemoveListener(StartGame)`) o guarda la lambda en un campo `UnityAction` (dos delegados del mismo método sobre el mismo objeto sí se consideran iguales). `RemoveListener` actúa sobre los listeners añadidos por código (no sobre los persistentes del Inspector), `OnDisable` sí se llama con `SetActive(false)` y los listeners de runtime no se serializan.'
     },
     {
       id: 'sys-30',
@@ -409,7 +409,7 @@ UCP.addDomain({
       options: [
         '`coins`, `level` e `items`, con el `id` y el `amount` de cada objeto.',
         'Solo `coins` y `level`; `items` se omite y `deaths` no tiene `[SerializeField]`.',
-        '`coins` e `items`; `level` se omite porque los campos privados nunca se guardan.',
+        '`coins` e `items`; los campos privados como `level` nunca se guardan.',
         '`coins`, `level`, `deaths` e `items`, porque la clase es `[Serializable]`.'
       ],
       answer: [1],

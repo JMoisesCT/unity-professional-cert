@@ -48,9 +48,9 @@ UCP.addDomain({
       code: 'public class Bullet : MonoBehaviour\n{\n    void OnCollisionEnter(Collision other)\n    {\n        Destroy(gameObject);\n    }\n}',
       options: [
         'Cambiar **Collision Detection** del `Rigidbody` a `Continuous Dynamic`.',
-        'Mover la bala en `Update` modificando `transform.position` directamente.',
+        'Moverla en `Update` modificando `transform.position` directamente.',
         'Aumentar la masa de la pared.',
-        'Cambiar `OnCollisionEnter` por `OnCollisionStay`, que se evalúa en cada paso.'
+        'Usar `OnCollisionStay`, que se evalúa en cada paso de física.'
       ],
       answer: [0],
       explanation: 'El problema es el *tunneling*: con detección `Discrete`, en un paso de física la bala está antes de la pared y en el siguiente ya la ha pasado. La detección continua (`Continuous Dynamic`, o también `Continuous Speculative`) evita esto. Mover por `transform` empeora el problema, y la masa o `OnCollisionStay` no cambian la detección.'
@@ -61,9 +61,9 @@ UCP.addDomain({
       q: '¿Qué hace este código?',
       code: 'int mask = ~(1 << LayerMask.NameToLayer("Player"));\nif (Physics.Raycast(origin, dir, out RaycastHit hit, 100f, mask))\n{\n    Debug.Log(hit.collider.name);\n}',
       options: [
-        'Detecta solo objetos en la capa Player.',
+        'Detecta solo los objetos que están en la capa Player.',
         'Detecta objetos en todas las capas excepto Player.',
-        'No detecta nada, porque la máscara queda en 0.',
+        'No detecta nada, porque la máscara invertida queda en 0.',
         'No compila: el operador `~` no se puede usar con enteros.'
       ],
       answer: [1],
@@ -84,7 +84,7 @@ UCP.addDomain({
       code: 'void FixedUpdate()\n{\n    if (Input.GetKeyDown(KeyCode.Space))\n        Jump();\n}',
       options: [
         '`GetKeyDown` solo es `true` en un frame, y `FixedUpdate` puede no ejecutarse en ese frame.',
-        '`KeyCode.Space` solo se detecta si el GameObject tiene un collider con el foco del teclado.',
+        '`KeyCode.Space` solo se detecta si el GameObject tiene el foco del teclado.',
         '`GetKeyDown` necesita que `Time.timeScale` sea exactamente 1 para detectar pulsaciones.',
         '`GetKeyDown` está obsoleto; hay que usar `GetKey`, que detecta la pulsación siempre.'
       ],
@@ -97,9 +97,9 @@ UCP.addDomain({
       q: 'Usas una clase generada por el Input System. Si **eliminas** la línea de `OnEnable`, ¿qué ocurre?',
       code: 'PlayerControls controls;\n\nvoid Awake()    { controls = new PlayerControls(); }\nvoid OnEnable() { controls.Gameplay.Enable(); }\n\nvoid Update()\n{\n    Vector2 move = controls.Gameplay.Move.ReadValue<Vector2>();\n    // ...\n}',
       options: [
-        'Error de compilación: `ReadValue` no se puede llamar sobre una acción deshabilitada.',
+        'Error de compilación: no se puede leer una acción deshabilitada.',
         '`ReadValue` devuelve siempre `(0, 0)`, porque la acción está deshabilitada.',
-        'Funciona igual, porque `new PlayerControls()` habilita todas las acciones.',
+        'Funciona igual: `new PlayerControls()` habilita las acciones.',
         'Se lanza `NullReferenceException` en `Update`.'
       ],
       answer: [1],
@@ -122,7 +122,7 @@ UCP.addDomain({
         'Multiplicar por `Time.deltaTime`.',
         'Multiplicar por `Time.fixedDeltaTime`.',
         'Fijar `Application.targetFrameRate = 30`.',
-        'Mover el código a `LateUpdate`.'
+        'Mover el código a `LateUpdate`, después de los demás `Update`.'
       ],
       answer: [0],
       explanation: '`Time.deltaTime` es el tiempo en segundos desde el frame anterior. Multiplicar por él convierte `speed` en unidades por segundo, sin importar los FPS. Limitar los FPS no arregla el problema de fondo.'
@@ -146,7 +146,7 @@ UCP.addDomain({
       q: '¿Cuál de estas afirmaciones sobre `CharacterController` es **correcta**?',
       options: [
         '`SimpleMove` aplica la gravedad e ignora el componente Y de la velocidad.',
-        '`Move` aplica la gravedad automáticamente.',
+        '`Move` aplica la gravedad automáticamente y usa `deltaTime` internamente, como `SimpleMove`.',
         'Un `CharacterController` responde a `AddForce` igual que un `Rigidbody` dinámico.',
         '`CharacterController` necesita un `Rigidbody` en el mismo objeto para colisionar.'
       ],
@@ -194,9 +194,9 @@ UCP.addDomain({
       q: 'Las balas del jugador chocan con el propio jugador al salir del arma. ¿Cuál es la solución más limpia, sin código extra en cada bala?',
       options: [
         'Usar capas distintas y desactivar su interacción en la **Layer Collision Matrix**.',
-        'Darles tags distintos ("Bullet" y "Player") para que la física ignore el contacto.',
+        'Darles tags distintos para que la física ignore el contacto.',
         'Llamar a `Physics.IgnoreCollision` en el `Start` de cada bala.',
-        'Marcar el collider del jugador como trigger mientras dura la animación de disparo.'
+        'Marcar el collider del jugador como trigger al disparar.'
       ],
       answer: [0],
       explanation: 'La Layer Collision Matrix (Project Settings > Physics) define qué capas pueden colisionar entre sí y no cuesta nada en tiempo de ejecución. `IgnoreCollision` funciona, pero es código por pareja de objetos. Los tags no afectan a la física.'
@@ -208,7 +208,7 @@ UCP.addDomain({
       options: [
         'Destruyes la Main Camera y creas otra con los ajustes de combate.',
         'Subes la **Priority** de la cámara de combate por encima de la otra.',
-        'Asignas `Camera.main = combatCamera` desde un script.',
+        'Asignas `Camera.main = combatCamera` desde un script al entrar en combate.',
         'Cambias la propiedad `depth` de la cámara virtual de combate a un valor mayor.'
       ],
       answer: [1],
@@ -288,7 +288,7 @@ UCP.addDomain({
         '`A` al pulsar y `C` al soltar.',
         '`A` y `B` al pulsar, y `C` al soltar.',
         '`A` al pulsar, y `B` y `C` al soltar.',
-        'Solo `C` al soltar.'
+        'Solo `C` al soltar, porque no se cumplió el Hold Time.'
       ],
       answer: [0],
       explanation: 'Con la interacción **Hold**, `started` se dispara al pulsar, `performed` solo cuando el botón se ha mantenido el tiempo configurado y `canceled` al soltar. Si se suelta antes de 0,5 s, `performed` nunca llega: se imprime `A` y luego `C`. Si se mantiene más de 0,5 s, se imprimiría `A`, `B` (al cumplirse el tiempo) y `C` al soltar. Es la forma típica de distinguir un toque corto de una carga.'
@@ -300,8 +300,8 @@ UCP.addDomain({
       options: [
         'Deshabilitar la acción y llamar a `PerformInteractiveRebinding()` sobre ella, y luego a `Start()`.',
         'Guardar `SaveBindingOverridesAsJson()` y aplicarlo con `LoadBindingOverridesFromJson()` al arrancar.',
-        'Modificar el asset `.inputactions` en tiempo de ejecución con `AssetDatabase` y guardarlo en disco.',
-        'Regenerar la clase C# del asset con **Generate C# Class** cada vez que el jugador cambie la tecla.',
+        'Modificar el asset `.inputactions` en runtime con `AssetDatabase` y guardarlo en disco.',
+        'Regenerar la clase C# con **Generate C# Class** cada vez que el jugador cambie la tecla.',
         'Crear una `InputAction` nueva en cada `Update` con la tecla elegida.'
       ],
       answer: [0, 1],
@@ -327,7 +327,7 @@ UCP.addDomain({
       q: 'Tu personaje usa un `CharacterController`. Se mueve muchísimo más rápido de lo esperado y su velocidad cambia según los FPS. ¿Cuál es el error?',
       code: 'CharacterController controller;\nVector3 velocity;\n\nvoid Update()\n{\n    Vector3 move = new Vector3(input.x, 0f, input.y) * speed;\n    velocity.y += gravity * Time.deltaTime;\n    controller.Move(move + velocity);\n}',
       options: [
-        '`Move` espera un desplazamiento y aquí recibe una velocidad sin `Time.deltaTime`.',
+        '`Move` espera un desplazamiento por frame y aquí recibe una velocidad sin multiplicar por `Time.deltaTime`.',
         '`Move` ya aplica la gravedad, así que `velocity.y` se suma dos veces en cada frame.',
         'Debe ir en `FixedUpdate`, porque el `CharacterController` avanza con el paso de física.',
         '`gravity` debe ser positiva, porque `Move` invierte el eje Y.'
@@ -358,8 +358,8 @@ UCP.addDomain({
       options: [
         'No genera basura en cada disparo, porque reutiliza el array `hits`.',
         'Los colliders con **Is Trigger** activado no aparecen en los resultados.',
-        'Los impactos llegan ordenados del más cercano al más lejano.',
-        'Con más de 16 enemigos en la línea, lanza `IndexOutOfRangeException`.',
+        'Los impactos llegan ordenados por distancia, del más cercano al más lejano.',
+        'Con más de 16 enemigos en la línea, lanza una `IndexOutOfRangeException`.',
         'Solo daña al primer enemigo, porque el rayo se detiene en el primer collider.'
       ],
       answer: [0, 1],
@@ -371,7 +371,7 @@ UCP.addDomain({
       q: 'Tu proyectil es una bola de 0,5 m de radio y detecta impactos con un `Physics.Raycast` desde su centro. A veces roza una columna fina y no la detecta, aunque visualmente la toca. ¿Qué es lo más adecuado?',
       options: [
         'Usar `Physics.SphereCast` con el radio del proyectil y la misma dirección y distancia.',
-        'Usar `Physics.OverlapSphere` en la posición final de cada frame, con el radio del proyectil.',
+        'Usar `Physics.OverlapSphere` en la posición final de cada frame.',
         'Usar `Physics.Linecast` entre la posición anterior y la actual.',
         'Aumentar la `maxDistance` del `Physics.Raycast` para que llegue antes a la columna.'
       ],
@@ -386,7 +386,7 @@ UCP.addDomain({
       options: [
         'Usar `Quaternion.RotateTowards` con `90f * Time.deltaTime` como paso máximo.',
         'Cambiar `0.1f` por `90f * Time.deltaTime`, porque el tercer parámetro de `Slerp` son grados.',
-        'Cambiar `Slerp` por `Lerp`, que gira a ritmo constante.',
+        'Cambiar `Slerp` por `Lerp`, que interpola a ritmo constante entre las dos rotaciones.',
         'Mover el código a `FixedUpdate`, para que `0.1f` se aplique siempre a un ritmo fijo de 50 Hz.'
       ],
       answer: [0],

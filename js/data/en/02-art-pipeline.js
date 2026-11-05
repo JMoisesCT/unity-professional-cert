@@ -25,8 +25,8 @@ UCP.addTranslation('en', {
       options: [
         'All 50 enemies turn red, because `.material` returns the shared asset itself.',
         'Only that enemy turns red, because Unity creates a copy of the material for it.',
-        'Only that enemy turns red, with no extra memory or batching cost at all.',
-        'It throws an exception, because a shared material cannot be modified at runtime.'
+        'Only that enemy turns red, with no extra memory cost.',
+        'It throws an exception: a shared material cannot be modified at runtime.'
       ],
       explanation: 'When you access `.material`, Unity duplicates the material the first time and assigns it only to that renderer. It is convenient, but each instance uses memory, breaks batching and should be destroyed (`Destroy`) when you no longer need it. `.sharedMaterial` would modify the asset and affect all 50.'
     },
@@ -43,7 +43,7 @@ UCP.addTranslation('en', {
         '`renderer.material.color` on each tree, since Unity reuses the same material.',
         'A `MaterialPropertyBlock` set with `renderer.SetPropertyBlock`.',
         '`renderer.sharedMaterial.color` on each tree, right before it is drawn.',
-        'Create 500 materials in the project.'
+        'Create 500 materials in the project, one per tree, each with its own color.'
       ],
       explanation: '`MaterialPropertyBlock` stores property values per renderer without duplicating the material. `sharedMaterial` would change the color of all of them, and `.material` would create 500 instances. In URP, keep in mind that objects with a property block are no longer compatible with the SRP Batcher.'
     },
@@ -54,7 +54,7 @@ UCP.addTranslation('en', {
         'Because `SetFloat` with a string is obsolete in Unity 6 and no longer compiles.',
         'Because it avoids hashing the string on every call.',
         'Because it allows using parameters that do not exist in the Animator Controller.',
-        'Because it syncs the parameter over the network.'
+        'Because it automatically syncs the parameter over the network.'
       ],
       explanation: 'Internally, the Animator identifies parameters by an integer hash. With the overload that takes a string, the hash is computed every time. Storing it in a `static readonly int` is the recommended practice (the same applies to `Shader.PropertyToID`).'
     },
@@ -65,7 +65,7 @@ UCP.addTranslation('en', {
         'Disable **Has Exit Time** on that transition.',
         'Increase the **Exit Time** to 1 so that the transition starts sooner.',
         'Change the parameter from a trigger to a bool so it is evaluated sooner.',
-        'Enable **Apply Root Motion**.'
+        'Enable **Apply Root Motion** on the `Animator` so that it reacts sooner.'
       ],
       explanation: 'With **Has Exit Time** enabled, the transition can only occur when the specified normalized time is reached, even if the condition is already met. For actions that need an immediate response (attacking, jumping), disable it and rely only on the parameter condition.'
     },
@@ -76,7 +76,7 @@ UCP.addTranslation('en', {
         'It is an Animator bug: triggers are cached until the controller is reset.',
         'A trigger stays set until a transition consumes it.',
         'Triggers are reactivated every time the default state is entered.',
-        '`Jump` should have been a float parameter.'
+        'The `Jump` parameter should be a float so that it resets to 0 by itself.'
       ],
       explanation: 'A trigger is a bool that is automatically set to `false` **when a transition consumes it**. If no transition consumes it, it stays set and will be used as soon as there is a transition that uses it. `ResetTrigger` clears it.'
     },
@@ -84,7 +84,7 @@ UCP.addTranslation('en', {
       topic: '3D animation',
       q: 'You want to play a footstep sound exactly when the foot touches the ground in the walk animation. What is the most appropriate approach?',
       options: [
-        'An **Animation Event** on the clip that calls a method on your script.',
+        'An **Animation Event** on the clip frame where the foot touches the ground, calling a method on your script.',
         'A coroutine that plays the sound every 0.5 seconds while walking.',
         'Checking `animator.GetCurrentAnimatorStateInfo(0).normalizedTime` in `FixedUpdate`.',
         'A trigger collider on each foot.'
@@ -97,7 +97,7 @@ UCP.addTranslation('en', {
       options: [
         'Three states with transitions controlled by triggers.',
         'A **1D Blend Tree** controlled by a float parameter `Speed`.',
-        'Three different Animator Controllers that are swapped from code.',
+        'Three Animator Controllers swapped from code.',
         'One Avatar Mask for each animation.'
       ],
       explanation: 'A Blend Tree blends several clips based on one or more parameters. For speed-based locomotion, a 1D Blend Tree driven by `Speed` gives a continuous blend without having to manage transitions. For 8-directional movement, 2D Blend Trees are used.'
@@ -195,10 +195,10 @@ UCP.addTranslation('en', {
       topic: 'Textures',
       q: 'What is the effect of enabling **Read/Write Enabled** on a texture?',
       options: [
-        'It lets the GPU write to the texture faster, which improves rendering performance.',
+        'It lets the GPU write to the texture faster.',
         'It keeps a copy in CPU memory, required for `GetPixels` / `SetPixels`.',
         'It lets you edit the texture pixels in the Inspector.',
-        'It disables compression so that the texture can be read losslessly.'
+        'It disables compression so the texture can be read losslessly.'
       ],
       explanation: 'By default, once the texture is uploaded to the GPU, the CPU copy is released. Read/Write keeps it so that scripts can read and write pixels, which costs memory. Enable it only if you need it.'
     },
@@ -239,10 +239,10 @@ UCP.addTranslation('en', {
       topic: 'Textures',
       q: 'You generate a texture from code and assign it to a URP Lit material, but it does not show up red on screen. What is missing?',
       options: [
-        'Calling `tex.Apply()` after `SetPixels` to upload the pixels to the GPU.',
+        'Calling `tex.Apply()` after `SetPixels` to upload the new pixels to the GPU.',
         'Enabling **Read/Write Enabled** in the texture\'s import settings.',
         'Using `SetPixels32`, because `SetPixels` only works on compressed textures.',
-        'Assigning it via `sharedMaterial`, because `material` discards textures created at runtime.'
+        'Using `sharedMaterial`, because `material` discards runtime textures.'
       ],
       explanation: '`SetPixels` only modifies the copy of the texture in CPU memory. `Apply()` uploads those changes to the GPU (and recalculates the mipmaps by default); without that call, the GPU keeps showing the previous content. A texture created with `new Texture2D` has no import settings and can already be read and written from script. `SetPixels32` also needs `Apply()`, and using `material` or `sharedMaterial` makes no difference here (in URP Lit, `mainTexture` maps to `_BaseMap`).'
     },
@@ -263,7 +263,7 @@ UCP.addTranslation('en', {
       q: 'This script is on an explosion prefab that you instantiate on every impact. What happens when the effect finishes?',
       options: [
         'The GameObject is destroyed once the system stops and all its particles have died.',
-        'Only the `ParticleSystem` component is destroyed; the empty GameObject stays in the scene.',
+        'Only the `ParticleSystem` component is destroyed, not the GameObject.',
         'Nothing: `stopAction` only runs if you explicitly call `ps.Stop()` from code.',
         'Compilation error: you must assign the module back with `ps.main = main`.'
       ],
@@ -284,13 +284,13 @@ UCP.addTranslation('en', {
       topic: 'Particles',
       q: 'A button calls this method to turn a chimney\'s smoke on and off. Which **two** statements are correct? (Choose 2)',
       options: [
-        'When it is turned off, the particles that already existed vanish instantly.',
+        'When turned off, the existing particles vanish instantly.',
         '`Play()` also plays the child particle systems, by default.',
         'When it is turned off, the particles that already existed finish their lifetime normally.',
-        '`isPlaying` keeps returning `true` until you call `smoke.Clear()`.',
-        'You must call `smoke.Clear()` before `Play()` or it will not emit again.'
+        '`isPlaying` keeps returning `true` until you explicitly call `smoke.Clear()`.',
+        'You must call `smoke.Clear()` before `Play()` or the system will not emit again.'
       ],
-      explanation: '`StopEmittingAndClear` stops emission and removes live particles immediately (with `StopEmitting` they would finish their lifetime normally). Both `Play` and `Stop` have `withChildren = true` by default, so they also affect child systems. After `Stop`, `isPlaying` becomes `false`, and `Play()` starts emitting again without having to call `Clear()` first.'
+      explanation: '`StopEmittingAndClear` stops emission and removes live particles immediately (with `StopEmitting` they would finish their lifetime normally). Both `Play` and `Stop` have `withChildren = true` by default, so they also affect child systems. After this `Stop`, which also clears the particles, `isPlaying` becomes `false`, and `Play()` starts emitting again without having to call `Clear()` first.'
     },
     'art-27': {
       topic: 'Lighting',
@@ -311,7 +311,7 @@ UCP.addTranslation('en', {
         'Set the lights that never change during gameplay to **Baked**.',
         'Raise the **Pixel Light Count** in Project Settings > Quality.',
         'Enable **Cast Shadows** on every Point Light in the hall.',
-        'Raise the **Intensity** and **Range** of the lights that do not reach the objects.'
+        'Raise the **Intensity** and **Range** of the lights.'
       ],
       explanation: 'In the **Forward** path, URP limits how many additional lights affect each object (the per-object limit in the URP Asset, at most 8); any extra lights are dropped, which is noticeable on large objects. **Forward+** (and also Deferred) removes that per-object limit. **Baked** lights are not computed at runtime, so they do not count toward that limit. **Pixel Light Count** is a Built-in Render Pipeline setting that URP ignores, and enabling shadows or raising the range does not reduce the number of lights touching each object (in fact, the range increases it).'
     },
@@ -330,7 +330,7 @@ UCP.addTranslation('en', {
       topic: '3D animation',
       q: 'In a locomotion Blend Tree, the character snaps from Walk to Run when `targetSpeed` changes. A teammate changes the call to this version. What do the last two arguments do?',
       options: [
-        'They smooth the change: `Speed` approaches `targetSpeed` with a damping time of 0.1 s.',
+        'They damp the change: `Speed` eases toward `targetSpeed` over about 0.1 s.',
         'They set the Animator transition duration to 0.1 s, ignoring the configured one.',
         'They limit the change of `Speed` to 0.1 units per second, scaled by `Time.deltaTime`.',
         'They delay assigning the value by 0.1 s, as if using a coroutine with `WaitForSeconds`.'

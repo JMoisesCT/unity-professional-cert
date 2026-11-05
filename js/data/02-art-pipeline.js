@@ -27,8 +27,8 @@ UCP.addDomain({
       options: [
         'Los 50 enemigos se ponen rojos, porque comparten el material.',
         'Solo ese enemigo se pone rojo, porque Unity le crea una copia del material.',
-        'Solo ese enemigo se pone rojo, sin ningún coste extra de memoria ni de batching.',
-        'Lanza una excepción, porque un material compartido no se puede modificar en runtime.'
+        'Solo ese enemigo se pone rojo, sin coste extra de memoria.',
+        'Lanza una excepción: un material compartido no se modifica en runtime.'
       ],
       answer: [1],
       explanation: 'Al acceder a `.material`, Unity duplica el material la primera vez y se lo asigna solo a ese renderer. Es cómodo, pero cada instancia ocupa memoria, rompe el batching y deberías destruirla (`Destroy`) cuando no la necesites. `.sharedMaterial` modificaría el asset y afectaría a los 50.'
@@ -49,7 +49,7 @@ UCP.addDomain({
         '`renderer.material.color` en cada árbol, ya que Unity reutiliza el mismo material.',
         'Un `MaterialPropertyBlock` con `renderer.SetPropertyBlock`.',
         '`renderer.sharedMaterial.color` en cada árbol, justo antes de que se dibuje.',
-        'Crear 500 materiales en el proyecto.'
+        'Crear 500 materiales en el proyecto, uno por árbol, con su propio color.'
       ],
       answer: [1],
       explanation: '`MaterialPropertyBlock` guarda valores de propiedades por renderer sin duplicar el material. `sharedMaterial` cambiaría el color de todos, y `.material` crearía 500 instancias. En URP, ten en cuenta que los objetos con property block dejan de ser compatibles con el SRP Batcher.'
@@ -63,7 +63,7 @@ UCP.addDomain({
         'Porque `SetFloat` con string está obsoleto en Unity 6 y ya no compila.',
         'Porque evita calcular el hash del string en cada llamada.',
         'Porque permite usar parámetros que no existen en el Animator Controller.',
-        'Porque sincroniza el parámetro por la red.'
+        'Porque sincroniza automáticamente el parámetro por la red.'
       ],
       answer: [1],
       explanation: 'Internamente el Animator identifica los parámetros por un hash entero. Con la sobrecarga que recibe un string, el hash se calcula cada vez. Guardarlo en un `static readonly int` es la práctica recomendada (lo mismo pasa con `Shader.PropertyToID`).'
@@ -76,7 +76,7 @@ UCP.addDomain({
         'Desactivar **Has Exit Time** en esa transición.',
         'Aumentar el **Exit Time** a 1 para que la transición empiece antes.',
         'Cambiar el parámetro de tipo trigger a bool para que se evalúe antes.',
-        'Activar **Apply Root Motion** en el `Animator`.'
+        'Activar **Apply Root Motion** en el `Animator` para que reaccione antes.'
       ],
       answer: [0],
       explanation: 'Con **Has Exit Time** activado, la transición solo puede ocurrir al llegar al tiempo normalizado indicado, aunque la condición ya se cumpla. Para acciones de respuesta inmediata (atacar, saltar), desactívalo y usa solo la condición del parámetro.'
@@ -88,7 +88,7 @@ UCP.addDomain({
       options: [
         'Es un fallo del Animator: los triggers se guardan en caché hasta reiniciar el controlador.',
         'Un trigger sigue activo hasta que una transición lo consume.',
-        'Los triggers se reactivan al volver al estado por defecto.',
+        'Los triggers se reactivan cada vez que se vuelve al estado por defecto.',
         'El parámetro `Jump` debería ser float para que vuelva a 0 solo.'
       ],
       answer: [1],
@@ -99,7 +99,7 @@ UCP.addDomain({
       topic: 'Animación 3D',
       q: 'Quieres reproducir el sonido de un paso justo cuando el pie toca el suelo en la animación de caminar. ¿Cuál es el enfoque más adecuado?',
       options: [
-        'Un **Animation Event** en el clip que llame a un método de tu script.',
+        'Un **Animation Event** en el frame del clip en que el pie toca el suelo, que llame a un método de tu script.',
         'Una corrutina que reproduce el sonido cada 0,5 segundos mientras camina.',
         'Comprobar `animator.GetCurrentAnimatorStateInfo(0).normalizedTime` en `FixedUpdate`.',
         'Un trigger collider en cada pie.'
@@ -114,7 +114,7 @@ UCP.addDomain({
       options: [
         'Tres estados con transiciones controladas por triggers.',
         'Un **Blend Tree 1D** controlado por un parámetro float `Speed`.',
-        'Tres Animator Controllers distintos que se cambian por código.',
+        'Tres Animator Controllers que se cambian por código.',
         'Una Avatar Mask por cada animación.'
       ],
       answer: [1],
@@ -233,10 +233,10 @@ UCP.addDomain({
       topic: 'Texturas',
       q: '¿Qué efecto tiene activar **Read/Write Enabled** en una textura?',
       options: [
-        'Permite que la GPU escriba en la textura más rápido, lo que mejora el rendimiento.',
+        'Permite que la GPU escriba en la textura más rápido.',
         'Mantiene una copia en la memoria de la CPU, necesaria para `GetPixels` / `SetPixels`.',
         'Permite editar los píxeles de la textura desde el Inspector del Editor.',
-        'Desactiva la compresión para que la textura se pueda leer sin pérdida de calidad.'
+        'Desactiva la compresión para leer la textura sin pérdidas.'
       ],
       answer: [1],
       explanation: 'Por defecto, al subir la textura a la GPU se libera la copia de la CPU. Read/Write la conserva para que los scripts puedan leer y escribir píxeles, lo que cuesta memoria. Actívalo solo si lo necesitas.'
@@ -287,10 +287,10 @@ UCP.addDomain({
       q: 'Generas una textura por código y la asignas a un material URP Lit, pero en pantalla no se ve roja. ¿Qué falta?',
       code: 'Texture2D tex = new Texture2D(64, 64);\nColor[] pixels = new Color[64 * 64];\nfor (int i = 0; i < pixels.Length; i++)\n    pixels[i] = Color.red;\n\ntex.SetPixels(pixels);\nGetComponent<Renderer>().material.mainTexture = tex;',
       options: [
-        'Llamar a `tex.Apply()` después de `SetPixels` para subir los píxeles a la GPU.',
+        'Llamar a `tex.Apply()` después de `SetPixels` para subir los píxeles nuevos a la GPU.',
         'Activar **Read/Write Enabled** en los ajustes de importación de la textura.',
         'Usar `SetPixels32`, porque `SetPixels` solo funciona en texturas comprimidas.',
-        'Asignarla con `sharedMaterial`, porque `material` descarta las texturas creadas en runtime.'
+        'Usar `sharedMaterial`, porque `material` descarta las texturas creadas en runtime.'
       ],
       answer: [0],
       explanation: '`SetPixels` solo modifica la copia de la textura que está en la memoria de la CPU. `Apply()` sube esos cambios a la GPU (y por defecto recalcula los mipmaps); sin esa llamada, la GPU sigue mostrando el contenido anterior. Una textura creada con `new Texture2D` no tiene ajustes de importación y ya se puede leer y escribir desde script. `SetPixels32` también necesita `Apply()`, y usar `material` o `sharedMaterial` no influye en esto (en URP Lit, `mainTexture` corresponde a `_BaseMap`).'
@@ -316,7 +316,7 @@ UCP.addDomain({
       code: 'void Start()\n{\n    var ps = GetComponent<ParticleSystem>();\n    var main = ps.main;\n    main.loop = false;\n    main.stopAction = ParticleSystemStopAction.Destroy;\n    ps.Play();\n}',
       options: [
         'El GameObject se destruye cuando el sistema se detiene y mueren todas sus partículas.',
-        'Solo se destruye el componente `ParticleSystem`; el GameObject queda vacío en la escena.',
+        'Solo se destruye el componente `ParticleSystem`, no el GameObject.',
         'Nada: `stopAction` solo se ejecuta si llamas a `ps.Stop()` explícitamente desde código.',
         'Error de compilación: hay que reasignar el módulo con `ps.main = main`.'
       ],
@@ -346,11 +346,11 @@ UCP.addDomain({
         'Al apagarlo, las partículas que ya existían desaparecen al instante.',
         '`Play()` también reproduce los sistemas de partículas hijos, por defecto.',
         'Al apagarlo, las partículas que ya existían terminan su vida con normalidad.',
-        '`isPlaying` sigue devolviendo `true` hasta que llames a `smoke.Clear()`.',
-        'Hay que llamar a `smoke.Clear()` antes de `Play()` o no volverá a emitir.'
+        '`isPlaying` sigue devolviendo `true` hasta que llames explícitamente a `smoke.Clear()`.',
+        'Hay que llamar a `smoke.Clear()` antes de `Play()` o el sistema no volverá a emitir.'
       ],
       answer: [0, 1],
-      explanation: '`StopEmittingAndClear` detiene la emisión y elimina las partículas vivas en el momento (con `StopEmitting` terminarían su vida con normalidad). Tanto `Play` como `Stop` tienen `withChildren = true` por defecto, así que también afectan a los sistemas hijos. Después de `Stop`, `isPlaying` pasa a `false`, y `Play()` vuelve a emitir sin necesidad de llamar antes a `Clear()`.'
+      explanation: '`StopEmittingAndClear` detiene la emisión y elimina las partículas vivas en el momento (con `StopEmitting` terminarían su vida con normalidad). Tanto `Play` como `Stop` tienen `withChildren = true` por defecto, así que también afectan a los sistemas hijos. Después de este `Stop`, que además borra las partículas, `isPlaying` pasa a `false`, y `Play()` vuelve a emitir sin necesidad de llamar antes a `Clear()`.'
     },
     {
       id: 'art-27',
@@ -375,7 +375,7 @@ UCP.addDomain({
         'Pasar a **Baked** las luces que nunca cambian durante el juego.',
         'Subir el **Pixel Light Count** en Project Settings > Quality.',
         'Activar **Cast Shadows** en todas las Point Lights de la sala.',
-        'Subir la **Intensity** y el **Range** de las luces que no llegan a los objetos.'
+        'Subir la **Intensity** y el **Range** de las luces.'
       ],
       answer: [0, 1],
       explanation: 'En el path **Forward**, URP limita cuántas luces adicionales afectan a cada objeto (el límite por objeto del URP Asset, como máximo 8); las que sobran se descartan, y en objetos grandes se nota. **Forward+** (y también Deferred) quita ese límite por objeto. Las luces **Baked** no se calculan en runtime, así que no cuentan para ese límite. **Pixel Light Count** es un ajuste del Built-in Render Pipeline que URP ignora, y activar sombras o subir el rango no reduce el número de luces que tocan cada objeto (el rango, de hecho, lo aumenta).'
@@ -400,7 +400,7 @@ UCP.addDomain({
       q: 'En un Blend Tree de locomoción, el personaje pasa de Walk a Run de golpe cuando cambia `targetSpeed`. Un compañero cambia la llamada por esta versión. ¿Qué hacen los dos últimos argumentos?',
       code: 'static readonly int SpeedId = Animator.StringToHash("Speed");\n\nvoid Update()\n{\n    animator.SetFloat(SpeedId, targetSpeed, 0.1f, Time.deltaTime);\n}',
       options: [
-        'Suavizan el cambio: `Speed` se acerca a `targetSpeed` con un tiempo de amortiguación de 0,1 s.',
+        'Amortiguan el cambio: `Speed` se acerca a `targetSpeed` en unos 0,1 s.',
         'Fijan la duración de la transición del Animator en 0,1 s, ignorando la que tiene configurada.',
         'Limitan el cambio de `Speed` a 0,1 unidades por segundo, escalado por `Time.deltaTime`.',
         'Retrasan 0,1 s la asignación del valor, como si se usara una corrutina con `WaitForSeconds`.'

@@ -67,7 +67,7 @@ UCP.addTranslation('en', {
       options: [
         'Set the Animator **Update Mode** to `Unscaled Time`.',
         'Set `Time.timeScale = 0.0001f` instead of 0.',
-        'Call `animator.Update(Time.deltaTime)` manually every frame.',
+        'Call `animator.Update(Time.deltaTime)` manually.',
         'Move the animations to `FixedUpdate`.'
       ],
       explanation: 'With Update Mode set to `Unscaled Time`, the Animator advances using real time and ignores timeScale. Calling `animator.Update(Time.deltaTime)` does not work because `deltaTime` is 0. For UI coroutines or tweens, use `unscaledDeltaTime` or `WaitForSecondsRealtime`.'
@@ -88,7 +88,7 @@ UCP.addTranslation('en', {
       q: 'When you return to the main menu, which has its own `GameManager` in the scene, you end up with **two** GameManagers. How do you fix it?',
       options: [
         'In `Awake`, if another `Instance` already exists, destroy this object and `return`.',
-        'Move the `Awake` code to `Start` so that it runs after the menu scene has finished loading.',
+        'Move the `Awake` code to `Start`, which runs later.',
         'Call `DontDestroyOnLoad` in `OnDestroy` instead of in `Awake`.',
         'Assign `Instance = this` in `OnEnable` instead of in `Awake`.'
       ],
@@ -134,7 +134,7 @@ UCP.addTranslation('en', {
       options: [
         'A `CanvasGroup`, animating `alpha` and disabling `blocksRaycasts`.',
         '`gameObject.SetActive(false)` when the fade starts, so it stops blocking clicks.',
-        'Animate the alpha of the panel `Image` color down to 0.',
+        'Animate the alpha of the panel `Image` color down to 0, so it stops receiving clicks.',
         'Move the panel to another Canvas with a lower `sortingOrder` during the fade.'
       ],
       explanation: '`CanvasGroup` controls the transparency and interaction of a whole group of elements. Lowering the alpha of an `Image` makes it invisible, but it still blocks raycasts. `SetActive(false)` hides it instantly, without a fade.'
@@ -154,7 +154,7 @@ UCP.addTranslation('en', {
       topic: 'Settings',
       q: '`mixer.SetFloat("MusicVolume", -10f)` returns `false` and the volume does not change. What is the most likely cause?',
       options: [
-        'The parameter is not **exposed** to script, or its name does not match.',
+        'The parameter is not **exposed** (Expose to script), or its name does not match.',
         'You must call `mixer.Apply()` after `SetFloat` to apply the change.',
         'The AudioMixer only accepts values between 0 and 1, not negative decibels.',
         '`SetFloat` only works if the AudioMixer is assigned to an `AudioListener`.'
@@ -190,7 +190,7 @@ UCP.addTranslation('en', {
         'One `ScriptableObject` per weapon type, referenced wherever it is used.',
         'One prefab per weapon with the data copied into each instance.',
         'A static class with a `switch` that returns the data for each weapon.',
-        'Write them to `PlayerPrefs` at startup and read them with `GetString` on use.'
+        'Write them to `PlayerPrefs` at startup and read them with `GetString`.'
       ],
       explanation: 'ScriptableObjects are data assets: every reference points to the same instance (without duplicating memory) and designers can edit them in the Inspector. Note: in a build, changes made at runtime are **not saved** between sessions, so they cannot be used as a save system.'
     },
@@ -254,7 +254,7 @@ UCP.addTranslation('en', {
       topic: 'Pause and time',
       q: 'When the game is paused, the "Press Start to continue" text should blink, but it changes only once and then stays still. Which change fixes it?',
       options: [
-        'Wait with `yield return new WaitForSecondsRealtime(0.5f);`.',
+        'Change the wait to `WaitForSecondsRealtime(0.5f)`, which counts real time.',
         'Call `StartCoroutine` before setting `Time.timeScale = 0f`.',
         'Wait with `yield return new WaitForFixedUpdate();` in the loop.',
         'Also set `Time.fixedDeltaTime = 0f` when pausing.'
@@ -268,8 +268,8 @@ UCP.addTranslation('en', {
         'Spin the icon in `Update`, multiplying the speed by `Time.unscaledDeltaTime`.',
         'Set `AudioListener.pause = true` and `ignoreListenerPause = true` on the UI `AudioSource`.',
         'Rely on `Time.timeScale = 0`, which already pauses every `AudioSource` in the scene automatically.',
-        'Spin the icon in `Update`, multiplying `Time.deltaTime` by `1f / Time.timeScale`.',
-        'Spin the icon in `FixedUpdate`, which keeps running even when `timeScale` is 0.'
+        'Spin the icon in `Update`, multiplying `Time.deltaTime` by `1f / Time.timeScale` to offset the pause.',
+        'Spin the icon in `FixedUpdate`, which keeps running at its fixed rate even when `timeScale` is 0.'
       ],
       explanation: '`unscaledDeltaTime` does not depend on `timeScale`, so the rotation continues during the pause. `AudioListener.pause` pauses all audio, and `AudioSource` components with `ignoreListenerPause = true` (such as the UI ones) keep playing. `timeScale` does **not** affect audio playback; dividing by a `timeScale` of 0 gives an invalid result (0 × infinity); and `FixedUpdate` stops running with a timeScale of 0.'
     },
@@ -289,7 +289,7 @@ UCP.addTranslation('en', {
       q: 'Review this experience system. Which **two** statements are correct? (Choose 2)',
       options: [
         'If nobody has subscribed, `OnXpChanged(xp)` throws a `NullReferenceException`.',
-        'Changing the call to `OnXpChanged?.Invoke(xp);` avoids the error when there are no subscribers.',
+        'Using `OnXpChanged?.Invoke(xp);` avoids the error when nobody has subscribed.',
         'Because it is an `event`, other classes can subscribe to it and also invoke it directly.',
         'An event with no subscribers is silently ignored, just like an empty `UnityEvent`.',
         'To subscribe from another script, the event must be marked with `[SerializeField]`.'
@@ -301,9 +301,9 @@ UCP.addTranslation('en', {
       q: 'With this settings code, the first time someone opens the game the music starts muted. Which change is most appropriate?',
       options: [
         'Read it with `PlayerPrefs.GetFloat("music", 1f)` so there is a default value.',
-        'Call `PlayerPrefs.Save()` at the beginning of `Start`, before reading the values.',
+        'Call `PlayerPrefs.Save()` at the beginning of `Start`.',
         'Store the volume with `SetString` and convert it with `float.Parse` on read.',
-        'Read it with `GetInt`, because `GetFloat` rounds values between 0 and 1 down to 0.'
+        'Read it with `GetInt`: `GetFloat` rounds values between 0 and 1 down to 0.'
       ],
       explanation: 'If the key does not exist, `GetFloat` returns the default value, which is `0f` unless you specify another one. The `GetFloat(key, defaultValue)` overload (or checking first with `HasKey`) handles the first launch. `Save()` writes pending changes to disk (Unity also does this when the application quits normally), but it does not create values. `PlayerPrefs` stores `float` values without any problem, so there is no need to go through `string` or `int`.'
     },
@@ -322,12 +322,12 @@ UCP.addTranslation('en', {
       topic: 'UI',
       q: 'The menu panel is shown and hidden with `SetActive`. After closing and reopening it twice, a click on **Play** calls `StartGame` three times. Why?',
       options: [
-        'Each lambda is a new delegate, so `RemoveListener` cannot find the one that was added.',
+        'Each lambda is a separate delegate, so `RemoveListener` cannot find the added one.',
         '`RemoveListener` only removes persistent listeners, the ones added in the Inspector.',
         '`OnDisable` is not called when the GameObject is deactivated with `SetActive(false)`.',
         'Listeners added from code are serialized and restored when the object is reactivated.'
       ],
-      explanation: 'Two lambdas, even with the same body, are different delegates, so `RemoveListener` cannot find the one that was added and removes nothing: each `OnEnable` adds one more. Fix: pass the method directly (`AddListener(StartGame)` and `RemoveListener(StartGame)`) or store the lambda in a `UnityAction` field. `RemoveListener` works on listeners added from code (not on persistent Inspector listeners), `OnDisable` is called on `SetActive(false)`, and runtime listeners are not serialized.'
+      explanation: 'Two lambdas, even with the same body, are compiled into different methods, so their delegates are not equal and `RemoveListener` cannot find the one that was added and removes nothing: each `OnEnable` adds one more. Fix: pass the method directly (`AddListener(StartGame)` and `RemoveListener(StartGame)`) or store the lambda in a `UnityAction` field (two delegates for the same method on the same object do compare equal). `RemoveListener` works on listeners added from code (not on persistent Inspector listeners), `OnDisable` is called on `SetActive(false)`, and runtime listeners are not serialized.'
     },
     'sys-30': {
       topic: 'Persistence',
@@ -335,7 +335,7 @@ UCP.addTranslation('en', {
       options: [
         '`coins`, `level` and `items`, with the `id` and `amount` of each object.',
         'Only `coins` and `level`; `items` is skipped and `deaths` has no `[SerializeField]`.',
-        '`coins` and `items`; `level` is skipped because private fields are never serialized.',
+        '`coins` and `items`; private fields like `level` are never serialized.',
         '`coins`, `level`, `deaths` and `items`, because the class is `[Serializable]`.'
       ],
       explanation: '`JsonUtility` follows the rules of the Unity serializer: it saves public fields and private fields with `[SerializeField]` (which is why `level` appears) and ignores private fields without the attribute (`deaths`). `items` is a list of `InventoryItem`, which has no `[System.Serializable]`, so the whole field is skipped without an error; adding the attribute to `InventoryItem` fixes it. `SaveData` being serializable does not make the classes it contains serializable.'
