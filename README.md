@@ -8,14 +8,15 @@ Funciona en laptop y en el celular (diseño responsive, tema claro/oscuro), est�
 
 ## Qué incluye
 
-- **129 preguntas** con explicación, escritas para **Unity 6** y repartidas en los 6 temas del examen:
+- **189 preguntas** con explicación, escritas para **Unity 6** y repartidas en los 6 temas del examen:
   1. Interacciones principales (física, input, cámara)
   2. Pipeline de arte (materiales, iluminación, animación, partículas)
   3. Sistemas de aplicación (UI, menús, ajustes, progresión, persistencia)
   4. Escena y entorno (audio, instanciación y pooling, NavMesh)
   5. Rendimiento y plataformas (Profiler, batching, móviles, IL2CPP, XR)
   6. Desarrollo en equipo (Git, testing, depuración, arquitectura)
-- **Modo práctica** por tema o por subtema, con feedback inmediato. Hay preguntas de una sola respuesta, de varias y con fragmentos de código C#.
+- **Modo práctica** por tema o por subtema, con feedback inmediato. Hay preguntas de una sola respuesta, de "elige 2" y con fragmentos de código C# (qué imprime, encuentra el bug, qué línea falta).
+- **Opciones sin pistas de longitud**: la respuesta correcta no es sistemáticamente la más larga ni la más corta, para que no se pueda acertar por descarte.
 - **Simulacro** con tiempo, preguntas equilibradas entre temas, marcado para revisar, mapa de preguntas y resultado por tema. Si recargas la página, puedes retomarlo.
 - **Conceptos animados**: 10 demos interactivas (bucle de frames y `FixedUpdate`, `Time.deltaTime`, tunneling, `ForceMode`, `LayerMask`, object pooling, Has Exit Time, NavMesh con Carve y costes de área, `material` vs `sharedMaterial`, `Time.timeScale`). Cada una tiene sus claves para el examen y un enlace a las preguntas de ese tema.
 - **Repaso de errores**: cada pregunta fallada se guarda hasta que la respondas bien.
@@ -72,6 +73,12 @@ Para la versión en inglés, añade la misma pregunta (con el mismo `id`) en el 
 
 Si una pregunta no tiene traducción, se muestra en español.
 
+Para comprobar el banco después de editarlo (ids únicos, respuestas válidas, traducciones completas y sesgo de longitud de las opciones):
+
+```bash
+node tools/validate.js --list
+```
+
 ## Estructura
 
 ```
@@ -83,4 +90,5 @@ js/data/en/*.js     Traducción al inglés de cada tema
 js/i18n.js          Textos de la interfaz y de la guía (es / en)
 js/concepts.js      Conceptos animados (demos en canvas, es / en)
 js/app.js           Lógica: práctica, simulacro, repaso, guía e idioma
+tools/validate.js   Validador del banco de preguntas (Node, sin dependencias)
 ```
