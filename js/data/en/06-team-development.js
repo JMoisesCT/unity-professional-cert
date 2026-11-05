@@ -41,7 +41,7 @@ UCP.addTranslation('en', {
       topic: 'Version control',
       q: 'Which Editor setting makes it easier to diff and merge scenes and prefabs in Git?',
       options: [
-        'Asset Serialization Mode = **Force Text**.',
+        'Asset Serialization Mode = **Force Text**, which saves assets as YAML.',
         'Asset Serialization Mode = **Force Binary**, which is smaller and merges better.',
         'Version Control Mode = **Hidden Meta Files**, so that Git ignores the metadata.',
         'Enabling **Enter Play Mode Options** to avoid reloading the domain.'
@@ -59,9 +59,9 @@ UCP.addTranslation('en', {
       q: 'Which tool included with Unity helps resolve merge conflicts in YAML-formatted scenes and prefabs?',
       options: [
         'UnityYAMLMerge (Smart Merge)',
-        'Unity Accelerator',
+        'Unity Accelerator (cache server)',
         'Asset Database v2',
-        'Unity Build Automation'
+        'Unity Build Automation (Cloud Build)'
       ],
       explanation: 'UnityYAMLMerge understands the structure of Unity files and can merge changes that a generic text tool would flag as conflicts. You configure it as the merge tool in Git or in Unity Version Control.'
     },
@@ -69,7 +69,7 @@ UCP.addTranslation('en', {
       topic: 'Version control',
       q: 'Two developers have constant conflicts because they edit the same large scene. Which strategy reduces conflicts the most?',
       options: [
-        'Split the content into **prefabs** and additive scenes so that each person edits different files.',
+        'Split the scene into **prefabs** and additive scenes that are edited separately.',
         'Change asset serialization to Force Binary so that Git does not detect conflicts.',
         'Have both work on the same branch and pull before every commit.',
         'Exclude the scene from version control and share it some other way.'
@@ -102,9 +102,9 @@ UCP.addTranslation('en', {
       topic: 'Testing',
       q: 'You created a tests folder with its own Assembly Definition, but the tests cannot find your game classes (compilation error). What is the most likely cause?',
       options: [
-        'The game code is in `Assembly-CSharp`, and an asmdef cannot reference it.',
-        'Tests must be inside a folder named `Editor` in order to compile.',
-        'Game classes must be `public static` so that the tests can see them.',
+        'The game compiles into `Assembly-CSharp`, which an asmdef cannot reference.',
+        'Tests must be inside a folder named `Editor`, or the test assembly cannot compile.',
+        'Game classes must be `public static` so that the test assembly can see them.',
         'You must add `using NUnit.Framework;` to every game class.'
       ],
       explanation: 'Scripts without an asmdef are compiled into the predefined `Assembly-CSharp` assembly, which cannot be referenced from an asmdef. The usual setup is `MyGame.asmdef` and `MyGame.Tests.asmdef`, with the second one referencing the first.'
@@ -113,9 +113,9 @@ UCP.addTranslation('en', {
       topic: 'Code structure',
       q: 'What is a main advantage of using **Assembly Definitions** in a large project?',
       options: [
-        'They reduce compilation time and force you to declare dependencies between modules.',
+        'They compile faster and force you to declare dependencies between modules.',
         'They make code run faster at runtime thanks to the Burst compiler.',
-        'They reduce build size because each assembly is compressed separately.',
+        'They reduce build size because each assembly is compressed separately in the build.',
         'They allow each project folder to use a different version of C#.'
       ],
       explanation: 'Without asmdefs, any change recompiles all of `Assembly-CSharp`. With asmdefs, code is split into assemblies with declared dependencies, which also prevents circular references and improves the architecture.'
@@ -124,7 +124,7 @@ UCP.addTranslation('en', {
       topic: 'Debugging',
       q: 'You want to stop execution at a specific line and inspect variables from Visual Studio or Rider while playing in the Editor. What should you do?',
       options: [
-        'Set a breakpoint and **attach the IDE debugger** to the Unity Editor (Attach to Unity).',
+        'Set a breakpoint and **attach the IDE debugger** to the Editor (Attach to Unity).',
         'Add `Debug.Break()` on that line and check the variables in the Console window.',
         'Open the Frame Debugger and step through until you reach that line of the script.',
         'Enable Deep Profile and look up the variable values in the Profiler.'
@@ -135,8 +135,8 @@ UCP.addTranslation('en', {
       topic: 'Debugging',
       q: 'What happens to `Debug.Log` calls in a release build (without Development Build)?',
       options: [
-        'They still run and have a cost; to remove them, use, for example, a wrapper with `[Conditional]`.',
-        'The compiler removes them automatically when Development Build is disabled in the Build Settings.',
+        'They still run and have a cost; to strip them, use a wrapper with `[Conditional]`.',
+        'The compiler removes them automatically when Development Build is disabled in the Build Profile.',
         'They run, but Unity discards the arguments without evaluating them, so they have no cost at all.',
         'They only run if a debugger is attached; otherwise they are ignored.'
       ],
@@ -146,7 +146,7 @@ UCP.addTranslation('en', {
       topic: 'Code structure',
       q: 'You have a 2000-line `PlayerController` that handles input, movement, health, sound and UI. Which principle would you apply to refactor it?',
       options: [
-        'Split it into components with a **single responsibility** (`PlayerMovement`, `PlayerHealth`, `PlayerAudio`...).',
+        'Split it into **single-responsibility** components (`PlayerMovement`, `PlayerHealth`...).',
         'Convert it into a `static` class so that it can be accessed from any script.',
         'Move it into a ScriptableObject so that it does not depend on any GameObject in the scene.',
         'Split it into several `partial` classes of the same `PlayerController` to divide the file.'
@@ -157,7 +157,7 @@ UCP.addTranslation('en', {
       topic: 'Code structure',
       q: 'What is the advantage of this design?',
       options: [
-        'It can damage any object that implements `IDamageable`, without knowing its type.',
+        'It can damage any `IDamageable` object without knowing its concrete type.',
         'It makes `OnTriggerEnter` run before the other physics callbacks.',
         'It avoids having to add colliders to the objects that take damage.',
         'None: `TryGetComponent` does not work with interfaces, so it does not compile.'
@@ -178,17 +178,17 @@ UCP.addTranslation('en', {
     'team-16': {
       topic: 'Code structure',
       q: 'You want a field to appear in the Inspector, but other classes must **not** be able to modify it. How do you declare it?',
-      options: ['`[SerializeField] private float speed;`', '`public float speed;`', '`[HideInInspector] public float speed;`', '`[NonSerialized] private float speed;`'],
-      explanation: '`[SerializeField]` makes Unity serialize and display a private field, so you keep encapsulation. `public` exposes it to all code. `[HideInInspector]` hides it and `[NonSerialized]` prevents it from being serialized.'
+      options: ['`[SerializeField] private float speed;`', '`public float speed;`', '`[HideInInspector] [SerializeField] float speed;`', '`[NonSerialized] private float speed;`'],
+      explanation: '`[SerializeField]` makes Unity serialize and display a private field, so you keep encapsulation. `public` exposes it to all code. `[HideInInspector]` hides it from the Inspector even though the field is serialized, and `[NonSerialized]` prevents it from being serialized.'
     },
     'team-17': {
       topic: 'Code structure',
       q: 'Your script always needs a `Rigidbody` on the same GameObject. How do you guarantee that it is present?',
       options: [
-        'By adding the `[RequireComponent(typeof(Rigidbody))]` attribute to the class.',
+        'With the `[RequireComponent(typeof(Rigidbody))]` attribute on the class.',
         'By calling `AddComponent<Rigidbody>()` in every `Update`.',
-        'With a comment in the code.',
-        'With the `[ExecuteAlways]` attribute.'
+        'With a comment in the code that warns the designers about this dependency.',
+        'With the `[ExecuteAlways]` attribute on the class.'
       ],
       explanation: '`RequireComponent` automatically adds the component when the script is added and prevents it from being removed while the script is present. It documents the dependency and prevents setup errors.'
     },
@@ -229,7 +229,7 @@ UCP.addTranslation('en', {
       topic: 'Code structure',
       q: 'Your `Timer` class clashes with another `Timer` class from an Asset Store asset and the project does not compile. What is the best practice?',
       options: [
-        'Put your code in its own **namespace**.',
+        'Put your code in its own **namespace**, for example `MyStudio.Gameplay`.',
         'Mark your class as `internal` so it does not clash with the asset class.',
         'Move your script to the `Plugins` folder so that it compiles first.',
         'Make your class `partial` so that it merges with the asset class.'
@@ -251,12 +251,126 @@ UCP.addTranslation('en', {
       topic: 'Code structure',
       q: 'In Unity 6 you want to wait 2 seconds inside an `async` method of a MonoBehaviour, without coroutines and respecting the Unity lifecycle. What do you use?',
       options: [
-        '`await Awaitable.WaitForSecondsAsync(2f, destroyCancellationToken);`',
-        '`await Task.Delay(2000);`',
+        '`await Awaitable.WaitForSecondsAsync(2f);`',
+        '`await Task.Delay(TimeSpan.FromSeconds(2));`',
         '`yield return new WaitForSeconds(2f);`',
-        '`Thread.Sleep(2000);`'
+        '`Thread.Sleep(TimeSpan.FromSeconds(2));`'
       ],
-      explanation: '`Awaitable` (Unity 2023.1+ / Unity 6) is integrated with the player loop: it respects `Time.timeScale`, resumes on the main thread and accepts `destroyCancellationToken` so it is cancelled if the object is destroyed. `Task.Delay` knows nothing about Unity (it keeps running after you exit Play Mode and does not work well on WebGL), `yield return` only works in coroutines and `Thread.Sleep` freezes the game.'
+      explanation: '`Awaitable` (Unity 2023.1+ / Unity 6) is integrated with the player loop: it respects `Time.timeScale` and resumes on the main thread. You can also pass `destroyCancellationToken` as the second argument so it is cancelled if the object is destroyed. `Task.Delay` knows nothing about Unity (it keeps running after you exit Play Mode and does not work well on WebGL), `yield return` only works in coroutines and `Thread.Sleep` freezes the game.'
+    },
+    'team-24': {
+      topic: 'Lifecycle',
+      q: 'In the scene, the GameObject is **active**, but the `Probe` component is **disabled** (checkbox cleared in the Inspector). What is printed when the scene loads?',
+      options: [
+        'Only `Awake`; the rest waits until the component is enabled.',
+        '`Awake` and `OnEnable`; only `Start` waits until it is enabled.',
+        'Nothing: a disabled component does not receive any Unity messages.',
+        '`Awake`, `OnEnable` and `Start`, because the GameObject is active.'
+      ],
+      explanation: '`Awake` is called when the scene loads as long as the **GameObject** is active, even if the component is disabled. `OnEnable` and `Start` depend on the component: when another script sets `probe.enabled = true`, `OnEnable` is called at that moment and `Start` just before the script\'s first `Update`. `OnDisable` does not appear because the component was never enabled. If the GameObject were inactive, not even `Awake` would be called.'
+    },
+    'team-25': {
+      topic: 'Lifecycle',
+      q: 'Your `InputManager` initializes data in `Awake` that other scripts read in **their own** `Awake`. You need the `Awake` of `InputManager` to always run first. Which **two** options guarantee this? (Choose 2)',
+      options: [
+        'Add the `[DefaultExecutionOrder(-100)]` attribute to the `InputManager` class.',
+        'Give it a negative value in **Project Settings > Script Execution Order**.',
+        'Place the `InputManager` GameObject at the top of the Hierarchy.',
+        'Move the initialization to `OnEnable`, which is called before any `Awake`.',
+        'Mark the class with `[ExecuteAlways]` so that it initializes before the others.'
+      ],
+      explanation: 'Script Execution Order (in Project Settings or with `[DefaultExecutionOrder]`) defines the order in which scripts receive `Awake`, `OnEnable`, `Update`, etc.: lower (negative) values run before the *Default Time* group. Hierarchy order is not guaranteed. `OnEnable` is called right after the `Awake` of the **same** object, not before every `Awake`, and `[ExecuteAlways]` only makes the script also run in Edit Mode.'
+    },
+    'team-26': {
+      topic: 'Lifecycle',
+      q: 'You want to take a screenshot with `ReadPixels` once the camera and the UI have been rendered in the current frame. Which line goes in `???`?',
+      options: [
+        '`yield return new WaitForEndOfFrame();`',
+        '`yield return null;`',
+        '`yield return new WaitForFixedUpdate();`',
+        '`yield return new WaitForSeconds(0.1f);`'
+      ],
+      explanation: '`WaitForEndOfFrame` resumes the coroutine at the end of the frame, after all cameras and the UI have been rendered and just before the frame is displayed: that is when you can read the screen. `yield return null` and `WaitForSeconds` resume after `Update`, before rendering. `WaitForFixedUpdate` resumes after the physics step, which is the right moment to apply forces, not to read pixels.'
+    },
+    'team-27': {
+      topic: 'Debugging',
+      q: 'You call this code in `Start` to check which way an enemy is facing. You see nothing in the Game view, and in the Scene view the line only flashes for an instant. Which **two** facts explain this? (Choose 2)',
+      options: [
+        'Without the `duration` parameter (0 by default), the line lasts only one frame.',
+        '`Debug.DrawRay` lines show in the Scene view; in Game, only if Gizmos is enabled.',
+        '`Debug.DrawRay` only draws when it is called from `OnDrawGizmos` or `OnDrawGizmosSelected`.',
+        'The ray has to hit a Collider for the line to be drawn.',
+        '`Debug.Draw*` calls only work in a Development Build, not in the Editor.'
+      ],
+      explanation: 'With `duration` = 0, the line is drawn for a single frame, and since `Start` runs once, you barely see it. Use `Debug.DrawRay(origin, dir, color, 5f)` or call it in `Update`. Also, `Debug.DrawLine` and `Debug.DrawRay` are drawn in the Scene view, and in the Game view only if the **Gizmos** button is enabled. `OnDrawGizmos` is for the `Gizmos` API (`Gizmos.DrawRay`), and `Debug.DrawRay` does not perform a raycast, so it needs no colliders. These lines are an Editor aid: they do not show in builds.'
+    },
+    'team-28': {
+      topic: 'Debugging',
+      q: 'With the default Console settings, a teammate calls `TakeDamage(-5)` while playing in the Editor. Which **two** things happen? (Choose 2)',
+      options: [
+        'An assert-type error message with the given text appears in the Console.',
+        'The method keeps running and `health` becomes 105.',
+        'An exception is thrown and `health` stays at 100.',
+        'The Editor pauses automatically, as with `Debug.Break()`.',
+        'Nothing: `Debug.Assert` is only evaluated in release builds.'
+      ],
+      explanation: '`Debug.Assert` logs a `LogType.Assert` message (shown as an error) when the condition is false, but it does **not** throw an exception or stop the method, so `health` ends up at 105. It does not pause the Editor either: that is what `Debug.Break()` does, or the Console\'s *Error Pause* option if you enable it. And the last option has it backwards: asserts are checked in the Editor and in Development Builds (the `UNITY_ASSERTIONS` symbol), and they are stripped from release builds.'
+    },
+    'team-29': {
+      topic: 'Testing',
+      q: '`CalculateDamage` should return `attack - armor`. Which line completes the test following the NUnit convention, so that the failure message shows the expected and actual values correctly?',
+      options: [
+        '`Assert.AreEqual(30, result);`',
+        '`Assert.AreEqual(result, 30);`',
+        '`Assert.Equals(30, result);`',
+        '`Assert.IsTrue(result.Equals("30"));`'
+      ],
+      explanation: 'The signature is `Assert.AreEqual(expected, actual)`: the expected value first, then the actual one. With the arguments swapped the test passes or fails the same way, but if `result` were 25, the message would say *Expected: 25 But was: 30* and mislead whoever reads it. `Assert.Equals` is the `Equals` inherited from `object`, and NUnit blocks it: it throws `InvalidOperationException`. `result.Equals("30")` compares an `int` with a `string`, so it is always `false`.'
+    },
+    'team-30': {
+      topic: 'Testing',
+      q: '`Load` logs `Debug.LogError("Save not found")` when the file does not exist, which is exactly what you want to check. However, the test fails. Which line, placed **before** the call to `Load`, makes it pass and also verifies that error?',
+      options: [
+        '`LogAssert.Expect(LogType.Error, "Save not found");`',
+        '`LogAssert.ignoreFailingMessages = false;`',
+        '`Assert.Throws<Exception>(() => loader.Load("missing.json"));`',
+        '`LogAssert.NoUnexpectedReceived();`'
+      ],
+      explanation: 'Unity Test Framework fails any test that logs an **unexpected** error, assert or exception. `LogAssert.Expect` declares that message as expected: the test passes if it appears and fails if it does not. `ignoreFailingMessages = false` is the default value (with `true` the test would pass, but without checking anything). `NoUnexpectedReceived` only checks that there are no unexpected messages up to that point, and `Assert.Throws` fails because `Load` does not throw any exception.'
+    },
+    'team-31': {
+      topic: 'Testing',
+      q: 'Your team is starting to use Unity Test Framework. Which **two** statements are correct? (Choose 2)',
+      options: [
+        'A `[UnityTest]` returns `IEnumerator`; with `yield return null` it waits one frame.',
+        'Play Mode tests can run in the Editor or in a player build on the device.',
+        'An Edit Mode `[Test]` can wait one second with `yield return new WaitForSeconds(1f)`.',
+        'A method marked `[SetUp]` runs only once before all the tests in the class.',
+        'The asmdef for Edit Mode tests must include all platforms, not just Editor.'
+      ],
+      explanation: '`[UnityTest]` runs as a coroutine, so it can use `yield` to let frames pass. Play Mode tests can run in the Editor or be built into a player (for example, for Android) from the Test Runner. A `[Test]` is a synchronous `void` method and cannot use `yield`. `[SetUp]` runs before **each** test (for a single run there is `[OneTimeSetUp]`), and the Edit Mode test asmdef must include **only** the Editor platform.'
+    },
+    'team-32': {
+      topic: 'Code structure',
+      q: '`Door` calls `doorOpened.Raise()` when it opens. What is the main advantage of this design over giving `Door` a direct reference to `DoorUI`?',
+      options: [
+        '`Door` and `DoorUI` do not reference each other: they only share the channel asset.',
+        'The event subscriptions are saved in the asset and persist between sessions.',
+        '`OnRaised` is invoked on another thread, so the UI never blocks the game.',
+        'Because the channel is an asset, you no longer need to unsubscribe in `OnDisable`.'
+      ],
+      explanation: 'The ScriptableObject acts as an event channel: the sender and the listeners depend only on the asset, so you can test, reuse or replace each part separately, even if they live in different scenes or prefabs. Subscribers to an `event` are not serialized, `Invoke` runs synchronously on the same thread, and precisely because the asset outlives the scene, you must unsubscribe in `OnDisable` so you do not leave references to destroyed objects.'
+    },
+    'team-33': {
+      topic: 'Version control',
+      q: 'You installed Git LFS (`git lfs install`) in the repository, but new `.psd` files are still stored in full in the regular Git history. What is missing?',
+      options: [
+        'Register the pattern with `git lfs track "*.psd"` and commit `.gitattributes`.',
+        'Add `*.psd` to `.gitignore` so that Git hands those files over to LFS.',
+        'Switch Asset Serialization to Force Binary so that LFS recognizes PSD files.',
+        'Run `git gc --aggressive` so that Git moves the PSD files to LFS storage.'
+      ],
+      explanation: '`git lfs install` only sets up the LFS hooks. For a file type to go to LFS, you must register it with `git lfs track`, which writes the rule to `.gitattributes`. That file must be committed so the whole team uses the same rules. Files already in the history do not change (you would have to migrate them with `git lfs migrate`). `.gitignore` removes files from Git entirely, and asset serialization has no effect on PSD files.'
     }
   }
 });
