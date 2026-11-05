@@ -77,7 +77,7 @@ UCP.addDomain({
       options: [
         'Poner el **Update Mode** del Animator en `Unscaled Time`.',
         'Poner `Time.timeScale = 0.0001f` en lugar de 0.',
-        'Llamar a `animator.Update(Time.deltaTime)` manualmente.',
+        'Llamar a `animator.Update(Time.deltaTime)` manualmente en cada frame.',
         'Mover las animaciones a `FixedUpdate`.'
       ],
       answer: [0],
@@ -117,7 +117,7 @@ UCP.addDomain({
       q: 'Con este código, todos los botones cargan el mismo nivel (el índice `buttons.Length`, que no existe). ¿Por qué?',
       code: 'for (int i = 0; i < buttons.Length; i++)\n{\n    buttons[i].onClick.AddListener(() => SelectLevel(i));\n}',
       options: [
-        'La lambda captura la variable `i`, no su valor; hay que copiarla a una variable local.',
+        'La lambda captura la variable `i` (no su valor); cópiala a una variable local.',
         '`AddListener` no acepta lambdas con parámetros, así que ignora el valor de `i`.',
         'Los listeners se acumulan; hay que llamar a `RemoveAllListeners` antes del bucle.',
         'Todos los botones comparten el mismo `onClick` porque son instancias del mismo prefab.'
@@ -129,9 +129,9 @@ UCP.addDomain({
       id: 'sys-09',
       topic: 'UI',
       q: 'La UI debe verse proporcionada en móviles y monitores de distintas resoluciones. ¿Qué configuración del **Canvas Scaler** es la más habitual?',
-      options: ['Constant Pixel Size', 'Scale With Screen Size (con una Reference Resolution)', 'Constant Physical Size', 'Cambiar el Canvas a World Space'],
+      options: ['Constant Pixel Size', 'Scale With Screen Size', 'Constant Physical Size', 'Cambiar el Canvas a World Space'],
       answer: [1],
-      explanation: '**Scale With Screen Size** escala la UI respecto a una resolución de referencia, y con **Match** eliges si se adapta al ancho, al alto o a una mezcla. Combínalo con anchors bien configurados.'
+      explanation: '**Scale With Screen Size** escala la UI respecto a una resolución de referencia (**Reference Resolution**), y con **Match** eliges si se adapta al ancho, al alto o a una mezcla. Combínalo con anchors bien configurados.'
     },
     {
       id: 'sys-10',
@@ -139,20 +139,20 @@ UCP.addDomain({
       q: 'Un botón de pausa debe quedarse siempre en la esquina superior derecha, con cualquier resolución o relación de aspecto. ¿Qué configuras en su `RectTransform`?',
       options: [
         'Los **anchors** (y el pivot) en la esquina superior derecha.',
-        'Su posición en píxeles calculada en `Update`.',
-        'Un `LayoutGroup` en el Canvas.',
-        'El Canvas en Screen Space - Camera.'
+        'Su posición en píxeles, recalculada en cada `Update` según `Screen.width`.',
+        'Un `ContentSizeFitter` en el botón con ajuste Preferred Size.',
+        'El Render Mode del Canvas en Screen Space - Camera.'
       ],
       answer: [0],
-      explanation: 'Los anchors definen respecto a qué punto del padre se posiciona el elemento. Anclado arriba a la derecha, mantiene la misma distancia a esa esquina aunque cambie el tamaño de la pantalla.'
+      explanation: 'Los anchors definen respecto a qué punto del padre se posiciona el elemento. Anclado arriba a la derecha, mantiene la misma distancia a esa esquina aunque cambie el tamaño de la pantalla. Recalcular la posición en `Update` es frágil y costoso, `ContentSizeFitter` solo ajusta el tamaño y el Render Mode no cambia el anclaje.'
     },
     {
       id: 'sys-11',
       topic: 'UI',
       q: 'En una escena nueva creas un Canvas con botones desde código, pero los botones no responden a clics ni toques. ¿Qué componente falta casi siempre?',
-      options: ['Un `EventSystem` (con su Input Module)', 'Un `Rigidbody2D` en cada botón', 'Un `AudioListener`', 'Un `CanvasRenderer` en el Canvas'],
+      options: ['Un `EventSystem` (con su Input Module) en la escena', 'Un `BoxCollider2D` en cada botón para detectar el clic', 'Un `AudioListener` en la cámara principal', 'Un `CanvasRenderer` en el propio Canvas'],
       answer: [0],
-      explanation: 'El `EventSystem` y su Input Module (`StandaloneInputModule` o `InputSystemUIInputModule`) reciben el input y lo envían a la UI a través del `GraphicRaycaster` del Canvas. Cuando creas un Canvas desde el menú, Unity añade el EventSystem automáticamente, pero no cuando lo haces por código.'
+      explanation: 'El `EventSystem` y su Input Module (`StandaloneInputModule` o `InputSystemUIInputModule`) reciben el input y lo envían a la UI a través del `GraphicRaycaster` del Canvas. Cuando creas un Canvas desde el menú, Unity añade el EventSystem automáticamente, pero no cuando lo haces por código. La UI no usa colliders: el raycast lo hace el `GraphicRaycaster` sobre los gráficos.'
     },
     {
       id: 'sys-12',
@@ -173,13 +173,13 @@ UCP.addDomain({
       q: 'Un slider de volumen va de 0.0001 a 1. ¿Qué expresión convierte su valor en decibelios para `AudioMixer.SetFloat`?',
       code: 'public void SetMusicVolume(float sliderValue)\n{\n    mixer.SetFloat("MusicVolume", /* ? */);\n}',
       options: [
-        '`sliderValue * 80f - 80f`',
+        '`Mathf.Lerp(-80f, 0f, sliderValue)`',
         '`Mathf.Log10(sliderValue) * 20f`',
         '`sliderValue`',
-        '`Mathf.Pow(10f, sliderValue)`'
+        '`Mathf.Pow(10f, sliderValue / 20f)`'
       ],
       answer: [1],
-      explanation: 'El AudioMixer trabaja en decibelios (de -80 dB a 0 dB normalmente), y el oído percibe el volumen de forma logarítmica. `Log10(v) * 20` convierte 1 en 0 dB y 0.0001 en -80 dB. El mínimo es 0.0001 porque `Log10(0)` es -infinito.'
+      explanation: 'El AudioMixer trabaja en decibelios (de -80 dB a 0 dB normalmente), y el oído percibe el volumen de forma logarítmica. `Log10(v) * 20` convierte 1 en 0 dB y 0.0001 en -80 dB. El mínimo es 0.0001 porque `Log10(0)` es -infinito. `Lerp` hace un mapeo lineal (el volumen apenas cambia en la mitad alta del slider) y `Pow(10, x / 20)` es la conversión inversa, de dB a valor lineal.'
     },
     {
       id: 'sys-14',
@@ -200,12 +200,12 @@ UCP.addDomain({
       q: 'Al abrir el menú de pausa jugando con mando, ningún botón aparece seleccionado y no se puede navegar. ¿Qué deberías hacer al abrir el menú?',
       options: [
         '`EventSystem.current.SetSelectedGameObject(firstButton);`',
-        '`firstButton.onClick.Invoke();`',
-        '`Cursor.lockState = CursorLockMode.None;`',
-        'Activar **Raycast Target** en todos los botones.'
+        '`firstButton.GetComponent<Button>().onClick.Invoke();`',
+        '`Cursor.lockState = CursorLockMode.None; Cursor.visible = true;`',
+        'Activar **Raycast Target** en el `Image` de todos los botones del menú.'
       ],
       answer: [0],
-      explanation: 'La navegación con mando o teclado necesita un elemento seleccionado como punto de partida. Asignarlo al abrir el menú (y configurar la **Navigation** de los Selectables) permite moverse con el stick. `Invoke` haría clic en el botón.'
+      explanation: 'La navegación con mando o teclado necesita un elemento seleccionado como punto de partida. Asignarlo al abrir el menú (y configurar la **Navigation** de los Selectables) permite moverse con el stick. `onClick.Invoke()` haría clic en el botón, el cursor solo afecta al ratón y **Raycast Target** solo influye en los clics y toques.'
     },
     {
       id: 'sys-16',
@@ -225,10 +225,10 @@ UCP.addDomain({
       topic: 'Progresión',
       q: 'Tienes 100 tipos de armas con datos fijos (daño, icono, precio) que usan muchos objetos y sistemas. ¿Cuál es el enfoque más adecuado en Unity?',
       options: [
-        'Un `ScriptableObject` por tipo de arma, referenciado desde los objetos que lo usan.',
+        'Un `ScriptableObject` por tipo de arma, referenciado donde se use.',
         'Un prefab por arma con los datos copiados en cada instancia.',
-        'Un `switch` gigante en el script del jugador.',
-        'Guardarlos en `PlayerPrefs` al iniciar.'
+        'Una clase estática con un `switch` que devuelve los datos de cada arma.',
+        'Escribirlos en `PlayerPrefs` al iniciar y leerlos con `GetString` al usarlos.'
       ],
       answer: [0],
       explanation: 'Los ScriptableObjects son assets de datos: todas las referencias apuntan a la misma instancia (sin duplicar memoria) y los diseñadores pueden editarlos en el Inspector. Ojo: en una build, los cambios que hagas en runtime **no se guardan** entre sesiones; no sirven como sistema de guardado.'
@@ -241,11 +241,11 @@ UCP.addDomain({
       options: [
         'La UI se suscribe a `OnLevelUp` en `OnEnable` y se desuscribe en `OnDisable`.',
         '`PlayerProgression` busca el texto de la UI con `GameObject.Find` y lo actualiza.',
-        'La UI comprueba el nivel en cada `Update`.',
-        'Hacer públicas todas las variables de la UI.'
+        'La UI comprueba el nivel en cada `Update` y solo se redibuja si cambió.',
+        '`PlayerProgression` recibe la UI por `[SerializeField]` y llama a su método.'
       ],
       answer: [0],
-      explanation: 'Con eventos, el emisor no sabe quién lo escucha (bajo acoplamiento). Desuscribirse en `OnDisable` evita llamadas a objetos destruidos y fugas de memoria. Comprobarlo en cada `Update` desperdicia CPU y `Find` es lento y frágil.'
+      explanation: 'Con eventos, el emisor no sabe quién lo escucha (bajo acoplamiento). Desuscribirse en `OnDisable` evita llamadas a objetos destruidos y fugas de memoria. Comprobarlo en cada `Update` desperdicia CPU, `Find` es lento y frágil, y pasarle la UI por `[SerializeField]` hace que la progresión dependa de ella.'
     },
     {
       id: 'sys-19',
@@ -264,14 +264,156 @@ UCP.addDomain({
       id: 'sys-20',
       topic: 'Persistencia',
       q: 'Guardas la partida en un archivo. ¿Qué código lo escribe correctamente usando `JsonUtility`?',
+      code: 'string path = Path.Combine(Application.persistentDataPath, "save.json");',
       options: [
-        '`File.WriteAllText(Path.Combine(Application.persistentDataPath, "save.json"), JsonUtility.ToJson(data));`',
-        '`PlayerPrefs.SetString(Application.dataPath, JsonUtility.ToJson(data));`',
-        '`File.WriteAllText("C:/save.json", data.ToString());`',
-        '`JsonUtility.Save(data, "save.json");`'
+        '`File.WriteAllText(path, JsonUtility.ToJson(data));`',
+        '`PlayerPrefs.SetString(path, JsonUtility.ToJson(data));`',
+        '`File.WriteAllText(path, data.ToString());`',
+        '`JsonUtility.Save(data, path);`'
       ],
       answer: [0],
-      explanation: 'El flujo típico es serializar con `JsonUtility.ToJson` y escribir con `System.IO.File` en `persistentDataPath` (usando `Path.Combine` para que funcione en todas las plataformas). Para cargar: `File.Exists`, `File.ReadAllText` y `JsonUtility.FromJson<T>`. `JsonUtility.Save` no existe.'
+      explanation: 'El flujo típico es serializar con `JsonUtility.ToJson` y escribir con `System.IO.File` en `persistentDataPath` (usando `Path.Combine` para que funcione en todas las plataformas). Para cargar: `File.Exists`, `File.ReadAllText` y `JsonUtility.FromJson<T>`. `PlayerPrefs.SetString` no escribe un archivo (usa `path` solo como clave), `data.ToString()` devuelve el nombre de la clase y `JsonUtility.Save` no existe.'
+    },
+    {
+      id: 'sys-21',
+      topic: 'Escenas',
+      q: 'Tu juego mantiene siempre cargada una escena `Core` (la activa) y carga los niveles en modo aditivo. Los enemigos que crea este código aparecen en `Core` y no se descargan con el nivel. ¿Qué línea añades en lugar del comentario?',
+      code: 'IEnumerator LoadLevel()\n{\n    yield return SceneManager.LoadSceneAsync("Level1", LoadSceneMode.Additive);\n    // ?\n    Instantiate(enemyPrefab, spawnPoint, Quaternion.identity);\n}',
+      options: [
+        '`SceneManager.SetActiveScene(SceneManager.GetSceneByName("Level1"));`',
+        '`SceneManager.MoveGameObjectToScene(enemyPrefab, SceneManager.GetSceneByName("Level1"));`',
+        '`DontDestroyOnLoad(enemyPrefab);`',
+        '`yield return new WaitForEndOfFrame();`'
+      ],
+      answer: [0],
+      explanation: 'Los objetos creados con `Instantiate` (o `new GameObject`) van a la **escena activa**, y una carga aditiva no cambia cuál es. Con `SetActiveScene`, `Level1` pasa a ser la escena destino (y la que aporta los ajustes de iluminación), así que los enemigos se descargarán con ella. `MoveGameObjectToScene` sirve para mover objetos que ya están en una escena, no un prefab; esperar un frame no cambia la escena activa, y `DontDestroyOnLoad` haría justo lo contrario.'
+    },
+    {
+      id: 'sys-22',
+      topic: 'Escenas',
+      q: 'Un `MusicManager` debe sobrevivir a los cambios de escena y elegir la pista adecuada cada vez que se carga una. ¿Qué **dos** afirmaciones son correctas? (Elige 2)',
+      options: [
+        '`DontDestroyOnLoad` solo funciona sobre GameObjects raíz; en un hijo no tiene efecto.',
+        '`SceneManager.sceneLoaded` avisa de cada escena cargada, con su `Scene` y su `LoadSceneMode`.',
+        'Los objetos con `DontDestroyOnLoad` se mueven a la nueva escena activa cuando esta se carga.',
+        '`sceneLoaded` es un evento estático, pero Unity lo desuscribe solo al destruir el objeto.',
+        '`OnLevelWasLoaded` es el callback recomendado en Unity 6 para reaccionar a la carga.'
+      ],
+      answer: [0, 1],
+      explanation: '`DontDestroyOnLoad` solo conserva objetos raíz (en un hijo, Unity muestra un aviso y no lo conserva) y los mueve a una escena especial llamada **DontDestroyOnLoad**, no a la escena activa. `sceneLoaded` es un evento estático de `SceneManager` que recibe la `Scene` y el `LoadSceneMode`; Unity no lo desuscribe por ti, así que hazlo en `OnDisable` u `OnDestroy` para evitar llamadas a objetos destruidos. `OnLevelWasLoaded` está obsoleto: usa `sceneLoaded`.'
+    },
+    {
+      id: 'sys-23',
+      topic: 'Pausa y tiempo',
+      q: 'Al pausar, el texto "Pulsa Start para continuar" debería parpadear, pero cambia una sola vez y se queda fijo. ¿Qué cambio lo arregla?',
+      code: 'public void Pause()\n{\n    Time.timeScale = 0f;\n    pausePanel.SetActive(true);\n    StartCoroutine(BlinkHint());\n}\n\nIEnumerator BlinkHint()\n{\n    while (true)\n    {\n        hint.enabled = !hint.enabled;\n        yield return new WaitForSeconds(0.5f);\n    }\n}',
+      options: [
+        'Esperar con `yield return new WaitForSecondsRealtime(0.5f);`.',
+        'Llamar a `StartCoroutine` antes de poner `Time.timeScale = 0f`.',
+        'Esperar con `yield return new WaitForFixedUpdate();` en el bucle.',
+        'Poner también `Time.fixedDeltaTime = 0f` al pausar.'
+      ],
+      answer: [0],
+      explanation: '`WaitForSeconds` cuenta tiempo **escalado**: con `timeScale = 0` nunca termina, así que el bucle se queda en la primera espera. `WaitForSecondsRealtime` usa tiempo real y sigue avanzando durante la pausa. Arrancar la corrutina antes de pausar no cambia nada (la espera sigue siendo escalada), `WaitForFixedUpdate` tampoco avanza porque `FixedUpdate` se detiene, y `fixedDeltaTime` no afecta a las corrutinas.'
+    },
+    {
+      id: 'sys-24',
+      topic: 'Pausa y tiempo',
+      q: 'En el menú de pausa (`Time.timeScale = 0`) quieres que un icono siga girando y que se detengan los sonidos del juego, pero no los clics de la UI. ¿Qué **dos** acciones lo consiguen? (Elige 2)',
+      options: [
+        'Girar el icono en `Update` multiplicando la velocidad por `Time.unscaledDeltaTime`.',
+        'Poner `AudioListener.pause = true` y `ignoreListenerPause = true` en el `AudioSource` de la UI.',
+        'Confiar en `Time.timeScale = 0`, que ya pausa automáticamente todos los `AudioSource` de la escena.',
+        'Girar el icono en `Update` multiplicando `Time.deltaTime` por `1f / Time.timeScale`.',
+        'Girar el icono en `FixedUpdate`, que sigue ejecutándose aunque `timeScale` sea 0.'
+      ],
+      answer: [0, 1],
+      explanation: '`unscaledDeltaTime` no depende de `timeScale`, así que la rotación sigue durante la pausa. `AudioListener.pause` pausa todo el audio, y los `AudioSource` con `ignoreListenerPause = true` (como los de la UI) siguen sonando. `timeScale` **no** afecta a la reproducción de audio; dividir entre `timeScale` con valor 0 da un resultado no válido (0 × infinito); y `FixedUpdate` deja de ejecutarse con timeScale 0.'
+    },
+    {
+      id: 'sys-25',
+      topic: 'Progresión',
+      q: 'El jugador está en nivel 1 con 0 XP y completa una misión que da 1050 XP. ¿Qué valores quedan en `level` y `xp`?',
+      code: 'int level = 1;\nint xp = 0;\n\nint XpToNext() => 100 * level;\n\npublic void AddXp(int amount)\n{\n    xp += amount;\n    if (xp >= XpToNext())\n    {\n        xp -= XpToNext();\n        level++;\n    }\n}',
+      options: [
+        '`level` 5 y `xp` 50.',
+        '`level` 2 y `xp` 950.',
+        '`level` 1 y `xp` 1050.',
+        '`level` 2 y `xp` 850.'
+      ],
+      answer: [1],
+      explanation: 'El `if` solo comprueba una vez, así que aunque 1050 XP alcanzan para varios niveles, solo sube uno: resta 100 (el coste del nivel 1) y quedan 950 XP en nivel 2. Con `while` en lugar de `if` subiría hasta el nivel 5 con 50 XP (100 + 200 + 300 + 400 = 1000). 850 sería el resultado si `level` se incrementara antes de restar, y para quedarse en nivel 1 la condición tendría que ser falsa.'
+    },
+    {
+      id: 'sys-26',
+      topic: 'Progresión',
+      q: 'Revisa este sistema de experiencia. ¿Qué **dos** afirmaciones son correctas? (Elige 2)',
+      code: 'public class PlayerXp : MonoBehaviour\n{\n    public event Action<int> OnXpChanged;\n    int xp;\n\n    public void AddXp(int amount)\n    {\n        xp += amount;\n        OnXpChanged(xp);\n    }\n}',
+      options: [
+        'Si nadie se ha suscrito, `OnXpChanged(xp)` lanza una `NullReferenceException`.',
+        'Cambiar la llamada por `OnXpChanged?.Invoke(xp);` evita el error cuando no hay suscriptores.',
+        'Por ser `event`, otras clases pueden suscribirse y también invocarlo directamente.',
+        'Un evento sin suscriptores se ignora en silencio, igual que un `UnityEvent` vacío.',
+        'Para suscribirse desde otro script, hay que marcar el evento con `[SerializeField]`.'
+      ],
+      answer: [0, 1],
+      explanation: 'Un evento de C# sin suscriptores vale `null`, así que invocarlo directamente lanza `NullReferenceException`; el operador `?.` solo lo invoca si hay alguien suscrito. La palabra `event` limita lo que pueden hacer otras clases: solo pueden usar `+=` y `-=`, y solo la clase que lo declara puede invocarlo. A diferencia de `UnityEvent`, un `Action` no se serializa ni necesita `[SerializeField]` para suscribirse por código.'
+    },
+    {
+      id: 'sys-27',
+      topic: 'Ajustes',
+      q: 'Con este código de ajustes, la primera vez que alguien abre el juego la música empieza en silencio. ¿Qué cambio es el más adecuado?',
+      code: 'void Start()\n{\n    musicSlider.value = PlayerPrefs.GetFloat("music");\n    fullscreenToggle.isOn = PlayerPrefs.GetInt("fullscreen") == 1;\n}\n\npublic void SaveSettings()\n{\n    PlayerPrefs.SetFloat("music", musicSlider.value);\n    PlayerPrefs.SetInt("fullscreen", fullscreenToggle.isOn ? 1 : 0);\n    PlayerPrefs.Save();\n}',
+      options: [
+        'Leer con `PlayerPrefs.GetFloat("music", 1f)` para tener un valor por defecto.',
+        'Llamar a `PlayerPrefs.Save()` al principio de `Start`, antes de leer los valores.',
+        'Guardar el volumen con `SetString` y convertirlo con `float.Parse` al leerlo.',
+        'Leerlo con `GetInt`, porque `GetFloat` redondea a 0 los valores entre 0 y 1.'
+      ],
+      answer: [0],
+      explanation: 'Si la clave no existe, `GetFloat` devuelve el valor por defecto, que es `0f` si no indicas otro. La sobrecarga `GetFloat(key, defaultValue)` (o comprobar antes con `HasKey`) resuelve el primer arranque. `Save()` escribe en disco los cambios pendientes (Unity también lo hace al cerrar la aplicación con normalidad), pero no crea valores. `PlayerPrefs` guarda `float` sin problemas, así que no hace falta pasar por `string` ni por `int`.'
+    },
+    {
+      id: 'sys-28',
+      topic: 'Ajustes',
+      q: 'Un desplegable de resolución se rellena con `Screen.resolutions`. ¿Qué línea completa `OnResolutionSelected` para aplicar la resolución elegida **sin cambiar** el modo de pantalla actual?',
+      code: 'Resolution[] resolutions;\n\nvoid Start()\n{\n    resolutions = Screen.resolutions;\n    // fill the dropdown with the resolutions...\n}\n\npublic void OnResolutionSelected(int index)\n{\n    Resolution r = resolutions[index];\n    // ?\n}',
+      options: [
+        '`Screen.SetResolution(r.width, r.height, Screen.fullScreenMode);`',
+        '`Screen.SetResolution(r.width, r.height, FullScreenMode.Windowed);`',
+        '`Screen.currentResolution = r;`',
+        '`Camera.main.pixelRect = new Rect(0, 0, r.width, r.height);`'
+      ],
+      answer: [0],
+      explanation: '`Screen.SetResolution` cambia la resolución y recibe el modo de pantalla (`FullScreenMode`); pasarle `Screen.fullScreenMode` conserva el modo actual (ventana, pantalla completa, etc.). Forzar `FullScreenMode.Windowed` sacaría al jugador de la pantalla completa. `Screen.currentResolution` es de solo lectura, y `pixelRect` solo cambia la zona de la pantalla en la que dibuja la cámara.'
+    },
+    {
+      id: 'sys-29',
+      topic: 'UI',
+      q: 'El panel del menú se activa y desactiva con `SetActive`. Después de cerrarlo y volver a abrirlo dos veces, un clic en **Jugar** llama a `StartGame` tres veces. ¿Por qué?',
+      code: 'void OnEnable()\n{\n    playButton.onClick.AddListener(() => StartGame());\n}\n\nvoid OnDisable()\n{\n    playButton.onClick.RemoveListener(() => StartGame());\n}',
+      options: [
+        'Cada lambda es un delegado nuevo, y `RemoveListener` no encuentra el que añadiste.',
+        '`RemoveListener` solo quita listeners persistentes, los añadidos desde el Inspector.',
+        '`OnDisable` no se llama cuando el GameObject se desactiva con `SetActive(false)`.',
+        'Los listeners añadidos por código se serializan y se recuperan al reactivar el objeto.'
+      ],
+      answer: [0],
+      explanation: 'Dos lambdas, aunque tengan el mismo cuerpo, son delegados distintos, así que `RemoveListener` no encuentra el que se añadió y no quita nada: en cada `OnEnable` se acumula uno más. Solución: pasa el método directamente (`AddListener(StartGame)` y `RemoveListener(StartGame)`) o guarda la lambda en un campo `UnityAction`. `RemoveListener` actúa sobre los listeners añadidos por código (no sobre los persistentes del Inspector), `OnDisable` sí se llama con `SetActive(false)` y los listeners de runtime no se serializan.'
+    },
+    {
+      id: 'sys-30',
+      topic: 'Persistencia',
+      q: '¿Qué campos aparecerán en el JSON que genera `JsonUtility.ToJson(data)`?',
+      code: 'public class InventoryItem\n{\n    public string id;\n    public int amount;\n}\n\n[System.Serializable]\npublic class SaveData\n{\n    public int coins;\n    [SerializeField] private int level;\n    private int deaths;\n    public List<InventoryItem> items = new();\n}',
+      options: [
+        '`coins`, `level` e `items`, con el `id` y el `amount` de cada objeto.',
+        'Solo `coins` y `level`; `items` se omite y `deaths` no tiene `[SerializeField]`.',
+        '`coins` e `items`; `level` se omite porque los campos privados nunca se guardan.',
+        '`coins`, `level`, `deaths` e `items`, porque la clase es `[Serializable]`.'
+      ],
+      answer: [1],
+      explanation: '`JsonUtility` sigue las reglas del serializador de Unity: guarda los campos públicos y los privados con `[SerializeField]` (por eso `level` sí aparece) e ignora los privados sin atributo (`deaths`). `items` es una lista de `InventoryItem`, que no tiene `[System.Serializable]`, así que el campo entero se omite sin error; añadir el atributo a `InventoryItem` lo arregla. Que `SaveData` sea serializable no hace serializables las clases que contiene.'
     }
   ]
 });
