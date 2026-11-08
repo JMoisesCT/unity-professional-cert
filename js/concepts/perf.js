@@ -1252,7 +1252,7 @@
       const tw = 120, tx = hx + hw / 2 - tw / 2, ty = hy + 30;
       box(ctx, tx, ty, tw, 28, '⏱ ' + F(t, 2), flashD > 0.2 ? c.warn : c.accent, '#fff', { mono: true, r: 6 });
       // 200 elementos estáticos (10 primeros son botones interactivos)
-      const cols = 20, rows = 10, gx = hx + 12, gy = ty + 44, cw = (hw - 24) / cols, ch = Math.min(12, (hy + hh - 10 - gy) / rows);
+      const cols = 20, rows = 10, gx = hx + 12, gy = ty + 52, cw = (hw - 24) / cols, ch = Math.min(12, (hy + hh - 10 - gy) / rows);
       for (let i = 0; i < 200; i++) {
         const x = gx + (i % cols) * cw, y = gy + Math.floor(i / cols) * ch;
         const btn = i < 10;
@@ -1339,7 +1339,7 @@
     seg(ctl, L.where, where, (v) => { where = v; compT = 0; });
     const ctl2 = controls(host);
     seg(ctl2, L.profiles, prof, (v) => { prof = v; compT = 0; });
-    const stage = makeCanvas(host, (w) => (narrow(w) ? 440 : 250));
+    const stage = makeCanvas(host, (w) => (narrow(w) ? 450 : 250));
     const out = readout(host);
     const cb = codeBlock(host);
 
@@ -1363,7 +1363,7 @@
       const nar = narrow(w);
       // Ventana de Build Profiles
       const pw = nar ? w - 16 : w * 0.56;
-      const ph = nar ? 236 : h - 16;
+      const ph = nar ? 220 : h - 16;
       panel(ctx, 8, 8, pw, ph, c.soft);
       text(ctx, L.bp, 18, 22, c.muted);
       const lw = nar ? (pw - 30) / 2 : Math.min(140, pw * 0.38);
@@ -1379,7 +1379,7 @@
       const scCols = nar ? 2 : 3, scW = dw / scCols;
       P.sc.forEach((n, i) => text(ctx, fit(ctx, '☑ ' + n, scW - 4), dx + (i % scCols) * scW, dy + 62 + Math.floor(i / scCols) * 16, c.muted));
       // Símbolos y resultado
-      const sx = nar ? 8 : pw + 16, sy = nar ? 252 : 8, sw = nar ? w - 16 : w - pw - 24;
+      const sx = nar ? 8 : pw + 16, sy = nar ? 236 : 8, sw = nar ? w - 16 : w - pw - 24;
       panel(ctx, sx, sy, sw, h - sy - 8, c.soft);
       if (!done) {
         text(ctx, L.compiling, sx + 10, sy + 16, c.accent);
