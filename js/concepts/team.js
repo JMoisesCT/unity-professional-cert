@@ -1283,7 +1283,8 @@
       const c = colors();
       const { ctx, w, h } = stage;
       ctx.clearRect(0, 0, w, h);
-      const n = ts.length, cw = (w - 16) / n;
+      const n = ts.length, cw = (w - 16) / n, nar = w < NARROW;
+      if (nar) tx(ctx, '✓ = IDamageable', 10, 98, c.accent);
       ts.forEach((o, i) => {
         const x = 8 + i * cw + 4, bw = cw - 8;
         const fl = flash[o.n] > 0;
@@ -1291,8 +1292,8 @@
         if (o.dmg) {
           ctx.fillStyle = c.border; ctx.fillRect(x + 6, 60, bw - 12, 5);
           ctx.fillStyle = c.ok; ctx.fillRect(x + 6, 60, (bw - 12) * hp[o.n] / 30, 5);
-          tx(ctx, 'IDamageable', x + bw / 2, 78, c.accent, { align: 'center' }, bw - 4);
-        } else tx(ctx, L.none, x + bw / 2, 78, c.muted, { align: 'center' }, bw - 4);
+          tx(ctx, nar ? '✓' : 'IDamageable', x + bw / 2, 78, c.accent, { align: 'center' }, bw - 4);
+        } else tx(ctx, nar ? '—' : L.none, x + bw / 2, 78, c.muted, { align: 'center' }, bw - 4);
         if (o.n === 'Crate' && mode === 'chain') tx(ctx, '✗', x + bw - 8, 22, c.bad, { align: 'right' });
       });
       // proyectil
@@ -1326,12 +1327,12 @@
 
   function mountAccess(host, lang) {
     const L = {
-      es: { rows: ['¿Se ve en el Inspector?', '¿Se guarda con la escena/prefab?', '¿Otras clases pueden cambiarlo?'], goal: 'objetivo', now: 'este', ph: ['1 · El diseñador pone Speed = 8 en el Inspector', '2 · Guardar y recargar la escena', '3 · Enemy.cs: player.speed = 99;'],
+      es: { rows: ['¿Se ve en el Inspector?', '¿Se guarda con la escena/prefab?', '¿Otras clases pueden cambiarlo?'], rowsS: ['¿Inspector?', '¿Se guarda?', '¿Otras clases?'], errS: 'CS0122: inaccesible', goal: 'objetivo', now: 'este', ph: ['1 · El diseñador pone Speed = 8 en el Inspector', '2 · Guardar y recargar la escena', '3 · Enemy.cs: player.speed = 99;'],
         hidden: '(no aparece en el Inspector)', err: 'error CS0122: \'Player.speed\' es inaccesible por su nivel de protección', set: 'compila: cualquiera puede cambiarlo',
         m: { pub: '<code>public</code> se ve y se guarda, pero <b>cualquier clase</b> puede modificarlo: rompe la encapsulación.', priv: '<code>private</code> sin atributo: ni se ve ni se serializa.',
           sf: '✓ <code>[SerializeField] private</code>: Unity lo serializa y lo muestra, pero el código de otras clases no puede tocarlo. Es justo lo que buscas.',
           hide: '<code>[HideInInspector] public</code>: se serializa pero se oculta en el Inspector, y sigue siendo público.', nsp: '<code>[NonSerialized] public</code>: no se guarda ni se muestra, pero es público.', nspr: '<code>[NonSerialized] private</code>: no se guarda ni se muestra (igual que private).' } },
-      en: { rows: ['Shown in the Inspector?', 'Saved with the scene/prefab?', 'Can other classes change it?'], goal: 'goal', now: 'this', ph: ['1 · The designer sets Speed = 8 in the Inspector', '2 · Save and reload the scene', '3 · Enemy.cs: player.speed = 99;'],
+      en: { rows: ['Shown in the Inspector?', 'Saved with the scene/prefab?', 'Can other classes change it?'], rowsS: ['Inspector?', 'Saved?', 'Other classes?'], errS: 'CS0122: inaccessible', goal: 'goal', now: 'this', ph: ['1 · The designer sets Speed = 8 in the Inspector', '2 · Save and reload the scene', '3 · Enemy.cs: player.speed = 99;'],
         hidden: '(not shown in the Inspector)', err: 'error CS0122: \'Player.speed\' is inaccessible due to its protection level', set: 'compiles: anyone can change it',
         m: { pub: '<code>public</code> is shown and saved, but <b>any class</b> can modify it: it breaks encapsulation.', priv: '<code>private</code> with no attribute: neither shown nor serialized.',
           sf: '✓ <code>[SerializeField] private</code>: Unity serializes and shows it, but other classes’ code cannot touch it. Exactly what you want.',
@@ -1380,7 +1381,7 @@
       const cx1 = G.x + G.w - 96, cx2 = G.x + G.w - 40;
       tx(ctx, L.now, cx1, G.y + 12, c.muted, { align: 'center' });
       tx(ctx, L.goal, cx2, G.y + 12, c.muted, { align: 'center' });
-      L.rows.forEach((r, i) => {
+      (nar ? L.rowsS : L.rows).forEach((r, i) => {
         const y = G.y + 34 + i * 26;
         tx(ctx, r, G.x + 10, y, c.text, {}, cx1 - G.x - 40);
         const v = d.s[i], match = v === GOAL[i];
@@ -1396,8 +1397,8 @@
       if (phase === 2) {
         const q = ease(clamp((t - 4.8) / 1.2, 0, 1));
         const ax = E.x + 20, ex = E.x + E.w * 0.6;
-        dot(ctx, lerp(ax, ex, q), E.y + 42, 6, open ? c.warn : c.bad);
-        if (t > 6) tx(ctx, open ? '✓ ' + L.set : '✗ ' + L.err, E.x + 10, E.y + 42, open ? c.warn : c.bad, { mono: !open }, E.w - 20);
+        if (t <= 6) dot(ctx, lerp(ax, ex, q), E.y + 42, 6, open ? c.warn : c.bad);
+        else tx(ctx, open ? '✓ ' + L.set : '✗ ' + (nar ? L.errS : L.err), E.x + 10, E.y + 42, open ? c.warn : c.bad, { mono: !open }, E.w - 20);
       }
       out(L.m[sel]);
       cb('public class Player : MonoBehaviour\n{\n    ' + d.l + '\n}\n\npublic class Enemy : MonoBehaviour\n{\n    void Slow(Player player) { player.speed = 99; }\n}', { 2: sel === 'sf' ? 'ok' : 'hl', 7: open ? 'hl' : 'bad' });
@@ -1416,20 +1417,23 @@
           okG: '✓ Compila, pero solo porque el asset sí usa namespace. Tu <code>Timer</code> global sigue expuesto a chocar con el próximo asset.',
           shadow: '⚠️ Compila, pero <code>Timer</code> se resuelve al <b>Timer global del asset</b>: los tipos del namespace global ganan a las directivas <code>using</code>. Llamar a tus métodos daría <code>CS1061</code>. Usa el nombre completo o pon el código en tu namespace.',
           ok: '✓ Sin ambigüedad: <code>Timer</code> es <code>MyGame.Core.Timer</code>, el tuyo.',
+          nons: '✗ <code>error CS0246</code>: el namespace <code>ThirdParty.Tools</code> no existe, porque este asset no usa namespace (su Timer está en el global).',
           amb: '✗ <code>error CS0104: \'Timer\' is an ambiguous reference between \'MyGame.Core.Timer\' and \'ThirdParty.Tools.Timer\'</code>. Usa el nombre completo o un alias.' } },
       en: { mine: 'My Timer', glob: 'no namespace', ns: 'namespace MyGame.Core', asset: 'The asset uses namespace ThirdParty.Tools', use: 'Spawner.cs uses:', yours: 'yours', theirs: 'asset',
         m: { dup: '✗ <code>error CS0101: The namespace \'&lt;global namespace&gt;\' already contains a definition for \'Timer\'</code>. Both classes live in the global namespace and clash.',
           okG: '✓ It compiles, but only because the asset does use a namespace. Your global <code>Timer</code> can still clash with the next asset.',
           shadow: '⚠️ It compiles, but <code>Timer</code> resolves to the <b>asset’s global Timer</b>: types in the global namespace win over <code>using</code> directives. Calling your methods would give <code>CS1061</code>. Use the fully qualified name or put the code in your namespace.',
           ok: '✓ No ambiguity: <code>Timer</code> is <code>MyGame.Core.Timer</code>, yours.',
+          nons: '✗ <code>error CS0246</code>: the namespace <code>ThirdParty.Tools</code> does not exist, because this asset uses no namespace (its Timer is global).',
           amb: '✗ <code>error CS0104: \'Timer\' is an ambiguous reference between \'MyGame.Core.Timer\' and \'ThirdParty.Tools.Timer\'</code>. Use the fully qualified name or an alias.' } }
     }[lang];
     let mineNs = false, assetNs = false, use = 'using', t = 0;
     const ctl = controls(host);
-    seg(ctl, [{ v: false, l: L.mine + ': ' + L.glob }, { v: true, l: L.ns }], mineNs, (v) => { mineNs = v; t = 0; });
+    seg(ctl, [{ v: false, l: L.mine + ': ' + L.glob }, { v: true, l: L.ns }], mineNs, (v) => { mineNs = v; t = 0; ctl2.style.opacity = v ? '' : '.45'; });
     toggle(ctl, L.asset, false, (v) => { assetNs = v; t = 0; });
     const ctl2 = controls(host);
     ctl2.appendChild(el('span', 'muted small', L.use));
+    ctl2.style.opacity = '.45';
     seg(ctl2, [{ v: 'using', l: 'using MyGame.Core;' }, { v: 'fq', l: 'MyGame.Core.Timer' }, { v: 'both', l: 'using MyGame.Core; using ThirdParty.Tools;' }], use, (v) => { use = v; t = 0; });
     const stage = makeCanvas(host, (w) => (w < NARROW ? 330 : 220));
     const out = readout(host);
@@ -1439,7 +1443,7 @@
       if (!mineNs && !assetNs) return { k: 'dup', to: null };
       if (!mineNs) return { k: 'okG', to: 'mineG' };
       if (use === 'fq') return { k: 'ok', to: 'mineN' };
-      if (!assetNs) return { k: 'shadow', to: 'assetG' };
+      if (!assetNs) return use === 'both' ? { k: 'nons', to: null } : { k: 'shadow', to: 'assetG' };
       return use === 'both' ? { k: 'amb', to: null } : { k: 'ok', to: 'mineN' };
     }
 
@@ -1477,8 +1481,8 @@
       tx(ctx, 'Spawner.cs', S.x + 10, S.y + 14, c.muted);
       const decl = !mineNs ? 'Timer timer;' : use === 'fq' ? 'MyGame.Core.Timer timer;' : 'Timer timer;';
       tx(ctx, decl, S.x + 10, S.y + 40, c.text, { mono: true }, S.w - 20);
-      const res = r.k === 'dup' ? '✗ CS0101' : r.k === 'amb' ? '✗ CS0104' : r.k === 'shadow' ? '⚠️ → Timer (asset)' : '✓ → Timer (' + L.yours + ')';
-      const rc = r.k === 'dup' || r.k === 'amb' ? c.bad : r.k === 'shadow' ? c.warn : c.ok;
+      const res = r.k === 'dup' ? '✗ CS0101' : r.k === 'amb' ? '✗ CS0104' : r.k === 'nons' ? '✗ CS0246' : r.k === 'shadow' ? '⚠️ → Timer (asset)' : '✓ → Timer (' + L.yours + ')';
+      const rc = r.k === 'dup' || r.k === 'amb' || r.k === 'nons' ? c.bad : r.k === 'shadow' ? c.warn : c.ok;
       tx(ctx, res, S.x + 10, S.y + 66, rc, { mono: true }, S.w - 20);
       if (r.to && pos[r.to]) {
         const q = ease(clamp(t / 0.9, 0, 1));
@@ -1492,7 +1496,7 @@
       const usings = !mineNs ? '' : use === 'using' ? 'using MyGame.Core;\n' : use === 'both' ? 'using MyGame.Core;\nusing ThirdParty.Tools;\n' : '';
       const src = '// Timer.cs\n' + timer + '\n\n// Spawner.cs\n' + usings + 'public class Spawner : MonoBehaviour\n{\n    ' + decl + '\n}';
       const lines = src.split('\n'), marks = {};
-      lines.forEach((s, i) => { if (s.indexOf('Timer timer') >= 0) marks[i] = r.k === 'ok' || r.k === 'okG' ? 'ok' : r.k === 'shadow' ? 'hl' : 'bad'; if (s.indexOf('namespace MyGame') >= 0) marks[i] = 'ok'; });
+      lines.forEach((s, i) => { if (s.indexOf('Timer timer') >= 0) marks[i] = r.k === 'ok' || r.k === 'okG' ? 'ok' : r.k === 'shadow' ? 'hl' : 'bad'; if (s.indexOf('namespace MyGame') >= 0) marks[i] = 'ok'; if (r.k === 'nons') { if (s.indexOf('using ThirdParty') >= 0) marks[i] = 'bad'; else if (s.indexOf('Timer timer') >= 0) marks[i] = 'off'; } });
       cb(src, marks);
     });
     return () => { stop(); stage.destroy(); };
@@ -1504,13 +1508,13 @@
 
   function mountAwaitable(host, lang) {
     const L = {
-      es: { start: '▶ Esperar 2 s', destroy: 'Destroy(gameObject)', ts: 'Time.timeScale = 0', exit: '■ Salir de Play Mode', frame: 'frame', waiting: 'esperando', boss: '👹 SpawnBoss()', destroyed: 'GameObject destruido', paused: 'timeScale = 0', edit: 'Edit Mode', frozen: '❄ hilo principal congelado',
+      es: { start: '▶ Esperar 2 s', destroy: 'Destroy(gameObject)', ts: 'Time.timeScale = 0', exit: '■ Salir de Play Mode', frame: 'frame', waiting: 'esperando', boss: '👹 SpawnBoss()', destroyed: 'GameObject destruido', destroyedS: 'destruido', frozenS: '❄ congelado', paused: 'timeScale = 0', edit: 'Edit Mode', frozen: '❄ hilo principal congelado',
         log: { start: 'Empieza la espera de 2 s.', cancel: '✓ Cancelada: OperationCanceledException (destroyCancellationToken). SpawnBoss no se ejecuta.', coStop: '✓ La corrutina se detiene con su GameObject. SpawnBoss no se ejecuta.',
           ghost: '✗ Task.Delay no sabe nada del objeto: 2 s después SpawnBoss() se ejecuta sobre un objeto destruido → MissingReferenceException.', exitT: '✗ Task.Delay sigue corriendo fuera de Play Mode: SpawnBoss() se ejecuta en el Editor.',
           boss: '✓ Pasaron los 2 s: SpawnBoss().', ignore: '⚠️ Task.Delay usa tiempo real: ignora Time.timeScale.', respect: 'La espera se congela: respeta Time.timeScale.', sleep: '✗ Thread.Sleep bloquea el hilo principal: el juego no pinta frames ni procesa nada durante 2 s.' },
         notes: { aw: '<code>Awaitable</code> se integra con el player loop: respeta <code>timeScale</code>, vuelve al hilo principal y se cancela con <code>destroyCancellationToken</code>.', task: '<code>Task.Delay</code> no conoce Unity: tiempo real, sigue tras destruir el objeto o salir de Play Mode y da problemas en WebGL.',
           co: 'La corrutina funciona, pero <code>yield return</code> solo vale en un método <code>IEnumerator</code> lanzado con <code>StartCoroutine</code>: en un método <code>async</code> no compila.', sleep: '<code>Thread.Sleep</code> congela el hilo principal: nunca lo uses para esperar en un juego.' } },
-      en: { start: '▶ Wait 2 s', destroy: 'Destroy(gameObject)', ts: 'Time.timeScale = 0', exit: '■ Exit Play Mode', frame: 'frame', waiting: 'waiting', boss: '👹 SpawnBoss()', destroyed: 'GameObject destroyed', paused: 'timeScale = 0', edit: 'Edit Mode', frozen: '❄ main thread frozen',
+      en: { start: '▶ Wait 2 s', destroy: 'Destroy(gameObject)', ts: 'Time.timeScale = 0', exit: '■ Exit Play Mode', frame: 'frame', waiting: 'waiting', boss: '👹 SpawnBoss()', destroyed: 'GameObject destroyed', destroyedS: 'destroyed', frozenS: '❄ frozen', paused: 'timeScale = 0', edit: 'Edit Mode', frozen: '❄ main thread frozen',
         log: { start: 'The 2 s wait starts.', cancel: '✓ Cancelled: OperationCanceledException (destroyCancellationToken). SpawnBoss does not run.', coStop: '✓ The coroutine stops with its GameObject. SpawnBoss does not run.',
           ghost: '✗ Task.Delay knows nothing about the object: 2 s later SpawnBoss() runs on a destroyed object → MissingReferenceException.', exitT: '✗ Task.Delay keeps running outside Play Mode: SpawnBoss() runs in the Editor.',
           boss: '✓ 2 s passed: SpawnBoss().', ignore: '⚠️ Task.Delay uses real time: it ignores Time.timeScale.', respect: 'The wait freezes: it respects Time.timeScale.', sleep: '✗ Thread.Sleep blocks the main thread: the game renders no frames and processes nothing for 2 s.' },
@@ -1582,8 +1586,9 @@
       ctx.fillStyle = col; roundRect(ctx, x0, 36, Math.max(prog > 0 ? 8 : 0, bw * prog), 16, 8); ctx.fill();
       tx(ctx, (prog * 2).toFixed(1) + ' / 2.0 s', x0, 66, c.muted);
       const tags = [];
-      if (frozen > 0) tags.push([L.frozen, c.bad]);
-      if (!alive) tags.push([L.destroyed, c.bad]);
+      const sm = w < NARROW;
+      if (frozen > 0) tags.push([sm ? L.frozenS : L.frozen, c.bad]);
+      if (!alive) tags.push([sm ? L.destroyedS : L.destroyed, c.bad]);
       if (scale === 0) tags.push([L.paused, c.warn]);
       if (!play) tags.push([L.edit, c.muted]);
       let ty = 90, tx2 = x0;

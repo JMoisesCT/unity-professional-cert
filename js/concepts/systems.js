@@ -451,7 +451,7 @@
     let cond = CONDS[0], t = 0, progress = 0, phase = 'loading', waitFrames = 0, actT = 0;
     const ctl = controls(host);
     ctl.appendChild(el('span', 'muted small', L.cond + ':'));
-    seg(ctl, CONDS.map((c) => ({ v: c.v, l: c.l })), cond.v, (v) => { cond = CONDS.find((c) => c.v === v); reset(); });
+    seg(ctl, CONDS.map((c) => ({ v: c.v, l: esc(c.l) })), cond.v, (v) => { cond = CONDS.find((c) => c.v === v); reset(); });
     button(ctl, L.restart, reset, true);
     const stage = makeCanvas(host, 190);
     const out = readout(host);
@@ -960,7 +960,7 @@
         : ['🎮 Input', 'EventSystem', L.sel + ': ' + (sel < 0 ? L.none : L.btns[sel]), pk && pk.kind === 'submit' ? 'onClick' : 'Navigation'];
       const nodes = labels.map((s, i) => narrow
         ? [10, 12 + i * 52, w * 0.5 - 18, 34]
-        : [12 + i * ((w - 24) / 4), 12, (w - 24) / 4 - 24, 36]);
+        : [12 + i * (w / 4), 12, w / 4 - 24, 36]);
       // Paquete en movimiento
       let stopAt = 3;
       if (!hasES) stopAt = 1; else if (mode === 'pad' && sel < 0) stopAt = 2;
@@ -1054,7 +1054,7 @@
       if (mode === 'group') blocks = !hidden;
     }, true);
     button(ctl2, L.click, doClick);
-    const stage = makeCanvas(host, (w) => (w < 560 ? 300 : 220), () => doClick());
+    const stage = makeCanvas(host, (w) => (w < 560 ? 320 : 220), () => doClick());
     const out = readout(host);
     const cb = codeBlock(host);
     function doClick() { clickT = 0; blockedHit = active && (mode !== 'group' || blocks); }
@@ -1103,7 +1103,7 @@
       const lx = S[0] + 12, rx = S[0] + S[2] - 12, mx = S[0] + S[2] * 0.68;
       if (active) {
         line(ctx, mx - 40, yP, rx, yP, blockedHit || (mode !== 'group' || blocks) ? c.accent : c.muted, 3, mode === 'group' && !blocks ? [5, 4] : null);
-        text(ctx, fit(ctx, L.panel + (mode === 'group' ? ' (CanvasGroup)' : ''), mx - 48 - lx), lx, yP, c.text);
+        text(ctx, fit(ctx, L.panel + (mode === 'group' && !narrow ? ' (CanvasGroup)' : ''), mx - 48 - lx), lx, yP, c.text);
       }
       line(ctx, mx - 40, yB, rx, yB, c.accent, 3);
       text(ctx, fit(ctx, L.bgBtn, mx - 48 - lx), lx, yB, c.text);
@@ -1207,7 +1207,9 @@
       line(ctx, mx, G[1], mx, G[1] + G[3], c.muted, 1, [3, 3]);
       dot(ctx, mx, my, 6, db === -Infinity ? c.bad : col);
       const lbl = db === -Infinity ? '−∞ dB' : (db > 0 ? '+' : '') + db.toFixed(1) + ' dB';
-      text(ctx, lbl, clamp(mx + 10, G[0] + 4, G[0] + G[2] - 70), clamp(my - 14, G[1] + 8, G[1] + G[3] - 8), db === -Infinity ? c.bad : c.text, { mono: true });
+      const lx0 = clamp(mx + 10, G[0] + 4, G[0] + G[2] - 74), ly0 = clamp(my - 14, G[1] + 8, G[1] + G[3] - 8);
+      ctx.fillStyle = c.bg; ctx.fillRect(lx0 - 3, ly0 - 9, tw(ctx, lbl, true) + 6, 18);
+      text(ctx, lbl, lx0, ly0, db === -Infinity ? c.bad : c.text, { mono: true });
       // Sonoridad percibida y onda
       const P = narrow ? [12, G[1] + G[3] + 28, w - 24, h - (G[1] + G[3] + 36)] : [w * 0.6 + 4, 14, w * 0.4 - 16, h - 28];
       const pr = perceived(db);
@@ -1231,10 +1233,10 @@
     function drawSet(ctx, w, h, c) {
       const callTxt = 'mixer.SetFloat("' + pname + '", ' + (call ? call.db : -10) + 'f)';
       const cx = w / 2;
-      chip(ctx, cx, 22, callTxt, c.soft, c.text, true);
       const narrow = w < 560;
-      const LB = [12, 56, narrow ? w * 0.6 - 18 : Math.min(260, w * 0.45), 130];
-      const FD = [narrow ? w * 0.6 + 4 : w - 150, 56, narrow ? w * 0.4 - 16 : 138, 140];
+      chip(ctx, cx, 22, narrow ? callTxt.replace('mixer.', '') : callTxt, c.soft, c.text, true);
+      const LB = [narrow ? 12 : w * 0.16, 56, narrow ? w * 0.6 - 18 : Math.min(260, w * 0.4), 130];
+      const FD = [narrow ? w * 0.6 + 4 : w * 0.62, 56, narrow ? w * 0.4 - 16 : 138, 140];
       zone(ctx, ...LB, L.list, c);
       const params = (exposed ? ['MusicVolume'] : []).concat(['SFXVolume']);
       const match = exposed && pname === 'MusicVolume';
@@ -1244,7 +1246,7 @@
         node(ctx, LB[0] + 8, y, LB[2] - 16, 24, p, hit ? c.ok : c.bg, hit ? '#fff' : c.text, { mono: true, stroke: c.border, lw: 1 });
       });
       // Fader
-      zone(ctx, ...FD, L.group, c);
+      zone(ctx, ...FD, narrow ? 'Music' : L.group, c);
       const ty = FD[1] + 30, tb = FD[1] + FD[3] - 12;
       const yOf = (db) => ty + (20 - db) / 100 * (tb - ty);
       const tx = FD[0] + 30;
@@ -1266,7 +1268,7 @@
         }
       }
       out((ret === null ? code(callTxt) : code(callTxt) + ' → <b style="color:var(--' + (ret ? 'ok' : 'bad') + ')">' + ret + '</b><p>' + why + '</p>'));
-      cb(['bool found = mixer.SetFloat("' + pname + '", dB);', 'if (!found) Debug.LogWarning("Parámetro no expuesto o mal escrito");'].join('\n'), ret === null ? {} : { 0: ret ? 'ok' : 'bad' });
+      cb(['bool found = mixer.SetFloat("' + pname + '", dB);', 'if (!found) Debug.LogWarning("Exposed parameter not found");'].join('\n'), ret === null ? {} : { 0: ret ? 'ok' : 'bad' });
     }
 
     const stop = loop((dt) => {
@@ -1293,14 +1295,14 @@
         res: '<code>Screen.SetResolution</code> solo cambia la resolución / pantalla completa: sombras, AA y texturas siguen igual.',
         fps: '<code>Application.targetFrameRate</code> solo limita los FPS: no cambia el preset de calidad.',
         restored: 'Al abrir, se leyó <code>PlayerPrefs.GetInt("quality")</code> y se aplicó', lost: 'No se guardó la elección: al abrir se usa el nivel por defecto del proyecto',
-        preview: 'vista simplificada', jag: 'sin AA: dientes de sierra' },
+        preview: 'vista simplificada', jag: 'off (dientes de sierra)' },
       en: { api: 'The dropdown calls:', exp: 'applyExpensiveChanges', save: 'Save with PlayerPrefs', reopen: 'Close and reopen the game',
         shadows: 'Shadows', tex: 'Textures', none: 'off', hard: 'hard', soft: 'soft', full: 'full', half: '½', quarter: '¼',
         applied: 'Applied level', aaKept: 'Anti-aliasing <b>did not change</b>: with <code>applyExpensiveChanges = false</code> expensive changes are not applied.',
         res: '<code>Screen.SetResolution</code> only changes resolution / fullscreen: shadows, AA and textures stay the same.',
         fps: '<code>Application.targetFrameRate</code> only caps the FPS: it does not change the quality preset.',
         restored: 'On startup, <code>PlayerPrefs.GetInt("quality")</code> was read and applied', lost: 'The choice was not saved: on startup the project\'s default level is used',
-        preview: 'simplified preview', jag: 'no AA: jaggies' }
+        preview: 'simplified preview', jag: 'off (jaggies)' }
     }[lang];
     const NAMES = ['Low', 'Medium', 'High'];
     const PRE = [{ sh: 'none', aa: false, tex: 8 }, { sh: 'hard', aa: false, tex: 16 }, { sh: 'soft', aa: true, tex: 64 }];
@@ -1402,8 +1404,9 @@
       ctx.imageSmoothingEnabled = true;
       const thR = { none: L.none, hard: L.hard, soft: L.soft }[cur.sh];
       const tx = cur.tex === 64 ? L.full : cur.tex === 16 ? L.half : L.quarter;
-      text(ctx, fit(ctx, NAMES[level] + ' · ' + L.shadows + ': ' + thR + ' · AA: ' + (cur.aa ? 'MSAA 4x' : L.jag) + ' · ' + L.tex + ': ' + tx, w - 24), 12, h - 22, c.text);
-      text(ctx, '(' + L.preview + ')', w - 12, h - 8, c.muted, { align: 'right' });
+      text(ctx, fit(ctx, NAMES[level] + ' · ' + L.shadows + ': ' + thR + ' · ' + L.tex + ': ' + tx, w - 24), 12, h - 28, c.text);
+      text(ctx, 'AA: ' + (cur.aa ? 'MSAA 4x' : L.jag), 12, h - 11, cur.aa ? c.ok : c.warn);
+      text(ctx, L.preview, w - 18, 22, '#2b3a4a', { align: 'right' });
       out((msg || code('QualitySettings.GetQualityLevel() = ' + level) + ' (' + NAMES[level] + ')'));
       const call = api === 'quality' ? 'QualitySettings.SetQualityLevel(index, ' + expensive + ');'
         : api === 'res' ? 'Screen.SetResolution(1280, 720, FullScreenMode.FullScreenWindow);' : 'Application.targetFrameRate = 30;';
@@ -1490,8 +1493,8 @@
         cards.forEach((cd, k) => {
           ctx.fillStyle = c.soft; roundRect(ctx, ...cd, 8); ctx.fill();
           ctx.fillStyle = tcol[k]; ctx.fillRect(cd[0], cd[1] + 6, 4, cd[3] - 12);
-          text(ctx, fit(ctx, TYPES[k] + '.asset', cd[2] - 16), cd[0] + 10, cd[1] + 15, c.text);
-          text(ctx, fit(ctx, 'dmg ' + soDmg[k] + ' · $' + PRICE[k], cd[2] - 16), cd[0] + 10, cd[1] + 33, c.muted, { mono: true });
+          text(ctx, fit(ctx, TYPES[k] + (narrow ? '' : '.asset'), cd[2] - 16), cd[0] + 10, cd[1] + 15, c.text);
+          text(ctx, fit(ctx, 'dmg ' + soDmg[k] + (narrow ? '' : ' · $' + PRICE[k]), cd[2] - 16), cd[0] + 10, cd[1] + 33, c.muted, { mono: true });
         });
       } else {
         const zx = narrow ? 12 : cards[0][0], zy = narrow ? cards[0][1] : 14, zw = narrow ? w - 24 : cards[0][2], zh = narrow ? 46 : 174;
@@ -1502,7 +1505,7 @@
           ctx.fillStyle = tcol[i % 3];
           ctx.fillRect(zx + 8 + q * ((zw - 16) / per), zy + 22 + r * (narrow ? 10 : 14), Math.max(1, (zw - 16) / per - 1.5), narrow ? 6 : 9);
         }
-        text(ctx, fit(ctx, 'WeaponData × 100 (' + L.each + ')', zw - 16), zx + 8, zy + 11, c.bad);
+        text(ctx, fit(ctx, 'WeaponData × 100' + (narrow ? '' : ' (' + L.each + ')'), zw - 16), zx + 8, zy + 11, c.bad);
       }
       for (let i = 0; i < 100; i++) {
         const k = i % 3;
@@ -1515,11 +1518,11 @@
       }
       // Barras de memoria
       const by = h - 26, bw = w - 24;
-      text(ctx, L.mem, 12, by - 14, c.muted);
+      if (!narrow) text(ctx, L.mem, 12, by - 14, c.muted);
       ctx.fillStyle = c.soft; roundRect(ctx, 12, by, bw, 14, 7); ctx.fill();
       const units = mode === 'so' ? 3 + 100 * 0.1 : 100;
       ctx.fillStyle = mode === 'so' ? c.ok : c.bad; roundRect(ctx, 12, by, Math.max(14, bw * units / 100), 14, 7); ctx.fill();
-      text(ctx, mode === 'so' ? L.soMem : L.copies, w - 14, by - 14, mode === 'so' ? c.ok : c.bad, { align: 'right' });
+      text(ctx, mode === 'so' ? L.soMem : L.copies, narrow ? 12 : w - 14, by - 14, mode === 'so' ? c.ok : c.bad, { align: narrow ? 'left' : 'right' });
       const changedCopies = copies.filter((d, i) => i % 3 === 0 && d !== ORIG[0]).length;
       out((msg ? msg : mode === 'so' ? (soDmg[0] !== ORIG[0] ? ok(L.all(count[0])) : '<span class="muted">' + L.hint + '</span>') : (changedCopies ? warn(L.one(count[0])) : '<span class="muted">' + L.hint + '</span>')));
       cb(mode === 'so'
@@ -1602,9 +1605,11 @@
       const rh = Math.min(48, (h - 20) / rowsN);
       const R = (k) => [lx, 10 + k * rh, lw, rh - 10];
       zone(ctx, ...E, '', c, { fill: c.accentSoft });
-      text(ctx, fit(ctx, 'ProgressionSystem', ew - 16), E[0] + 8, E[1] + 16, c.text);
-      text(ctx, 'Lv ' + level, E[0] + 8, E[1] + 38, c.accent, { mono: true });
-      text(ctx, fit(ctx, design === 'event' ? 'static event Action<int>' : design === 'find' ? L.knows : 'Level { get; }', ew - 16), E[0] + 8, E[1] + 62, design === 'find' ? c.bad : c.muted, { mono: design !== 'find' });
+      const evTxt = design === 'event' ? (narrow ? 'OnLevelUp' : 'static event Action<int>') : design === 'find' ? L.knows : 'Level { get; }';
+      if (narrow) { text(ctx, 'Progression', E[0] + 8, E[1] + 14, c.text); text(ctx, 'System', E[0] + 8, E[1] + 30, c.text); }
+      else text(ctx, 'ProgressionSystem', E[0] + 8, E[1] + 16, c.text);
+      text(ctx, 'Lv ' + level, E[0] + 8, E[1] + (narrow ? 52 : 38), c.accent, { mono: true });
+      text(ctx, fit(ctx, evTxt, ew - 16, design !== 'find'), E[0] + 8, E[1] + (narrow ? 72 : 62), design === 'find' ? c.bad : c.muted, { mono: design !== 'find' });
       const from = [E[0] + E[2], E[1] + E[3] / 2];
       lis.forEach((l, k) => {
         const r = R(k);
@@ -1714,7 +1719,7 @@
     function reset() { run = { t: 0 }; result = undefined; listener = false; fire = 0; msg = ''; }
     reset();
     const ctl = controls(host);
-    seg(ctl, QS.map((x) => ({ v: x.v, l: x.l })), q.v, (v) => { q = QS.find((x) => x.v === v); reset(); });
+    seg(ctl, QS.map((x) => ({ v: x.v, l: esc(x.l) })), q.v, (v) => { q = QS.find((x) => x.v === v); reset(); });
     const ctl2 = controls(host);
     button(ctl2, L.run, reset);
     button(ctl2, L.click, () => {
@@ -1722,7 +1727,7 @@
       if (result === null) { msg = bad(L.nre); return; }
       fire = 1; msg = ok(L.fired);
     }, true);
-    const stage = makeCanvas(host, (w) => (w < 560 ? 390 : 260));
+    const stage = makeCanvas(host, (w) => (w < 560 ? 420 : 280));
     const out = readout(host);
     const cbX = codeBlock(host);
     const cb = codeBlock(host);
@@ -1766,7 +1771,7 @@
         }
       });
       // Vista previa del menú
-      const P = narrow ? [10, T[1] + T[3] + 10, w - 20, 110] : [w * 0.58 + 5, 10, w * 0.42 - 15, 176];
+      const P = narrow ? [10, T[1] + T[3] + 10, w - 20, 132] : [w * 0.58 + 5, 10, w * 0.42 - 15, 176];
       zone(ctx, ...P, '', c);
       text(ctx, L.title, P[0] + P[2] / 2, P[1] + 22, c.text, { align: 'center' });
       const bw = Math.min(160, P[2] - 40);
@@ -1776,8 +1781,8 @@
       // Comparación con uGUI
       const U = [10, P[1] + P[3] + 10, w - 20, h - (P[1] + P[3] + 20)];
       zone(ctx, ...U, L.ugui, c, { fill: c.bg, stroke: c.border, dash: [4, 3] });
-      text(ctx, fit(ctx, 'Canvas › ' + L.ugui1, U[2] - 20), U[0] + 10, U[1] + 34, c.text);
-      text(ctx, fit(ctx, 'button.onClick.AddListener(OnPlay);', U[2] - 20, true), U[0] + 10, U[1] + 56, c.muted, { mono: true });
+      text(ctx, fit(ctx, (narrow ? '' : 'Canvas › ') + L.ugui1, U[2] - 20), U[0] + 10, U[1] + 34, c.text);
+      text(ctx, fit(ctx, (narrow ? '' : 'button.') + 'onClick.AddListener(OnPlay);', U[2] - 20, true), U[0] + 10, U[1] + 56, c.muted, { mono: true });
 
       out((msg || '<span class="muted">' + L.hint + '</span>') + (result !== undefined ? '<p>' + code('btn') + ' = <b>' + (result === null ? 'null' : 'Button #play-button') + '</b></p>' : ''));
       const uxCur = cur >= 0 && ROWS[cur].ux !== undefined ? ROWS[cur].ux : (cur === 1 ? 0 : -1);

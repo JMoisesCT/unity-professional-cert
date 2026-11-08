@@ -632,7 +632,7 @@
       }
     }[lang];
     const F = nf(lang);
-    const TEX = [{ n: 'Rock', mb: 8, keep: true, h: 30 }, { n: 'Grass', mb: 8, h: 120 }, { n: 'Boss', mb: 16, keep: true, h: 0 }, { n: 'Sky', mb: 12, keep: true, h: 205 },
+    const TEX = [{ n: 'Rock', mb: 8, keep: true, h: 30 }, { n: 'Grass', mb: 8, h: 120 }, { n: 'Boss', mb: 16, keep: true, h: 330 }, { n: 'Sky', mb: 12, keep: true, h: 205 },
       { n: 'Water', mb: 4, h: 185 }, { n: 'Tree', mb: 4, h: 95 }];
     const MENU = { n: 'MenuUI', mb: 4, h: 270 };
     const DUR = [2, 1.3, 2.2, 1.3, 4.5];
@@ -724,14 +724,14 @@
       if (step < 4) text(ctx, L.wait, 18, dy + 38, c.muted);
       else {
         const rows = [];
-        if (!fix) TEX.filter((t2) => t2.keep).forEach((t2) => rows.push([t2.n + ' · ' + t2.mb + ' MB', L.refBy, c.bad]));
+        if (!fix) TEX.filter((t2) => t2.keep).forEach((t2) => rows.push(['Texture2D ' + t2.n + ' · ' + t2.mb + ' MB', L.refBy, c.bad]));
         else rows.push([L.clean, '', c.ok]);
-        rows.push(['+ MenuUI · 4 MB', L.fresh, c.muted]);
+        rows.push(['+ Texture2D MenuUI · 4 MB', L.fresh, c.muted]);
         const rh = Math.min(20, (dh - 30) / rows.length);
         rows.forEach((r, i) => {
           const ry = dy + 34 + i * rh;
           const right = nar ? '' : r[1];
-          text(ctx, fit(ctx, 'Texture2D ' + r[0], (w - 40) * (right ? 0.5 : 1)), 18, ry, r[2], { mono: r[0] !== L.clean });
+          text(ctx, fit(ctx, r[0], (w - 40) * (right ? 0.5 : 1)), 18, ry, r[2], { mono: r[0] !== L.clean });
           if (right) text(ctx, right, w - 18, ry, c.muted, { align: 'right', mono: true });
         });
         if (nar && !fix) text(ctx, fit(ctx, L.refBy, w - 36, true), 18, dy + 34 + rows.length * rh, c.muted, { mono: true });
@@ -774,10 +774,10 @@
     const L = {
       es: { atlas: 'Sprite Atlas', auto: 'Reproducir', ev: 'Evento', scene: 'Escena 2D (24 sprites)', list: 'Frame Debugger', draw: 'Draw', sprites: 'sprites',
         first: 'primer draw call', tex: 'textura distinta', mat: 'material distinto', why: '¿Por qué no se agrupó con el anterior?',
-        sum: 'Draw calls del frame', atlasL: 'Atlas', glow: 'material Glow' },
+        sum: 'Draw calls', atlasL: 'Atlas', glow: 'material Glow' },
       en: { atlas: 'Sprite Atlas', auto: 'Play', ev: 'Event', scene: '2D scene (24 sprites)', list: 'Frame Debugger', draw: 'Draw', sprites: 'sprites',
         first: 'first draw call', tex: 'different texture', mat: 'different material', why: 'Why was it not batched with the previous one?',
-        sum: 'Draw calls in the frame', atlasL: 'Atlas', glow: 'Glow material' }
+        sum: 'Draw calls', atlasL: 'Atlas', glow: 'Glow material' }
     }[lang];
     const ORDER = [0, 1, 1, 2, 0, 3, 4, 4, 5, 2, 0, 1, 3, 3, 5, 4, 2, 0, 1, 5, 5, 3, 4, 2];
     const GLOW = { 7: true, 16: true };
@@ -858,7 +858,7 @@
         text(ctx, fit(ctx, '↳ ' + L[ev.reason], lp[2] - 24), lp[0] + 12, y + 23, ev.reason === 'first' ? c.muted : ev.reason === 'mat' ? c.warn : c.bad);
       }
       const n = e.end - e.start + 1;
-      out('<b>' + L.ev + ' ' + (cur + 1) + '/' + evs.length + '</b>: ' + n + ' ' + L.sprites + ' · ' + (e.tex === 'atlas' ? 'atlas' : SPRITE_KINDS[e.tex].n) + (e.mat === 'glow' ? ' · ' + L.glow : '') +
+      out('<b>' + L.ev + ' ' + (cur + 1) + '/' + evs.length + '</b>: ' + n + ' sprite' + (n > 1 ? 's' : '') + ' · ' + (e.tex === 'atlas' ? 'atlas' : SPRITE_KINDS[e.tex].n) + (e.mat === 'glow' ? ' · ' + L.glow : '') +
         '<p>' + L.why + ' <b>' + L[e.reason] + '</b></p>');
     });
     return () => { stop(); stage.destroy(); };
@@ -873,7 +873,7 @@
       es: {
         modes: [{ v: 'none', l: 'Built-in' }, { v: 'inst', l: 'Built-in + GPU Instancing' }, { v: 'static', l: 'Static batching' }, { v: 'srp', l: 'URP: SRP Batcher' }, { v: 'grd', l: 'URP: GPU Resident Drawer' }],
         unique: 'Un material distinto por roca', fwd: 'Forward+ (URP)', rocks: '3000 rocas creadas en runtime (cada punto ≈ 12)',
-        dc: 'Draw calls', cpu: 'CPU de render', batches: 'lotes', staticNo: 'No aplica: las rocas se crean en runtime', staticNo2: 'y el static batching se prepara en la build',
+        dc: 'Draw calls', cpu: 'CPU de render', batches: 'lotes', staticNo: ['✗ No aplica aquí:', 'las rocas se crean en runtime', 'el static batching se hace en la build'], rocksS: '3000 rocas (cada punto ≈ 12)',
         v: {
           none: '✗ Un draw call por roca: la CPU pasa el frame preparando 3000 llamadas.',
           inst: '✓ Misma malla + mismo material con **Enable GPU Instancing**: miles de rocas en unos pocos draw calls, cada una con su transformación.',
@@ -889,7 +889,7 @@
       en: {
         modes: [{ v: 'none', l: 'Built-in' }, { v: 'inst', l: 'Built-in + GPU Instancing' }, { v: 'static', l: 'Static batching' }, { v: 'srp', l: 'URP: SRP Batcher' }, { v: 'grd', l: 'URP: GPU Resident Drawer' }],
         unique: 'A different material per rock', fwd: 'Forward+ (URP)', rocks: '3000 rocks spawned at runtime (each dot ≈ 12)',
-        dc: 'Draw calls', cpu: 'Render CPU', batches: 'batches', staticNo: 'Not applicable: the rocks are spawned at runtime', staticNo2: 'and static batching is prepared at build time',
+        dc: 'Draw calls', cpu: 'Render CPU', batches: 'batches', staticNo: ['✗ Not applicable here:', 'the rocks are spawned at runtime', 'static batching happens at build time'], rocksS: '3000 rocks (each dot ≈ 12)',
         v: {
           none: '✗ One draw call per rock: the CPU spends the frame preparing 3000 calls.',
           inst: '✓ Same mesh + same material with **Enable GPU Instancing**: thousands of rocks in a few draw calls, each with its own transform.',
@@ -935,7 +935,7 @@
       const fp = nar ? [8, 8, w - 16, 190] : [8, 8, w * 0.6 - 12, h - 16];
       const sp = nar ? [8, 206, w - 16, h - 214] : [w * 0.6 + 4, 8, w * 0.4 - 12, h - 16];
       panel(ctx, fp[0], fp[1], fp[2], fp[3], c.soft);
-      text(ctx, fit(ctx, L.rocks, fp[2] - 20), fp[0] + 10, fp[1] + 14, c.muted);
+      text(ctx, fit(ctx, nar ? L.rocksS : L.rocks, fp[2] - 20), fp[0] + 10, fp[1] + 14, c.muted);
       const cell = 13, cols = Math.floor((fp[2] - 20) / cell), rows = Math.floor((fp[3] - 34) / cell), M = cols * rows;
       const dur = clamp(0.3 + s.cpu * 0.14, 0.4, 2.8), cycle = dur + 0.9;
       const drawn = Math.floor(M * clamp((t % cycle) / dur, 0, 1));
@@ -949,10 +949,9 @@
       ctx.globalAlpha = 1;
       if (s.srp) { ctx.strokeStyle = c.accent; ctx.setLineDash([5, 4]); ctx.lineWidth = 1.5; ctx.strokeRect(fp[0] + 6, fp[1] + 24, cols * cell + 8, rows * cell + 8); ctx.setLineDash([]); }
       if (mode === 'static') {
-        const bw = Math.min(fp[2] - 20, 320);
-        box(ctx, fp[0] + (fp[2] - bw) / 2, fp[1] + fp[3] / 2 - 22, bw, 44, '', c.bg, c.text, { stroke: c.bad });
-        text(ctx, fit(ctx, L.staticNo, bw - 16), fp[0] + fp[2] / 2, fp[1] + fp[3] / 2 - 9, c.bad, { align: 'center' });
-        text(ctx, fit(ctx, L.staticNo2, bw - 16), fp[0] + fp[2] / 2, fp[1] + fp[3] / 2 + 9, c.muted, { align: 'center' });
+        const bw = Math.min(fp[2] - 20, 300), by = fp[1] + fp[3] / 2 - 32;
+        box(ctx, fp[0] + (fp[2] - bw) / 2, by, bw, 64, '', c.bg, c.text, { stroke: c.bad });
+        L.staticNo.forEach((s2, i) => text(ctx, fit(ctx, s2, bw - 16), fp[0] + fp[2] / 2, by + 14 + i * 18, i ? c.text : c.bad, { align: 'center' }));
       }
       // Estadísticas
       panel(ctx, sp[0], sp[1], sp[2], sp[3], c.soft);
@@ -1054,7 +1053,7 @@
     slider(c1, L.far, 30, 100, 1, far, (v) => { far = v; }, (v) => v + '%');
     toggle(c1, L.occ, false, (v) => { occ = v; });
     const rotT = toggle(c1, L.rot, true, (v) => { rot = v; });
-    slider(c2, L.dist, 8, 300, 1, dist, (v) => { dist = v; autoD = false; autoT.checked = false; }, (v) => v + ' m');
+    const distIn = slider(c2, L.dist, 8, 300, 1, dist, (v) => { dist = v; autoD = false; autoT.checked = false; }, (v) => v + ' m');
     const autoT = toggle(c2, L.auto, true, (v) => { autoD = v; });
     toggle(c2, L.lod, true, (v) => { lodOn = v; });
     c2.style.display = 'none';
@@ -1185,8 +1184,861 @@
           '<p>' + md(occ ? L.occOn : L.occOff.replace('{o}', r.no)) + (far < 100 ? md(L.farMsg) : '') + '</p><p class="muted small">' + L.drag + '</p>');
       } else {
         const tr = drawLod(ctx, w, h, c);
+        if (autoD) { distIn.value = Math.round(dist); distIn.parentNode.querySelector('b').textContent = Math.round(dist) + ' m'; }
         out(L.tris + ': <b>' + B(tr) + '</b><p>' + md(lodOn ? L.lodOn : L.lodOff) + '</p>');
       }
+    });
+    return () => { stop(); stage.destroy(); };
+  }
+
+  /* ---------------------------------------------------------
+     8. UI: reconstrucción del Canvas y Raycast Target
+     --------------------------------------------------------- */
+
+  function mountCanvasRebuild(host, lang) {
+    const L = {
+      es: {
+        modes: [{ v: 'single', l: 'Un solo Canvas' }, { v: 'fixed', l: 'Un Canvas + timer en FixedUpdate' }, { v: 'split', l: 'Canvas propio para el timer' }],
+        ray: 'Raycast Target en elementos estáticos', hud: 'Canvas (HUD)', stat: 'Canvas estático', dyn: 'Canvas dinámico',
+        build: 'Canvas.BuildBatch', rayc: 'Raycasts de UI', rebuilt: 'elementos reconstruidos por cambio',
+        v: {
+          single: '✗ El timer cambia cada frame y Unity reconstruye la geometría de **todo** su Canvas: los 200 elementos estáticos también.',
+          fixed: '✗ En `FixedUpdate` cambia casi igual de a menudo (50 veces/s) y sigue reconstruyendo el Canvas entero. No es la solución.',
+          split: '✓ Con el timer en un **Canvas propio**, solo se reconstruye ese Canvas pequeño; el HUD estático no se toca.'
+        },
+        rayOn: ' Además, {n} elementos no interactivos tienen **Raycast Target** activado: el EventSystem los comprueba todos.',
+        rayOff: ' ✓ Raycast Target desactivado en lo no interactivo: el EventSystem solo prueba los 10 botones.'
+      },
+      en: {
+        modes: [{ v: 'single', l: 'Single Canvas' }, { v: 'fixed', l: 'Single Canvas + timer in FixedUpdate' }, { v: 'split', l: 'Own Canvas for the timer' }],
+        ray: 'Raycast Target on static elements', hud: 'Canvas (HUD)', stat: 'Static canvas', dyn: 'Dynamic canvas',
+        build: 'Canvas.BuildBatch', rayc: 'UI raycasts', rebuilt: 'elements rebuilt per change',
+        v: {
+          single: '✗ The timer changes every frame and Unity rebuilds the geometry of its **whole** Canvas: the 200 static elements too.',
+          fixed: '✗ In `FixedUpdate` it changes almost as often (50 times/s) and still rebuilds the whole Canvas. Not the fix.',
+          split: '✓ With the timer on its **own Canvas**, only that small Canvas is rebuilt; the static HUD is left alone.'
+        },
+        rayOn: ' Also, {n} non-interactive elements have **Raycast Target** enabled: the EventSystem tests all of them.',
+        rayOff: ' ✓ Raycast Target disabled on non-interactive elements: the EventSystem only tests the 10 buttons.'
+      }
+    }[lang];
+    const F = nf(lang);
+    let mode = 'single', ray = true, t = 0, fixAcc = 0, flashS = 0, flashD = 0;
+    const samples = new Array(90).fill(0);
+    const ctl = controls(host);
+    seg(ctl, L.modes, mode, (v) => { mode = v; });
+    const ctl2 = controls(host);
+    toggle(ctl2, L.ray, true, (v) => { ray = v; });
+    const stage = makeCanvas(host, (w) => (narrow(w) ? 300 : 260));
+    const out = readout(host);
+
+    const stop = loop((dt) => {
+      t += dt;
+      let changed = true;
+      if (mode === 'fixed') { fixAcc += dt; changed = false; while (fixAcc >= 0.02) { fixAcc -= 0.02; changed = true; } }
+      let build = 0;
+      if (changed) {
+        if (mode === 'split') { flashD = 1; build = 0.05; } else { flashS = 1; flashD = 1; build = 3.3; }
+      }
+      flashS = Math.max(0, flashS - dt * 6); flashD = Math.max(0, flashD - dt * 6);
+      push(samples, build);
+      const rayMs = (ray ? 210 : 10) * 0.002;
+      const c = colors();
+      const { ctx, w, h } = stage;
+      ctx.clearRect(0, 0, w, h);
+      const hx = 8, hy = 8, hw = w - 16, hh = h - 96;
+      ctx.fillStyle = c.soft; ctx.fillRect(hx, hy, hw, hh);
+      // Timer
+      const tw = 120, tx = hx + hw / 2 - tw / 2, ty = hy + 30;
+      box(ctx, tx, ty, tw, 28, '⏱ ' + F(t, 2), flashD > 0.2 ? c.warn : c.accent, '#fff', { mono: true, r: 6 });
+      // 200 elementos estáticos (10 primeros son botones interactivos)
+      const cols = 20, rows = 10, gx = hx + 12, gy = ty + 44, cw = (hw - 24) / cols, ch = Math.min(12, (hy + hh - 10 - gy) / rows);
+      for (let i = 0; i < 200; i++) {
+        const x = gx + (i % cols) * cw, y = gy + Math.floor(i / cols) * ch;
+        const btn = i < 10;
+        ctx.fillStyle = btn ? c.accentSoft : c.bg;
+        ctx.fillRect(x, y, cw - 2, ch - 2);
+        if (flashS > 0 && mode !== 'split') { ctx.globalAlpha = flashS * 0.6; ctx.fillStyle = c.warn; ctx.fillRect(x, y, cw - 2, ch - 2); ctx.globalAlpha = 1; }
+        if (btn || ray) { ctx.fillStyle = btn ? c.accent : c.muted; ctx.fillRect(x + cw - 5, y, 3, 3); }
+      }
+      // Contornos de los Canvas
+      ctx.setLineDash([5, 4]); ctx.lineWidth = 1.5;
+      if (mode === 'split') {
+        ctx.strokeStyle = c.muted; ctx.strokeRect(hx + 4, gy - 16, hw - 8, hy + hh - gy + 12);
+        ctx.strokeStyle = c.warn; ctx.strokeRect(tx - 6, ty - 6, tw + 12, 40);
+        text(ctx, L.stat, hx + 10, gy - 7, c.muted);
+        text(ctx, L.dyn, tx + tw / 2, ty - 14, c.warn, { align: 'center' });
+      } else {
+        ctx.strokeStyle = flashS > 0.2 ? c.warn : c.muted; ctx.strokeRect(hx + 3, hy + 3, hw - 6, hh - 6);
+        text(ctx, L.hud, hx + 10, hy + 12, c.muted);
+      }
+      ctx.setLineDash([]);
+      // Puntero que recorre el HUD (EventSystem)
+      const px = gx + (Math.sin(t * 0.9) * 0.5 + 0.5) * (hw - 24), py = gy + (Math.cos(t * 1.3) * 0.5 + 0.5) * (rows * ch);
+      ctx.fillStyle = c.text; ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + 10, py + 4); ctx.lineTo(px + 4, py + 10); ctx.closePath(); ctx.fill();
+      // Coste
+      const my = hy + hh + 12, avg = samples.reduce((a, b) => a + b, 0) / samples.length;
+      [[L.build, avg, 4, avg > 1 ? c.bad : c.ok], [L.rayc, rayMs, 0.5, ray ? c.warn : c.ok]].forEach((r, i) => {
+        const y = my + i * 36;
+        text(ctx, r[0], 10, y + 4, c.muted, { mono: i === 0 });
+        text(ctx, F(r[1], 2) + ' ms', w - 10, y + 4, c.text, { align: 'right', mono: true });
+        meter(ctx, 10, y + 16, w - 20, 9, r[1] / r[2], r[3], c);
+      });
+      const nReb = mode === 'split' ? 1 : 201;
+      out('<b>' + nReb + ' / 201</b> ' + L.rebuilt + '<p>' + md(L.v[mode]) + md(ray ? L.rayOn.replace('{n}', 200 - 10) : L.rayOff) + '</p>');
+    });
+    return () => { stop(); stage.destroy(); };
+  }
+
+  /* ---------------------------------------------------------
+     9. Símbolos de compilación por plataforma y Build Profiles
+     --------------------------------------------------------- */
+
+  function mountDefines(host, lang) {
+    const L = {
+      es: {
+        where: [{ v: 'editor', l: 'En el Editor (Play)' }, { v: 'player', l: 'En la build' }],
+        profiles: [{ v: 'demo', l: 'Android · Demo' }, { v: 'full', l: 'Android · Full' }, { v: 'ios', l: 'iOS' }, { v: 'win', l: 'Windows' }],
+        bp: 'Build Profiles (activo)', platform: 'Plataforma', scenes: 'Escenas', defines: 'Scripting Defines', none: '(ninguno)', compiling: 'Compilando scripts…',
+        symbols: 'Símbolos definidos', runs: 'Se ejecuta en Start()', editorLog: 'Solo en el Editor',
+        r: {
+          andEd: '`UNITY_ANDROID` y `UNITY_EDITOR` son **ambos** true en el Editor con la plataforma Android activa, así que `UNITY_ANDROID && !UNITY_EDITOR` es false: aquí no vibra.',
+          andPl: '✓ Solo en la build de Android se compila `Handheld.Vibrate()`.',
+          other: 'En esta plataforma `UNITY_ANDROID` es false: el bloque de vibración ni siquiera está en el ejecutable (se elimina al compilar).'
+        },
+        prof: { demo: 'El perfil **Android · Demo** añade `DEMO_BUILD` y solo incluye 3 escenas.', full: 'El perfil **Android · Full** no define `DEMO_BUILD` e incluye todas las escenas.', ios: '', win: '' },
+        bpNote: ' Cambiar de Build Profile cambia de una vez plataforma, escenas y defines.'
+      },
+      en: {
+        where: [{ v: 'editor', l: 'In the Editor (Play)' }, { v: 'player', l: 'In the build' }],
+        profiles: [{ v: 'demo', l: 'Android · Demo' }, { v: 'full', l: 'Android · Full' }, { v: 'ios', l: 'iOS' }, { v: 'win', l: 'Windows' }],
+        bp: 'Build Profiles (active)', platform: 'Platform', scenes: 'Scenes', defines: 'Scripting Defines', none: '(none)', compiling: 'Compiling scripts…',
+        symbols: 'Defined symbols', runs: 'Runs in Start()', editorLog: 'Editor only',
+        r: {
+          andEd: '`UNITY_ANDROID` and `UNITY_EDITOR` are **both** true in the Editor with Android as the active platform, so `UNITY_ANDROID && !UNITY_EDITOR` is false: no vibration here.',
+          andPl: '✓ `Handheld.Vibrate()` is compiled only in the Android build.',
+          other: 'On this platform `UNITY_ANDROID` is false: the vibration block is not even in the executable (it is removed at compile time).'
+        },
+        prof: { demo: 'The **Android · Demo** profile adds `DEMO_BUILD` and includes only 3 scenes.', full: 'The **Android · Full** profile does not define `DEMO_BUILD` and includes every scene.', ios: '', win: '' },
+        bpNote: ' Switching Build Profile changes platform, scenes and defines in one go.'
+      }
+    }[lang];
+    const SRC = [['void Start()', 'p'], ['{', 'p'],
+      ['#if UNITY_ANDROID && !UNITY_EDITOR', 'if', (s) => s.UNITY_ANDROID && !s.UNITY_EDITOR], ['    Handheld.Vibrate();', 'b'], ['#endif', 'end'],
+      ['#if UNITY_EDITOR', 'if', (s) => s.UNITY_EDITOR], ['    Debug.Log("' + L.editorLog + '");', 'b'], ['#endif', 'end'],
+      ['#if UNITY_IOS', 'if', (s) => s.UNITY_IOS], ['    ShowGameCenterButton();', 'b'], ['#endif', 'end'],
+      ['#if UNITY_STANDALONE_WIN', 'if', (s) => s.UNITY_STANDALONE_WIN], ['    ShowKeyboardHints();', 'b'], ['#endif', 'end'],
+      ['#if DEMO_BUILD', 'if', (s) => s.DEMO_BUILD], ['    ShowBuyFullGameButton();', 'b'], ['#else', 'else'], ['    UnlockAllLevels();', 'b'], ['#endif', 'end'],
+      ['}', 'p']];
+    const SYMS = ['UNITY_EDITOR', 'UNITY_ANDROID', 'UNITY_IOS', 'UNITY_STANDALONE', 'UNITY_STANDALONE_WIN', 'DEMO_BUILD'];
+    const FULL = ['MainMenu', 'Level01', 'Level02', 'Level03', 'Level04', 'Level05', 'Credits'];
+    const PROF = { demo: { p: 'Android', sc: ['MainMenu', 'Level01', 'DemoEnd'], d: ['DEMO_BUILD'] }, full: { p: 'Android', sc: FULL, d: [] },
+      ios: { p: 'iOS', sc: FULL, d: [] }, win: { p: 'Windows', sc: FULL, d: [] } };
+    let where = 'editor', prof = 'demo', compT = 0;
+    const ctl = controls(host);
+    seg(ctl, L.where, where, (v) => { where = v; compT = 0; });
+    const ctl2 = controls(host);
+    seg(ctl2, L.profiles, prof, (v) => { prof = v; compT = 0; });
+    const stage = makeCanvas(host, (w) => (narrow(w) ? 440 : 250));
+    const out = readout(host);
+    const cb = codeBlock(host);
+
+    function symbols() {
+      const s = {};
+      const P = PROF[prof].p;
+      if (where === 'editor') s.UNITY_EDITOR = true;
+      if (P === 'Android') s.UNITY_ANDROID = true;
+      if (P === 'iOS') s.UNITY_IOS = true;
+      if (P === 'Windows') { s.UNITY_STANDALONE = true; s.UNITY_STANDALONE_WIN = true; }
+      PROF[prof].d.forEach((d) => { s[d] = true; });
+      return s;
+    }
+
+    const stop = loop((dt) => {
+      compT = Math.min(1, compT + dt / 0.8);
+      const s = symbols(), done = compT >= 1;
+      const c = colors();
+      const { ctx, w, h } = stage;
+      ctx.clearRect(0, 0, w, h);
+      const nar = narrow(w);
+      // Ventana de Build Profiles
+      const pw = nar ? w - 16 : w * 0.56;
+      const ph = nar ? 236 : h - 16;
+      panel(ctx, 8, 8, pw, ph, c.soft);
+      text(ctx, L.bp, 18, 22, c.muted);
+      const lw = nar ? (pw - 30) / 2 : Math.min(140, pw * 0.38);
+      L.profiles.forEach((p, i) => {
+        const x = nar ? 18 + (i % 2) * (lw + 10) : 18, y = nar ? 34 + Math.floor(i / 2) * 30 : 36 + i * 30;
+        box(ctx, x, y, lw, 24, fit(ctx, p.l, lw - 8), p.v === prof ? c.accent : c.bg, p.v === prof ? '#fff' : c.text, { r: 5, stroke: c.border });
+      });
+      const dx = nar ? 18 : 18 + lw + 14, dy = nar ? 104 : 36, dw = pw - (dx - 8) - 10;
+      const P = PROF[prof];
+      text(ctx, L.platform + ': ' + P.p, dx, dy + 6, c.text);
+      text(ctx, fit(ctx, L.defines + ': ' + (P.d.length ? P.d.join(';') : L.none), dw), dx, dy + 24, P.d.length ? c.accent : c.muted);
+      text(ctx, L.scenes + ' (' + P.sc.length + '):', dx, dy + 44, c.text);
+      const scCols = nar ? 2 : 3, scW = dw / scCols;
+      P.sc.forEach((n, i) => text(ctx, fit(ctx, '☑ ' + n, scW - 4), dx + (i % scCols) * scW, dy + 62 + Math.floor(i / scCols) * 16, c.muted));
+      // Símbolos y resultado
+      const sx = nar ? 8 : pw + 16, sy = nar ? 252 : 8, sw = nar ? w - 16 : w - pw - 24;
+      panel(ctx, sx, sy, sw, h - sy - 8, c.soft);
+      if (!done) {
+        text(ctx, L.compiling, sx + 10, sy + 16, c.accent);
+        meter(ctx, sx + 10, sy + 30, sw - 20, 8, compT, c.accent, c);
+      } else text(ctx, L.symbols, sx + 10, sy + 16, c.muted);
+      let cx = sx + 10, cy = sy + (done ? 34 : 48);
+      SYMS.forEach((n) => {
+        ctx.font = K.MONO;
+        const bw = ctx.measureText(n).width + 14;
+        if (cx + bw > sx + sw - 8) { cx = sx + 10; cy += 26; }
+        const on = done && s[n];
+        box(ctx, cx, cy, bw, 21, n, on ? c.accent : c.bg, on ? '#fff' : c.muted, { mono: true, r: 5, stroke: on ? null : c.border });
+        if (!on) { ctx.strokeStyle = c.muted; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(cx + 6, cy + 11); ctx.lineTo(cx + bw - 6, cy + 11); ctx.stroke(); }
+        cx += bw + 6;
+      });
+      // Código con bloques activos y eliminados
+      const marks = {}, runs = [];
+      let active = true, cond = true;
+      SRC.forEach((l, i) => {
+        if (l[1] === 'if') { cond = l[2](s); active = cond; if (cond) marks[i] = 'hl'; }
+        else if (l[1] === 'else') { active = !cond; if (active) marks[i] = 'hl'; }
+        else if (l[1] === 'end') active = true;
+        else if (l[1] === 'b') { if (active) { marks[i] = 'ok'; runs.push(l[0].trim()); } else marks[i] = 'off'; }
+      });
+      if (done) {
+        const ry = cy + 36;
+        text(ctx, L.runs + ':', sx + 10, ry, c.text);
+        runs.forEach((r, i) => text(ctx, fit(ctx, '✓ ' + r, sw - 20, true), sx + 10, ry + 18 + i * 17, c.ok, { mono: true }));
+      }
+      cb(SRC.map((l) => l[0]).join('\n'), done ? marks : {});
+      const msg = P.p === 'Android' ? (where === 'editor' ? L.r.andEd : L.r.andPl) : L.r.other;
+      out('<p>' + md(msg) + '</p><p>' + md((L.prof[prof] || '') + L.bpNote) + '</p>');
+    });
+    return () => { stop(); stage.destroy(); };
+  }
+
+  /* ---------------------------------------------------------
+     10. Scripting backend (Mono / IL2CPP) y managed code stripping
+     --------------------------------------------------------- */
+
+  function mountIL2CPP(host, lang) {
+    const L = {
+      es: {
+        tabs: [{ v: 'backend', l: 'Scripting backend' }, { v: 'strip', l: 'Code stripping' }],
+        plats: [{ v: 'win', l: 'Windows' }, { v: 'android', l: 'Android' }, { v: 'ios', l: 'iOS' }],
+        preserve: '[Preserve] en MyPlugin', linkxml: 'link.xml', level: 'Managed Stripping Level',
+        cs: 'C# (.cs)', il: 'IL (.dll)', mono1: 'DLL + Mono', mono2: 'JIT en runtime', i1: 'IL → C++', i2: 'Compilador nativo', i3: 'Binario nativo (AOT)',
+        device: 'Dispositivo', user: 'Tu código (Assembly-CSharp)', lib: 'UnityEngine / .NET', refl: 'reflexión: invisible para el linker', removed: 'eliminado', kept: 'protegido',
+        burstMsg: ['Burst no es un scripting backend:', 'compila Jobs (HPC#) a código nativo.'],
+        b: {
+          winmono: '✓ Mono: el IL se compila con **JIT** al ejecutarse. Válido en Windows.',
+          winil2cpp: '✓ IL2CPP: el IL se convierte a C++ y se compila a nativo **antes** (AOT). Válido en Windows.',
+          androidmono: '✗ Mono en Android solo genera ARMv7 (32 bits). Google Play exige **ARM64**, que necesita **IL2CPP**.',
+          androidil2cpp: '✓ IL2CPP: necesario para ARM64, requisito de Google Play.',
+          iosmono: '✗ iOS no permite generar código en tiempo de ejecución (JIT): Mono no está disponible.',
+          iosil2cpp: '✓ IL2CPP es **obligatorio** en iOS: todo se compila antes (AOT).',
+          burst: '✗ Burst es un compilador para jobs (Job System / HPC#), no un scripting backend. Los backends son Mono e IL2CPP.'
+        },
+        okRun: '✓ En la build, `Type.GetType` encuentra `MyPlugin` y la crea.',
+        failRun: '✗ El linker no vio ninguna referencia a `MyPlugin` (solo un string en tiempo de ejecución) y la eliminó: `Type.GetType` devuelve null y `Activator.CreateInstance` lanza una excepción. En el Editor funcionaba porque allí no hay stripping.',
+        why: { minimal: 'Minimal no elimina código de tus ensamblados.', protect: 'Está protegida por {p}.' },
+        size: 'Tamaño de código (ilustrativo)'
+      },
+      en: {
+        tabs: [{ v: 'backend', l: 'Scripting backend' }, { v: 'strip', l: 'Code stripping' }],
+        plats: [{ v: 'win', l: 'Windows' }, { v: 'android', l: 'Android' }, { v: 'ios', l: 'iOS' }],
+        preserve: '[Preserve] on MyPlugin', linkxml: 'link.xml', level: 'Managed Stripping Level',
+        cs: 'C# (.cs)', il: 'IL (.dll)', mono1: 'DLL + Mono', mono2: 'JIT at runtime', i1: 'IL → C++', i2: 'Native compiler', i3: 'Native binary (AOT)',
+        device: 'Device', user: 'Your code (Assembly-CSharp)', lib: 'UnityEngine / .NET', refl: 'reflection: invisible to the linker', removed: 'stripped', kept: 'preserved',
+        burstMsg: ['Burst is not a scripting backend:', 'it compiles Jobs (HPC#) to native code.'],
+        b: {
+          winmono: '✓ Mono: the IL is compiled **JIT** at runtime. Valid on Windows.',
+          winil2cpp: '✓ IL2CPP: the IL is converted to C++ and compiled to native code **ahead of time** (AOT). Valid on Windows.',
+          androidmono: '✗ Mono on Android only produces ARMv7 (32-bit). Google Play requires **ARM64**, which needs **IL2CPP**.',
+          androidil2cpp: '✓ IL2CPP: required for ARM64, a Google Play requirement.',
+          iosmono: '✗ iOS does not allow generating code at runtime (JIT): Mono is not available.',
+          iosil2cpp: '✓ IL2CPP is **mandatory** on iOS: everything is compiled ahead of time (AOT).',
+          burst: '✗ Burst is a compiler for jobs (Job System / HPC#), not a scripting backend. The backends are Mono and IL2CPP.'
+        },
+        okRun: '✓ In the build, `Type.GetType` finds `MyPlugin` and creates it.',
+        failRun: '✗ The linker saw no reference to `MyPlugin` (just a string at runtime) and stripped it: `Type.GetType` returns null and `Activator.CreateInstance` throws. It worked in the Editor because there is no stripping there.',
+        why: { minimal: 'Minimal does not strip code from your own assemblies.', protect: 'It is protected by {p}.' },
+        size: 'Code size (illustrative)'
+      }
+    }[lang];
+    let tab = 'backend', plat = 'ios', back = 'il2cpp', level = 'medium', preserve = false, linkxml = false, t = 0;
+    const ctl = controls(host);
+    seg(ctl, L.tabs, tab, (v) => { tab = v; t = 0; cA.style.display = v === 'backend' ? '' : 'none'; cB.style.display = v === 'strip' ? '' : 'none'; });
+    const cA = controls(host), cB = controls(host);
+    seg(cA, L.plats, plat, (v) => { plat = v; t = 0; });
+    seg(cA, [{ v: 'mono', l: 'Mono' }, { v: 'il2cpp', l: 'IL2CPP' }, { v: 'burst', l: 'Burst' }], back, (v) => { back = v; t = 0; });
+    seg(cB, [{ v: 'minimal', l: 'Minimal' }, { v: 'low', l: 'Low' }, { v: 'medium', l: 'Medium' }, { v: 'high', l: 'High' }], level, (v) => { level = v; t = 0; });
+    toggle(cB, L.preserve, false, (v) => { preserve = v; t = 0; });
+    toggle(cB, L.linkxml, false, (v) => { linkxml = v; t = 0; });
+    cB.style.display = 'none';
+    const stage = makeCanvas(host, (w) => (narrow(w) ? 350 : 290));
+    const out = readout(host);
+    const cb = codeBlock(host);
+
+    function along(ctx, pts, k, color) {
+      let total = 0; const segs = [];
+      for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); segs.push(d); total += d; }
+      let dd = k * total;
+      for (let i = 0; i < segs.length; i++) {
+        if (dd <= segs[i]) { const f = dd / segs[i]; ctx.fillStyle = color; ctx.beginPath(); ctx.arc(lerp(pts[i][0], pts[i + 1][0], f), lerp(pts[i][1], pts[i + 1][1], f), 5, 0, Math.PI * 2); ctx.fill(); return; }
+        dd -= segs[i];
+      }
+    }
+
+    function drawBackend(ctx, w, h, c) {
+      const valid = back !== 'burst' && !(back === 'mono' && plat !== 'win');
+      const bw = Math.min(170, (w - 40) / 2), bh = 30;
+      const topY = 12, cx1 = w / 2 - bw - 10, cx2 = w / 2 + 10;
+      box(ctx, cx1, topY, bw, bh, L.cs, c.bg, c.text, { stroke: c.border, mono: true });
+      box(ctx, cx2, topY, bw, bh, L.il, c.bg, c.text, { stroke: c.border, mono: true });
+      arrow(ctx, cx1 + bw + 2, topY + bh / 2, cx2 - 2, topY + bh / 2, c.muted, 1.5);
+      const colX = [8 + 6, w / 2 + 6], colW = w / 2 - 20;
+      const ys = [78, 128, 178];
+      const cols = [[L.mono1, L.mono2], [L.i1, L.i2, L.i3]];
+      const titles = ['Mono', 'IL2CPP'];
+      const activeCol = back === 'mono' ? 0 : back === 'il2cpp' ? 1 : -1;
+      cols.forEach((col, ci) => {
+        const on = ci === activeCol;
+        ctx.globalAlpha = on ? 1 : 0.35;
+        text(ctx, titles[ci], colX[ci], ys[0] - 12, on ? c.accent : c.muted);
+        col.forEach((lbl, i) => {
+          const isBad = on && !valid && i === col.length - 1;
+          box(ctx, colX[ci], ys[i], colW, bh, fit(ctx, lbl, colW - 8), isBad ? c.bad : on ? c.accentSoft : c.bg, isBad ? '#fff' : c.text, { stroke: c.border });
+          if (i) arrow(ctx, colX[ci] + colW / 2, ys[i - 1] + bh + 1, colX[ci] + colW / 2, ys[i] - 2, c.muted, 1.5);
+        });
+        ctx.globalAlpha = 1;
+      });
+      ctx.strokeStyle = c.muted; ctx.lineWidth = 1.5;
+      const jy = topY + bh + 10;
+      ctx.beginPath(); ctx.moveTo(cx2 + bw / 2, topY + bh); ctx.lineTo(cx2 + bw / 2, jy);
+      ctx.moveTo(colX[0] + colW / 2, jy); ctx.lineTo(colX[1] + colW / 2, jy); ctx.stroke();
+      [0, 1].forEach((ci) => arrow(ctx, colX[ci] + colW / 2, jy, colX[ci] + colW / 2, ys[0] - 2, ci === activeCol ? c.accent : c.border, 1.5));
+      // Dispositivo
+      const dy = h - 40;
+      const pname = L.plats.find((p) => p.v === plat).l;
+      box(ctx, 8, dy, w - 16, 30, '📱 ' + L.device + ': ' + pname + (valid ? ' ✓' : ' ✗'), valid ? c.ok : c.bad, '#fff', {});
+      if (back === 'burst') {
+        const mw = Math.min(w - 40, 330);
+        box(ctx, w / 2 - mw / 2, 96, mw, 50, '', c.bg, c.text, { stroke: c.bad });
+        L.burstMsg.forEach((m, i) => text(ctx, fit(ctx, m, mw - 16), w / 2, 112 + i * 18, i ? c.text : c.bad, { align: 'center' }));
+        return;
+      }
+      const pts = [[cx1 + bw / 2, topY + bh / 2], [cx2 + bw / 2, topY + bh / 2], [cx2 + bw / 2, topY + bh + 10], [colX[activeCol] + colW / 2, topY + bh + 10]];
+      cols[activeCol].forEach((lbl, i) => pts.push([colX[activeCol] + colW / 2, ys[i] + bh / 2]));
+      pts.push([colX[activeCol] + colW / 2, valid ? dy + 15 : ys[cols[activeCol].length - 1] + bh / 2]);
+      along(ctx, pts, (t * 0.4) % 1, valid ? c.accent : c.bad);
+      along(ctx, pts, (t * 0.4 + 0.5) % 1, valid ? c.accent : c.bad);
+    }
+
+    const NODES = [
+      { id: 'Main', r: 'u', x: 0.2, y: 0.22, d: 0 }, { id: 'Player', r: 'u', x: 0.5, y: 0.22, d: 1 }, { id: 'Save', r: 'u', x: 0.84, y: 0.22, d: 2 },
+      { id: 'Enemy', r: 'u', x: 0.5, y: 0.55, d: 1 }, { id: 'IPlugin', r: 'u', x: 0.2, y: 0.55, d: 1 }, { id: 'MyPlugin', r: 'u', x: 0.2, y: 0.86, d: -1 },
+      { id: 'Helper', r: 'u', x: 0.84, y: 0.86, d: -1 },
+      { id: 'Physics', r: 'l', x: 0.27, y: 0.3, d: 2 }, { id: 'Linq', r: 'l', x: 0.73, y: 0.3, d: 3 }, { id: 'UI', r: 'l', x: 0.27, y: 0.75, d: -1 }, { id: 'Xml', r: 'l', x: 0.73, y: 0.75, d: -1 }];
+    const EDGES = [['Main', 'Player'], ['Main', 'Enemy'], ['Main', 'IPlugin'], ['Player', 'Save'], ['Enemy', 'Physics'], ['Save', 'Linq']];
+
+    function drawStrip(ctx, w, h, c) {
+      const nar = narrow(w);
+      const U = nar ? [8, 8, w - 16, 200] : [8, 8, w * 0.62 - 12, h - 16];
+      const Lr = nar ? [8, 216, w - 16, h - 224] : [w * 0.62 + 4, 8, w * 0.38 - 12, h - 16];
+      panel(ctx, U[0], U[1], U[2], U[3], c.soft); panel(ctx, Lr[0], Lr[1], Lr[2], Lr[3], c.soft);
+      text(ctx, fit(ctx, L.user, U[2] - 20), U[0] + 10, U[1] + 12, c.muted);
+      text(ctx, fit(ctx, L.lib, Lr[2] - 20), Lr[0] + 10, Lr[1] + 12, c.muted);
+      const prot = preserve || linkxml;
+      const pos = {};
+      const nw = Math.min(84, U[2] * 0.28), nh = 24;
+      NODES.forEach((n) => { const R = n.r === 'u' ? U : Lr; pos[n.id] = [R[0] + n.x * R[2], R[1] + 14 + n.y * (R[3] - (n.r === 'u' ? 44 : 24))]; });
+      const tt = t % 6;
+      const depth = (n) => (n.id === 'MyPlugin' && prot ? 0 : n.d);
+      const marked = (n) => depth(n) >= 0 && tt > 0.4 + depth(n) * 0.45;
+      const stripPhase = clamp((tt - 2.4) / 0.6, 0, 1);
+      const scope = (n) => n.r === 'l' || level !== 'minimal';
+      EDGES.forEach((e) => {
+        const a = pos[e[0]], b = pos[e[1]];
+        ctx.strokeStyle = marked(NODES.find((n) => n.id === e[1])) ? c.ok : c.border; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+      });
+      // Referencia por reflexión: invisible para el análisis estático
+      const a = pos.Main, b = pos.MyPlugin;
+      ctx.strokeStyle = c.muted; ctx.setLineDash([4, 4]); ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(a[0] - nw / 2 + 6, a[1]); ctx.bezierCurveTo(a[0] - nw / 2 - 18, a[1] + 40, b[0] - nw / 2 - 18, b[1] - 40, b[0] - nw / 2 + 6, b[1]); ctx.stroke(); ctx.setLineDash([]);
+      NODES.forEach((n) => {
+        const p = pos[n.id];
+        const stripped = !marked(n) && depth(n) < 0 && scope(n);
+        const gone = stripped ? stripPhase : 0;
+        ctx.globalAlpha = 1 - gone * 0.6;
+        const fill = marked(n) ? (n.id === 'MyPlugin' ? c.warn : c.ok) : c.bg;
+        box(ctx, p[0] - nw / 2, p[1] - nh / 2, nw, nh, n.id, fill, marked(n) ? '#fff' : c.text, { r: 6, stroke: c.border });
+        ctx.globalAlpha = 1;
+        if (gone > 0.5) {
+          ctx.strokeStyle = c.bad; ctx.lineWidth = 2.5;
+          ctx.beginPath(); ctx.moveTo(p[0] - nw / 2 + 4, p[1] - nh / 2 + 4); ctx.lineTo(p[0] + nw / 2 - 4, p[1] + nh / 2 - 4);
+          ctx.moveTo(p[0] + nw / 2 - 4, p[1] - nh / 2 + 4); ctx.lineTo(p[0] - nw / 2 + 4, p[1] + nh / 2 - 4); ctx.stroke();
+          if (n.id === 'MyPlugin') text(ctx, L.removed, p[0] + nw / 2 + 6, p[1], c.bad);
+        }
+        if (n.id === 'MyPlugin' && prot && tt > 0.4) text(ctx, '🛡 ' + L.kept, p[0] + nw / 2 + 6, p[1], c.warn);
+      });
+      const ly = U[1] + U[3] - 11;
+      ctx.strokeStyle = c.muted; ctx.setLineDash([4, 4]); ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(U[0] + 10, ly); ctx.lineTo(U[0] + 34, ly); ctx.stroke(); ctx.setLineDash([]);
+      text(ctx, fit(ctx, L.refl, U[2] - 54), U[0] + 40, ly, c.muted);
+      const alive = level === 'minimal' || prot;
+      return alive;
+    }
+
+    const stop = loop((dt) => {
+      t += dt;
+      const c = colors();
+      const { ctx, w, h } = stage;
+      ctx.clearRect(0, 0, w, h);
+      if (tab === 'backend') {
+        drawBackend(ctx, w, h, c);
+        cb('// Project Settings > Player > Other Settings\nScripting Backend: ' + (back === 'burst' ? 'Burst ✗' : back === 'mono' ? 'Mono' : 'IL2CPP') +
+          '\nTarget Architectures: ' + (plat === 'android' ? (back === 'il2cpp' ? 'ARMv7, ARM64' : 'ARMv7') : plat === 'ios' ? 'ARM64' : 'x86_64'), { 1: back === 'burst' || (back === 'mono' && plat !== 'win') ? 'bad' : 'ok' });
+        out('<p>' + md(back === 'burst' ? L.b.burst : L.b[plat + back]) + '</p>');
+      } else {
+        const alive = drawStrip(ctx, w, h, c);
+        const lines = ['string typeName = config.pluginType; // "MyPlugin"', 'var type = Type.GetType(typeName);', 'var plugin = (IPlugin)Activator.CreateInstance(type);', ''];
+        const marks = { 1: alive ? 'ok' : 'bad', 2: alive ? 'ok' : 'bad' };
+        lines.push('[Preserve] // UnityEngine.Scripting'); marks[4] = preserve ? 'ok' : 'off';
+        lines.push('public class MyPlugin : IPlugin { }');
+        if (linkxml) {
+          lines.push('', '<!-- Assets/link.xml -->', '<linker>', '  <assembly fullname="Assembly-CSharp">', '    <type fullname="MyPlugin" preserve="all"/>', '  </assembly>', '</linker>');
+          for (let i = 7; i < lines.length; i++) marks[i] = 'ok';
+        }
+        cb(lines.join('\n'), marks);
+        const size = { minimal: 38, low: 34, medium: 31, high: 28 }[level];
+        const why = level === 'minimal' ? L.why.minimal : (preserve || linkxml) ? L.why.protect.replace('{p}', [preserve ? '`[Preserve]`' : '', linkxml ? '`link.xml`' : ''].filter(Boolean).join(' + ')) : '';
+        out('<b>' + L.level + ': ' + level[0].toUpperCase() + level.slice(1) + '</b> · ' + L.size + ': ' + size + ' MB<p>' + md(alive ? L.okRun : L.failRun) + (why ? ' ' + md(why) : '') + '</p>');
+      }
+    });
+    return () => { stop(); stage.destroy(); };
+  }
+
+  /* ---------------------------------------------------------
+     11. Frame rate en móviles: targetFrameRate
+     --------------------------------------------------------- */
+
+  function mountMobileFps(host, lang) {
+    const L = {
+      es: {
+        opts: [{ v: 'def', l: 'targetFrameRate = -1' }, { v: 'tfr', l: 'targetFrameRate = 60' }, { v: 'vsync', l: 'vSyncCount = 0' }, { v: 'fixed', l: 'fixedDeltaTime = 1/60' }, { v: 'ts', l: 'timeScale = 2' }],
+        before: 'Por defecto (−1)', yours: 'Tu cambio', vs: 'Pantalla 60 Hz: vsync', shown: 'frame nuevo', repeat: 'se repite', phys: 'física',
+        battery: 'Batería', temp: 'Temperatura',
+        v: {
+          def: 'Con `targetFrameRate = -1`, en móviles el valor por defecto es **30 FPS**: un frame nuevo cada 2 vsync, para ahorrar batería.',
+          tfr: '✓ `Application.targetFrameRate = 60` presenta un frame en **cada** vsync: animación más fluida, a cambio de más batería y temperatura.',
+          vsync: '✗ En Android e iOS se ignora `QualitySettings.vSyncCount`: sigue a 30 FPS.',
+          fixed: '✗ `Time.fixedDeltaTime` solo cambia la frecuencia de la **física** (más pasos de FixedUpdate); se siguen presentando 30 frames por segundo.',
+          ts: '✗ `Time.timeScale = 2` acelera el juego (todo se mueve el doble de rápido), pero sigue a 30 FPS.'
+        }
+      },
+      en: {
+        opts: [{ v: 'def', l: 'targetFrameRate = -1' }, { v: 'tfr', l: 'targetFrameRate = 60' }, { v: 'vsync', l: 'vSyncCount = 0' }, { v: 'fixed', l: 'fixedDeltaTime = 1/60' }, { v: 'ts', l: 'timeScale = 2' }],
+        before: 'Default (−1)', yours: 'Your change', vs: '60 Hz display: vsync', shown: 'new frame', repeat: 'repeated', phys: 'physics',
+        battery: 'Battery', temp: 'Temperature',
+        v: {
+          def: 'With `targetFrameRate = -1`, the mobile default is **30 FPS**: a new frame every 2 vsyncs, to save battery.',
+          tfr: '✓ `Application.targetFrameRate = 60` presents a frame on **every** vsync: smoother animation, at the cost of more battery and heat.',
+          vsync: '✗ Android and iOS ignore `QualitySettings.vSyncCount`: still 30 FPS.',
+          fixed: '✗ `Time.fixedDeltaTime` only changes the **physics** rate (more FixedUpdate steps); 30 frames per second are still presented.',
+          ts: '✗ `Time.timeScale = 2` speeds up the game (everything moves twice as fast), but it is still 30 FPS.'
+        }
+      }
+    }[lang];
+    let opt = 'def', t = 0, bat = 0.3, temp = 0.3;
+    const ctl = controls(host);
+    seg(ctl, L.opts, opt, (v) => { opt = v; });
+    const stage = makeCanvas(host, (w) => (narrow(w) ? 300 : 260));
+    const out = readout(host);
+    const cb = codeBlock(host);
+    const LINE = { def: 'Application.targetFrameRate = -1; // ' + (lang === 'es' ? 'por defecto' : 'default'), tfr: 'Application.targetFrameRate = 60;',
+      vsync: 'QualitySettings.vSyncCount = 0;', fixed: 'Time.fixedDeltaTime = 1f / 60f;', ts: 'Time.timeScale = 2f;' };
+
+    function phone(ctx, x, y, pw, ph, c, label, interval, speed) {
+      panel(ctx, x, y, pw, ph, c.text);
+      ctx.fillStyle = c.bg; roundRect(ctx, x + 5, y + 14, pw - 10, ph - 28, 4); ctx.fill();
+      text(ctx, fit(ctx, label, pw - 4), x + pw / 2, y + ph + 12, c.text, { align: 'center' });
+      // El contenido solo cambia cuando se presenta un frame (cada `interval` vsyncs)
+      const vs = Math.floor(t * 60);
+      const ft = Math.floor(vs / interval) * interval / 60;
+      const sx = x + 18, sw2 = pw - 36, cy = y + ph / 2;
+      const px = sx + (Math.sin(ft * 2.2 * speed) * 0.5 + 0.5) * sw2;
+      ctx.fillStyle = c.accent; ctx.beginPath(); ctx.arc(px, cy, 9, 0, Math.PI * 2); ctx.fill();
+      text(ctx, (60 / interval) + ' FPS', x + pw / 2, y + 26, c.muted, { align: 'center' });
+    }
+
+    const stop = loop((dt) => {
+      t += dt;
+      const interval = opt === 'tfr' ? 1 : 2, speed = opt === 'ts' ? 2 : 1;
+      bat = lerp(bat, interval === 1 ? 0.75 : 0.35, dt * 1.5);
+      temp = lerp(temp, interval === 1 ? 0.72 : 0.38, dt * 0.8);
+      const c = colors();
+      const { ctx, w, h } = stage;
+      ctx.clearRect(0, 0, w, h);
+      const pw = Math.min(170, (w - 40) / 2), ph = 110;
+      phone(ctx, w / 2 - pw - 10, 8, pw, ph, c, L.before, 2, 1);
+      phone(ctx, w / 2 + 10, 8, pw, ph, c, L.yours, interval, speed);
+      // Línea de tiempo de vsync
+      const ty = 152, tx = 10, tw = w - 20, n = 16, cw = tw / n;
+      text(ctx, L.vs, tx, ty, c.muted);
+      const off = Math.floor(t * 4) % 2;
+      [[2, L.before], [interval, L.yours]].forEach((r, ri) => {
+        const y = ty + 12 + ri * 22;
+        for (let i = 0; i < n; i++) {
+          const fresh = (i + off) % r[0] === 0;
+          ctx.fillStyle = fresh ? c.accent : c.soft;
+          ctx.fillRect(tx + i * cw + 1, y, cw - 2, 16);
+          if (!fresh) { ctx.strokeStyle = c.border; ctx.strokeRect(tx + i * cw + 1.5, y + 0.5, cw - 3, 15); }
+        }
+      });
+      if (opt === 'fixed') for (let i = 0; i < n; i++) { ctx.fillStyle = c.warn; ctx.beginPath(); ctx.arc(tx + i * cw + cw / 2, ty + 62, 3, 0, Math.PI * 2); ctx.fill(); }
+      const ly = ty + 76;
+      ctx.fillStyle = c.accent; ctx.fillRect(tx, ly - 5, 10, 10); text(ctx, L.shown, tx + 14, ly, c.muted);
+      ctx.font = K.FONT;
+      const x2 = tx + 30 + ctx.measureText(L.shown).width;
+      ctx.fillStyle = c.soft; ctx.fillRect(x2, ly - 5, 10, 10); ctx.strokeStyle = c.border; ctx.strokeRect(x2, ly - 5, 10, 10); text(ctx, L.repeat, x2 + 14, ly, c.muted);
+      if (opt === 'fixed') { const x3 = x2 + 30 + ctx.measureText(L.repeat).width; ctx.fillStyle = c.warn; ctx.beginPath(); ctx.arc(x3 + 5, ly, 4, 0, Math.PI * 2); ctx.fill(); text(ctx, L.phys, x3 + 14, ly, c.muted); }
+      // Medidores
+      const my = h - 40, mw = (w - 40) / 2;
+      [[L.battery + ' 🔋', bat, interval === 1 ? c.warn : c.ok], [L.temp + ' 🌡', temp, interval === 1 ? c.bad : c.ok]].forEach((m, i) => {
+        const x = 10 + i * (mw + 20);
+        text(ctx, m[0], x, my, c.muted);
+        meter(ctx, x, my + 12, mw, 10, m[1], m[2], c);
+      });
+      cb('void Awake()\n{\n    ' + LINE[opt] + '\n}', { 2: opt === 'tfr' ? 'ok' : opt === 'def' ? 'hl' : 'bad' });
+      out('<p>' + md(L.v[opt]) + '</p>');
+    });
+    return () => { stop(); stage.destroy(); };
+  }
+
+  /* ---------------------------------------------------------
+     12. XR: confort (locomoción, FPS) y UI en World Space
+     --------------------------------------------------------- */
+
+  // Proyecta un punto del suelo/mundo a la vista de una cámara simple (posición, yaw, altura de ojos).
+  function project(cam, x, y, z, v) {
+    const dx = x - cam.x, dz = z - cam.z;
+    const fx = Math.sin(cam.yaw), fz = Math.cos(cam.yaw);
+    const cz = dx * fx + dz * fz, cx = dx * fz - dz * fx;
+    return { z: cz, x: v.x + v.w / 2 + (cx / cz) * v.f, y: v.hy - ((y - 1.6) / cz) * v.f };
+  }
+
+  function drawWorld(ctx, cam, v, c) {
+    ctx.save();
+    ctx.beginPath(); ctx.rect(v.x, v.y, v.w, v.h); ctx.clip();
+    ctx.fillStyle = c.soft; ctx.fillRect(v.x, v.y, v.w, v.h);
+    ctx.fillStyle = c.bg; ctx.fillRect(v.x, v.hy, v.w, v.y + v.h - v.hy);
+    ctx.strokeStyle = c.border; ctx.lineWidth = 1;
+    const seg2 = (x1, z1, x2, z2) => {
+      let a = project(cam, x1, 0, z1, v), b = project(cam, x2, 0, z2, v);
+      const near = 0.25;
+      if (a.z < near && b.z < near) return;
+      if (a.z < near || b.z < near) {
+        const k = (near - a.z) / (b.z - a.z);
+        const xm = lerp(x1, x2, k), zm = lerp(z1, z2, k);
+        const m = project(cam, xm + (x2 - x1) * 1e-3, 0, zm + (z2 - z1) * 1e-3, v);
+        if (a.z < near) a = m; else b = m;
+      }
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    };
+    const gx = Math.round(cam.x / 2) * 2, gz = Math.round(cam.z / 2) * 2;
+    for (let i = -12; i <= 12; i++) {
+      seg2(gx + i * 2, gz - 24, gx + i * 2, gz + 24);
+      seg2(gx - 24, gz + i * 2, gx + 24, gz + i * 2);
+    }
+    // Columnas como referencia visual
+    const px0 = Math.round(cam.x / 6) * 6, pz0 = Math.round(cam.z / 6) * 6;
+    for (let i = -3; i <= 3; i++) for (let j = -3; j <= 3; j++) {
+      const X = px0 + i * 6 + 3, Z = pz0 + j * 6 + 3;
+      const a = project(cam, X, 0, Z, v), b = project(cam, X, 2.6, Z, v);
+      if (a.z < 0.4) continue;
+      const wpx = Math.max(1.5, 0.35 / a.z * v.f);
+      ctx.fillStyle = hue(Math.abs(Math.round(X / 6) * 3 + Math.round(Z / 6) * 5));
+      ctx.fillRect(a.x - wpx / 2, b.y, wpx, a.y - b.y);
+    }
+    ctx.restore();
+  }
+
+  function mountXRComfort(host, lang) {
+    const L = {
+      es: {
+        tabs: [{ v: 'loco', l: 'Locomoción' }, { v: 'ui', l: 'UI en XR' }],
+        move: [{ v: 'smooth', l: 'Movimiento continuo' }, { v: 'tele', l: 'Teletransporte' }], turn: [{ v: 'smooth', l: 'Giro suave' }, { v: 'snap', l: 'Snap turn' }],
+        fps: 'FPS del juego', hz: 'Visor', shake: 'Sacudidas de cámara', vig: 'Viñeta',
+        modes: [{ v: 'overlay', l: 'Screen Space - Overlay' }, { v: 'camera', l: 'Screen Space - Camera (5 cm)' }, { v: 'world', l: 'World Space' }], dist: 'Distancia del Canvas',
+        sick: 'Mareo', comfy: 'Confort', frames: 'Refrescos del visor', repeated: 'frame repetido', eyeL: 'Ojo izq.', eyeR: 'Ojo der.',
+        nothing: 'No aparece en el visor', mirror: 'Solo en el monitor del PC', stuck: 'Pegado a la cara', menu: 'Menú', play: 'Jugar',
+        v: {
+          motion: 'El movimiento continuo y el giro suave hacen que **veas** movimiento que tu oído interno **no siente**: es la principal causa de mareo.',
+          calm: '✓ Teletransporte + snap turn: no hay movimiento visual continuo que contradiga al cuerpo.',
+          drop: ' ✗ El juego va a {f} FPS en un visor de {h} Hz: frames repetidos y saltos de imagen. Mantén los FPS **iguales** a la frecuencia del visor.',
+          stable: ' ✓ FPS estables e iguales a la frecuencia del visor.',
+          shake: ' ✗ Las sacudidas de cámara empeoran mucho el mareo.',
+          vig: ' La viñeta reduce el campo visual mientras te mueves y ayuda un poco.',
+          overlay: '✗ Un Canvas **Screen Space - Overlay** no se dibuja correctamente en el visor: en XR no hay una pantalla plana.',
+          camera: '✗ Pegado a pocos centímetros de los ojos: cada ojo lo ve muy desplazado (visión doble) y sigue la cabeza de forma rígida.',
+          near: '≈ Funciona en World Space, pero tan cerca obliga a forzar la vista.',
+          ok: '✓ **World Space** a una distancia cómoda (≈1–3 m): legible y fijo en el mundo. Con el XR Interaction Toolkit se interactúa mediante un `TrackedDeviceGraphicRaycaster`.',
+          far: '≈ Demasiado lejos: el texto ya no se puede leer (o tendrías que agrandar el Canvas).'
+        }
+      },
+      en: {
+        tabs: [{ v: 'loco', l: 'Locomotion' }, { v: 'ui', l: 'UI in XR' }],
+        move: [{ v: 'smooth', l: 'Smooth locomotion' }, { v: 'tele', l: 'Teleport' }], turn: [{ v: 'smooth', l: 'Smooth turn' }, { v: 'snap', l: 'Snap turn' }],
+        fps: 'Game FPS', hz: 'Headset', shake: 'Camera shake', vig: 'Vignette',
+        modes: [{ v: 'overlay', l: 'Screen Space - Overlay' }, { v: 'camera', l: 'Screen Space - Camera (5 cm)' }, { v: 'world', l: 'World Space' }], dist: 'Canvas distance',
+        sick: 'Sickness', comfy: 'Comfort', frames: 'Headset refreshes', repeated: 'repeated frame', eyeL: 'Left eye', eyeR: 'Right eye',
+        nothing: 'Not shown in the headset', mirror: 'Only on the PC monitor', stuck: 'Stuck to your face', menu: 'Menu', play: 'Play',
+        v: {
+          motion: 'Smooth locomotion and smooth turning make you **see** motion your inner ear does **not feel**: the main cause of motion sickness.',
+          calm: '✓ Teleport + snap turn: no continuous visual motion contradicting your body.',
+          drop: ' ✗ The game runs at {f} FPS on a {h} Hz headset: repeated frames and judder. Keep FPS **equal** to the headset refresh rate.',
+          stable: ' ✓ Stable FPS equal to the headset refresh rate.',
+          shake: ' ✗ Camera shake makes sickness much worse.',
+          vig: ' The vignette narrows the view while moving and helps a bit.',
+          overlay: '✗ A **Screen Space - Overlay** Canvas is not rendered correctly in the headset: XR has no flat screen.',
+          camera: '✗ Stuck a few centimetres from the eyes: each eye sees it far apart (double vision) and it rigidly follows the head.',
+          near: '≈ World Space works, but this close it strains the eyes.',
+          ok: '✓ **World Space** at a comfortable distance (≈1–3 m): readable and fixed in the world. With the XR Interaction Toolkit you interact through a `TrackedDeviceGraphicRaycaster`.',
+          far: '≈ Too far: the text can no longer be read (or you would have to scale the Canvas up).'
+        }
+      }
+    }[lang];
+    const F = nf(lang);
+    let tab = 'loco', move = 'smooth', turn = 'smooth', fps = 90, hz = 90, shake = false, vig = false, mode = 'world', dist = 2, t = 0;
+    let sick = 0.2, fade = 0, teleT = 0, snapT = 0, snapN = 0, rAcc = 0, tickAcc = 0, rendered = 0;
+    const cam = { x: 0, z: 0, yaw: 0 }, shown = { x: 0, z: 0, yaw: 0 };
+    const ticks = new Array(30).fill(true);
+    const ctl = controls(host);
+    seg(ctl, L.tabs, tab, (v) => { tab = v; cA.style.display = v === 'loco' ? '' : 'none'; cB.style.display = v === 'ui' ? '' : 'none'; });
+    const cA = controls(host), cB = controls(host);
+    seg(cA, L.move, move, (v) => { move = v; });
+    seg(cA, L.turn, turn, (v) => { turn = v; });
+    seg(cA, [{ v: 72, l: '72 Hz' }, { v: 90, l: '90 Hz' }, { v: 120, l: '120 Hz' }], hz, (v) => { hz = v; });
+    slider(cA, L.fps, 30, 120, 1, fps, (v) => { fps = v; });
+    toggle(cA, L.shake, false, (v) => { shake = v; });
+    toggle(cA, L.vig, false, (v) => { vig = v; });
+    seg(cB, L.modes, mode, (v) => { mode = v; });
+    slider(cB, L.dist, 0.3, 6, 0.1, dist, (v) => { dist = v; }, (v) => F(v, 1) + ' m');
+    cB.style.display = 'none';
+    const stage = makeCanvas(host, (w) => (narrow(w) ? 330 : 270));
+    const out = readout(host);
+
+    function simLoco(dt) {
+      const fwdX = Math.sin(cam.yaw), fwdZ = Math.cos(cam.yaw);
+      if (move === 'smooth') { cam.x += fwdX * 1.4 * dt; cam.z += fwdZ * 1.4 * dt; }
+      else {
+        teleT += dt;
+        if (teleT > 2.4) { teleT = 0; fade = 1; }
+        if (fade > 0) { const before = fade; fade = Math.max(0, fade - dt * 4); if (before > 0.5 && fade <= 0.5) { cam.x += fwdX * 3.5; cam.z += fwdZ * 3.5; } }
+      }
+      if (turn === 'smooth') cam.yaw += Math.sin(t * 0.5) * 0.6 * dt;
+      else { snapT += dt; if (snapT > 2.1) { snapT = 0; snapN++; cam.yaw += (snapN % 4 < 2 ? 1 : -1) * Math.PI / 6; } }
+      // Render a la tasa del juego (máximo la del visor)
+      const eff = Math.min(fps, hz);
+      rAcc += dt;
+      if (rAcc >= 1 / eff) { rAcc %= 1 / eff; shown.x = cam.x; shown.z = cam.z; shown.yaw = cam.yaw; rendered++; }
+      tickAcc += dt;
+      while (tickAcc >= 0.25) { tickAcc -= 0.25; for (let k = 0; k < 2; k++) { ticks.shift(); ticks.push(Math.random() < Math.min(1, fps / hz)); } }
+      const motion = (move === 'smooth' ? 0.38 : 0.05) + (turn === 'smooth' ? 0.3 : 0.05) + (shake ? 0.35 : 0);
+      const target = clamp(motion * (vig ? 0.65 : 1) + Math.max(0, 1 - fps / hz) * 0.9, 0, 1);
+      sick = lerp(sick, target, dt * 1.2);
+    }
+
+    function drawLoco(ctx, w, h, c) {
+      const nar = narrow(w);
+      const v = nar ? { x: 8, y: 8, w: w - 16, h: 190 } : { x: 8, y: 8, w: w * 0.64, h: h - 16 };
+      v.hy = v.y + v.h * 0.45; v.f = v.w * 0.6;
+      const sc = shake ? { x: (Math.random() - 0.5) * 10, y: (Math.random() - 0.5) * 10 } : { x: 0, y: 0 };
+      const vv = Object.assign({}, v, { hy: v.hy + sc.y });
+      ctx.save(); ctx.translate(sc.x, 0);
+      drawWorld(ctx, shown, vv, c);
+      ctx.restore();
+      ctx.save(); ctx.beginPath(); ctx.rect(v.x, v.y, v.w, v.h); ctx.clip();
+      if (vig && (move === 'smooth' || turn === 'smooth')) {
+        const g = ctx.createRadialGradient(v.x + v.w / 2, v.y + v.h / 2, v.h * 0.3, v.x + v.w / 2, v.y + v.h / 2, v.w * 0.62);
+        g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.85)');
+        ctx.fillStyle = g; ctx.fillRect(v.x, v.y, v.w, v.h);
+      }
+      if (fade > 0) { ctx.fillStyle = 'rgba(0,0,0,' + (1 - Math.abs(fade - 0.5) * 2) + ')'; ctx.fillRect(v.x, v.y, v.w, v.h); }
+      ctx.restore();
+      ctx.strokeStyle = c.border; ctx.lineWidth = 2; roundRect(ctx, v.x, v.y, v.w, v.h, 10); ctx.stroke();
+      // Panel lateral
+      const p = nar ? [8, v.y + v.h + 8, w - 16, h - v.h - 24] : [v.x + v.w + 8, 8, w - v.w - 24, h - 16];
+      panel(ctx, p[0], p[1], p[2], p[3], c.soft);
+      const col = sick > 0.6 ? c.bad : sick > 0.3 ? c.warn : c.ok;
+      text(ctx, L.sick + ': ' + Math.round(sick * 100) + '%', p[0] + 10, p[1] + 14, col);
+      meter(ctx, p[0] + 10, p[1] + 26, p[2] - 20, 10, sick, col, c);
+      text(ctx, fit(ctx, L.frames + ' (' + hz + ' Hz)', p[2] - 20), p[0] + 10, p[1] + 54, c.muted);
+      const cw = (p[2] - 20) / ticks.length;
+      ticks.forEach((ok, i) => { ctx.fillStyle = ok ? c.ok : c.bad; ctx.fillRect(p[0] + 10 + i * cw, p[1] + 64, cw - 1, 12); });
+      if (fps < hz) text(ctx, '■ ' + L.repeated, p[0] + 10, p[1] + 90, c.bad);
+      text(ctx, Math.min(fps, hz) + ' FPS', p[0] + p[2] - 10, p[1] + 14, c.text, { align: 'right', mono: true });
+    }
+
+    function drawUI(ctx, w, h, c) {
+      const ew = (w - 24) / 2, eh = h - (mode === 'overlay' ? 60 : 30);
+      const head = { x: Math.sin(t * 0.7) * 0.12, z: 0, yaw: Math.sin(t * 0.5) * 0.12 };
+      [-1, 1].forEach((side, i) => {
+        const v = { x: 8 + i * (ew + 8), y: 8, w: ew, h: eh };
+        v.hy = v.y + v.h * 0.45; v.f = ew * 0.75;
+        const eye = { x: head.x + side * 0.032 * Math.cos(head.yaw), z: head.z - side * 0.032 * Math.sin(head.yaw), yaw: head.yaw };
+        drawWorld(ctx, eye, v, c);
+        ctx.save(); ctx.beginPath(); ctx.rect(v.x, v.y, v.w, v.h); ctx.clip();
+        if (mode === 'world') {
+          const pw = 0.9, ph = 0.6;
+          const a = project(eye, -pw / 2, 1.5 + ph / 2, dist, v), b = project(eye, pw / 2, 1.5 - ph / 2, dist, v);
+          const W = b.x - a.x, H = b.y - a.y;
+          ctx.fillStyle = c.accentSoft; ctx.strokeStyle = c.accent; ctx.lineWidth = 2;
+          ctx.fillRect(a.x, a.y, W, H); ctx.strokeRect(a.x, a.y, W, H);
+          if (H > 46) {
+            text(ctx, L.menu, a.x + W / 2, a.y + H * 0.25, c.text, { align: 'center' });
+            box(ctx, a.x + W * 0.2, a.y + H * 0.5, W * 0.6, H * 0.3, L.play, c.accent, '#fff', { r: 5 });
+          } else {
+            ctx.fillStyle = c.muted; ctx.fillRect(a.x + W * 0.25, a.y + H * 0.22, W * 0.5, Math.max(1, H * 0.08));
+            ctx.fillStyle = c.accent; ctx.fillRect(a.x + W * 0.2, a.y + H * 0.5, W * 0.6, H * 0.3);
+          }
+          // Rayo del mando hacia el botón
+          ctx.strokeStyle = c.warn; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.moveTo(v.x + v.w * 0.75, v.y + v.h); ctx.lineTo(a.x + W * 0.5, a.y + H * 0.65); ctx.stroke();
+          ctx.fillStyle = c.warn; ctx.beginPath(); ctx.arc(a.x + W * 0.5, a.y + H * 0.65, 3, 0, Math.PI * 2); ctx.fill();
+        } else if (mode === 'camera') {
+          const off = side * -v.w * 0.22;
+          ctx.globalAlpha = 0.85;
+          box(ctx, v.x + v.w * 0.05 + off, v.y + v.h * 0.12, v.w * 0.9, v.h * 0.76, L.menu, c.accentSoft, c.text, { stroke: c.accent });
+          ctx.globalAlpha = 1;
+          text(ctx, fit(ctx, L.stuck, v.w - 10), v.x + v.w / 2, v.y + v.h - 12, c.bad, { align: 'center' });
+        } else {
+          text(ctx, fit(ctx, L.nothing, v.w - 10), v.x + v.w / 2, v.y + 16, c.bad, { align: 'center' });
+        }
+        ctx.restore();
+        text(ctx, i ? L.eyeR : L.eyeL, v.x + 8, v.y + v.h - 10, c.muted);
+        ctx.strokeStyle = c.border; ctx.lineWidth = 1.5; roundRect(ctx, v.x, v.y, v.w, v.h, 8); ctx.stroke();
+      });
+      if (mode === 'overlay') {
+        const mw = Math.min(180, w - 16), mx = w / 2 - mw / 2, my = h - 46;
+        box(ctx, mx, my, mw, 38, '', c.soft, c.text, { stroke: c.border });
+        text(ctx, '🖥 ' + fit(ctx, L.mirror, mw - 30), w / 2, my + 19, c.muted, { align: 'center' });
+      } else {
+        const comfy = mode === 'world' ? (dist < 0.6 ? 0.2 : dist < 1 ? 0.6 : dist <= 3 ? 1 : Math.max(0.15, 1 - (dist - 3) / 3)) : 0.05;
+        const col = comfy > 0.8 ? c.ok : comfy > 0.4 ? c.warn : c.bad;
+        text(ctx, L.comfy, 10, h - 12, c.muted);
+        meter(ctx, 70, h - 17, w - 80, 10, comfy, col, c);
+      }
+    }
+
+    const stop = loop((dt) => {
+      t += dt;
+      simLoco(dt);
+      const c = colors();
+      const { ctx, w, h } = stage;
+      ctx.clearRect(0, 0, w, h);
+      if (tab === 'loco') {
+        drawLoco(ctx, w, h, c);
+        const motion = move === 'smooth' || turn === 'smooth';
+        out('<p>' + md(motion ? L.v.motion : L.v.calm) + md(fps < hz ? L.v.drop.replace('{f}', fps).replace('{h}', hz) : L.v.stable) + (shake ? md(L.v.shake) : '') + (vig ? md(L.v.vig) : '') + '</p>');
+      } else {
+        drawUI(ctx, w, h, c);
+        const k = mode !== 'world' ? mode : dist < 1 ? 'near' : dist <= 3 ? 'ok' : 'far';
+        out('<p>' + md(L.v[k]) + '</p>');
+      }
+    });
+    return () => { stop(); stage.destroy(); };
+  }
+
+  /* ---------------------------------------------------------
+     13. XR: Multi Pass vs Single Pass Instanced
+     --------------------------------------------------------- */
+
+  function mountXRStereo(host, lang) {
+    const L = {
+      es: { multi: 'Multi Pass', spi: 'Single Pass Instanced', objs: 'Objetos en escena', macros: 'Shader propio con macros de estéreo',
+        cpu: 'CPU', left: 'Ojo izq.', right: 'Ojo der.', array: 'Texture2DArray', dc: 'Draw calls', pass: 'pasada', cost: 'Coste de CPU (envío)',
+        v: {
+          multi: 'Multi Pass dibuja la escena **dos veces**, una pasada por ojo: el doble de draw calls y de trabajo de CPU.',
+          spi: '✓ Single Pass Instanced: **un** draw call con instance count 2 escribe los dos ojos a la vez en un texture array. La CPU hace aproximadamente la mitad de trabajo.',
+          broken: ' ✗ El shader propio no usa las macros de estéreo: con Single Pass Instanced ese objeto solo aparece en un ojo.',
+          fine: ' Los shaders propios necesitan las macros de stereo instancing (`UNITY_VERTEX_INPUT_INSTANCE_ID`, `UNITY_VERTEX_OUTPUT_STEREO`…).'
+        } },
+      en: { multi: 'Multi Pass', spi: 'Single Pass Instanced', objs: 'Objects in scene', macros: 'Custom shader with stereo macros',
+        cpu: 'CPU', left: 'Left eye', right: 'Right eye', array: 'Texture2DArray', dc: 'Draw calls', pass: 'pass', cost: 'CPU cost (submission)',
+        v: {
+          multi: 'Multi Pass draws the scene **twice**, one pass per eye: double the draw calls and CPU work.',
+          spi: '✓ Single Pass Instanced: **one** draw call with an instance count of 2 writes both eyes at once into a texture array. The CPU does roughly half the work.',
+          broken: ' ✗ The custom shader does not use the stereo macros: with Single Pass Instanced that object shows up in one eye only.',
+          fine: ' Custom shaders need the stereo instancing macros (`UNITY_VERTEX_INPUT_INSTANCE_ID`, `UNITY_VERTEX_OUTPUT_STEREO`…).'
+        } }
+    }[lang];
+    const F = nf(lang), B = big(lang);
+    let mode = 'multi', objs = 500, macros = true, t = 0;
+    const ctl = controls(host);
+    seg(ctl, [{ v: 'multi', l: L.multi }, { v: 'spi', l: L.spi }], mode, (v) => { mode = v; t = 0; });
+    slider(ctl, L.objs, 100, 2000, 100, objs, (v) => { objs = v; });
+    toggle(ctl, L.macros, true, (v) => { macros = v; });
+    const stage = makeCanvas(host, (w) => (narrow(w) ? 320 : 240));
+    const out = readout(host);
+    const cb = codeBlock(host);
+    const SHAPES = [{ k: 1, x: 0.25, y: 0.6, c: '#22b8cf' }, { k: 0, x: 0.55, y: 0.45, c: '#f5b301' }, { k: 2, x: 0.78, y: 0.65, c: '#e64980' }, { k: 5, x: 0.45, y: 0.75, c: '#7950f2', custom: true }];
+
+    const stop = loop((dt) => {
+      t += dt;
+      const c = colors();
+      const { ctx, w, h } = stage;
+      ctx.clearRect(0, 0, w, h);
+      const nar = narrow(w);
+      const multi = mode === 'multi';
+      const cycle = multi ? 3 : 1.8, tt = t % cycle, k = clamp(tt / (cycle - 0.5), 0, 1);
+      // CPU
+      const cpu = nar ? [8, 8, w - 16, 50] : [8, 8, 120, h - 16];
+      panel(ctx, cpu[0], cpu[1], cpu[2], cpu[3], c.soft);
+      text(ctx, L.cpu, cpu[0] + 10, cpu[1] + 14, c.text);
+      const dcs = multi ? objs * 2 : objs;
+      text(ctx, L.dc + ': ' + B(dcs), cpu[0] + 10, cpu[1] + 34, multi ? c.bad : c.ok, { mono: true });
+      // Ojos
+      const ex = nar ? 8 : 140, ey = nar ? 74 : 8, ew = nar ? (w - 24) / 2 : (w - 156) / 2, eh = nar ? h - 120 : h - 60;
+      const eyes = [[ex, L.left], [ex + ew + 8, L.right]];
+      if (!multi) { ctx.strokeStyle = c.accent; ctx.setLineDash([5, 4]); ctx.lineWidth = 1.5; ctx.strokeRect(ex - 4, ey - 4, ew * 2 + 16, eh + 8); ctx.setLineDash([]); text(ctx, L.array + ' [0, 1]', ex + ew * 2 + 8, ey + eh + 14, c.accent, { align: 'right', mono: true }); }
+      eyes.forEach((e, i) => {
+        panel(ctx, e[0], ey, ew, eh, c.bg, c.border);
+        text(ctx, e[1] + (multi ? ' · ' + L.pass + ' ' + (i + 1) : ''), e[0] + 8, ey + 12, c.muted);
+        // Progreso de esta vista
+        const p = multi ? clamp((k - i * 0.5) * 2, 0, 1) : k;
+        SHAPES.forEach((s, si) => {
+          if (p < (si + 1) / SHAPES.length) return;
+          if (s.custom && !multi && !macros && i === 1) return;
+          const sx = e[0] + s.x * ew + (i ? -6 : 6), sy = ey + s.y * eh;
+          drawShape(ctx, s.k, sx, sy, Math.min(ew, eh) * 0.12, s.c);
+        });
+        if (!multi && !macros && i === 1 && p >= 1) text(ctx, '?', e[0] + 0.45 * ew - 6, ey + 0.75 * eh, c.bad, { align: 'center' });
+      });
+      // Paquetes (draw calls) de la CPU a las vistas
+      const src = nar ? [w / 2, cpu[1] + cpu[3]] : [cpu[0] + cpu[2], cpu[1] + cpu[3] / 2];
+      for (let j = 0; j < 5; j++) {
+        const q = (tt * 1.6 + j / 5) % 1;
+        if (tt > cycle - 0.5) break;
+        const targetEye = multi ? (k < 0.5 ? 0 : 1) : -1;
+        const tgts = targetEye >= 0 ? [eyes[targetEye][0] + ew / 2] : [eyes[0][0] + ew / 2, eyes[1][0] + ew / 2];
+        tgts.forEach((tx) => {
+          const x = lerp(src[0], tx, q), y = lerp(src[1], ey + eh / 2, q);
+          ctx.fillStyle = multi ? c.warn : c.accent; ctx.fillRect(x - 4, y - 3, 8, 6);
+        });
+      }
+      // Coste
+      const ms = objs * 0.006 * (multi ? 2 : 1) + 0.2;
+      const by = h - 30;
+      text(ctx, L.cost + ': ' + F(ms, 1) + ' ms', nar ? 8 : 140, by + 4, c.muted);
+      meter(ctx, nar ? 8 : 140, by + 14, (nar ? w - 16 : w - 148), 9, ms / 24.2, multi ? c.bad : c.ok, c);
+      const lines = ['struct appdata', '{', '    float4 vertex : POSITION;', '    UNITY_VERTEX_INPUT_INSTANCE_ID', '};', 'struct v2f', '{', '    float4 pos : SV_POSITION;', '    UNITY_VERTEX_OUTPUT_STEREO', '};',
+        'v2f vert(appdata v)', '{', '    v2f o;', '    UNITY_SETUP_INSTANCE_ID(v);', '    UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);', '    o.pos = TransformObjectToHClip(v.vertex.xyz);', '    return o;', '}'];
+      const marks = {};
+      [3, 8, 13, 14].forEach((i) => { marks[i] = macros ? 'ok' : (multi ? 'off' : 'bad'); });
+      cb(lines.join('\n'), marks);
+      out('<b>' + L.dc + ': ' + B(dcs) + '</b> · ' + L.cost + ': ' + F(ms, 1) + ' ms<p>' + md(multi ? L.v.multi : L.v.spi) + md(!multi && !macros ? L.v.broken : L.v.fine) + '</p>');
     });
     return () => { stop(); stage.destroy(); };
   }
@@ -1369,6 +2221,157 @@
             '**Occlusion Culling**: with baked data, it skips what is behind the occluders.',
             '`LODGroup`: LOD0 → LOD1 → LOD2 → Culled based on the % of the screen the object covers.',
             'Lowering the Far Clip Plane or static batching do not solve occlusion.'
+          ]
+        }
+      }
+    }
+,
+    {
+      id: 'canvas-rebuild', questions: ['prf-11'], domain: 'perf', icon: '🔃', mount: mountCanvasRebuild,
+      text: {
+        es: {
+          title: 'UI: reconstrucción del Canvas',
+          summary: 'Cuando cambia un elemento de UI, Unity reconstruye la geometría de **todo su Canvas**. Un temporizador que cambia cada frame en el mismo Canvas que 200 elementos estáticos los obliga a reconstruirse a todos. Compara las tres opciones y mira el coste de `Canvas.BuildBatch`; luego desactiva Raycast Target en lo que no es interactivo.',
+          points: [
+            'Separa lo que cambia a menudo en un **Canvas propio** (dinámico) y deja lo estático en otro.',
+            'Moverlo a `FixedUpdate` no arregla nada: sigue cambiando y reconstruyendo todo el Canvas.',
+            'Juntar todos los Canvas en uno solo empeora el problema; cambiar a World Space no tiene que ver.',
+            'Desactiva **Raycast Target** en imágenes y textos no interactivos para abaratar los raycasts de UI.'
+          ]
+        },
+        en: {
+          title: 'UI: Canvas rebuilds',
+          summary: 'When a UI element changes, Unity rebuilds the geometry of its **whole Canvas**. A timer that changes every frame on the same Canvas as 200 static elements forces all of them to rebuild. Compare the three options and watch the `Canvas.BuildBatch` cost; then disable Raycast Target on what is not interactive.',
+          points: [
+            'Move what changes often to its **own Canvas** (dynamic) and keep the static part on another.',
+            'Moving it to `FixedUpdate` fixes nothing: it still changes and rebuilds the whole Canvas.',
+            'Merging every Canvas into one makes it worse; switching to World Space is unrelated.',
+            'Disable **Raycast Target** on non-interactive images and texts to make UI raycasts cheaper.'
+          ]
+        }
+      }
+    },
+    {
+      id: 'defines-plataforma', questions: ['prf-14', 'prf-24'], domain: 'perf', icon: '🏷️', mount: mountDefines,
+      text: {
+        es: {
+          title: 'Símbolos por plataforma y Build Profiles',
+          summary: 'Los símbolos como `UNITY_ANDROID` o `UNITY_EDITOR` deciden **al compilar** qué código existe: lo que queda fuera de un `#if` ni siquiera llega al ejecutable. Cambia entre Editor y build y entre Build Profiles, y mira qué líneas se compilan. Fíjate en el Editor con Android activo.',
+          points: [
+            'En el Editor con plataforma Android, `UNITY_ANDROID` y `UNITY_EDITOR` son **ambos** true: `#if UNITY_ANDROID && !UNITY_EDITOR` solo se cumple en la build de Android.',
+            'Los defines eliminan código en tiempo de compilación, no comprueban nada en tiempo de ejecución.',
+            'Unity 6: **Build Profiles** (File > Build Profiles) sustituye a Build Settings; cada perfil guarda plataforma, escenas, scripting defines y overrides de Player Settings.',
+            'Para una build "Demo" y otra "Completa": dos Build Profiles, no dos proyectos ni cambios a mano.'
+          ]
+        },
+        en: {
+          title: 'Platform symbols and Build Profiles',
+          summary: 'Symbols such as `UNITY_ANDROID` or `UNITY_EDITOR` decide **at compile time** which code exists: anything left out of an `#if` does not even reach the executable. Switch between Editor and build and between Build Profiles, and see which lines get compiled. Look closely at the Editor with Android active.',
+          points: [
+            'In the Editor with the Android platform, `UNITY_ANDROID` and `UNITY_EDITOR` are **both** true: `#if UNITY_ANDROID && !UNITY_EDITOR` only holds in the Android build.',
+            'Defines remove code at compile time; they do not check anything at runtime.',
+            'Unity 6: **Build Profiles** (File > Build Profiles) replaces Build Settings; each profile stores platform, scenes, scripting defines and Player Settings overrides.',
+            'For a "Demo" build and a "Full" one: two Build Profiles, not two projects or manual changes.'
+          ]
+        }
+      }
+    },
+    {
+      id: 'il2cpp-stripping', questions: ['prf-15', 'prf-16'], domain: 'perf', icon: '🔧', mount: mountIL2CPP,
+      text: {
+        es: {
+          title: 'IL2CPP, Mono y managed code stripping',
+          summary: 'Tu C# se compila a IL. Con **Mono**, ese IL se compila con JIT en el dispositivo; con **IL2CPP** se convierte a C++ y se compila a nativo antes (AOT). En la segunda pestaña, el linker elimina lo que no ve referenciado… incluida una clase que solo creas por reflexión. Prueba los niveles y las protecciones.',
+          points: [
+            'iOS no permite JIT: **IL2CPP** es obligatorio. En Android, IL2CPP es necesario para ARM64 (requisito de Google Play).',
+            'Burst compila jobs; no es un scripting backend.',
+            'El **managed code stripping** hace un análisis estático y no ve las referencias por reflexión (`Type.GetType("...")`).',
+            'Solución: `[Preserve]`, `link.xml` o bajar el Managed Stripping Level. En el Editor no hay stripping, por eso allí funciona.'
+          ]
+        },
+        en: {
+          title: 'IL2CPP, Mono and managed code stripping',
+          summary: 'Your C# is compiled to IL. With **Mono**, that IL is JIT-compiled on the device; with **IL2CPP** it is converted to C++ and compiled to native code ahead of time (AOT). In the second tab, the linker removes whatever it does not see referenced… including a class you only create through reflection. Try the levels and the protections.',
+          points: [
+            'iOS does not allow JIT: **IL2CPP** is mandatory. On Android, IL2CPP is required for ARM64 (a Google Play requirement).',
+            'Burst compiles jobs; it is not a scripting backend.',
+            '**Managed code stripping** runs a static analysis and cannot see references made through reflection (`Type.GetType("...")`).',
+            'Fix: `[Preserve]`, `link.xml` or a lower Managed Stripping Level. There is no stripping in the Editor, which is why it works there.'
+          ]
+        }
+      }
+    },
+    {
+      id: 'frame-rate-movil', questions: ['prf-18'], domain: 'perf', icon: '📱', mount: mountMobileFps,
+      text: {
+        es: {
+          title: 'FPS en móviles: targetFrameRate',
+          summary: 'En móviles, con `targetFrameRate = -1` Unity apunta por defecto a **30 FPS**: en una pantalla de 60 Hz se presenta un frame nuevo cada 2 vsync. Prueba cada línea de código y compara los dos teléfonos, la línea de tiempo de vsync y los medidores de batería y temperatura.',
+          points: [
+            'Para 60 FPS en móvil: `Application.targetFrameRate = 60;`.',
+            'Cuesta más batería y calor: valóralo según el juego.',
+            'En Android e iOS se ignora `QualitySettings.vSyncCount`.',
+            '`Time.fixedDeltaTime` solo afecta a la física y `Time.timeScale` a la velocidad del juego, no a los FPS.'
+          ]
+        },
+        en: {
+          title: 'Mobile FPS: targetFrameRate',
+          summary: 'On mobile, with `targetFrameRate = -1` Unity targets **30 FPS** by default: on a 60 Hz display a new frame is presented every 2 vsyncs. Try each line of code and compare the two phones, the vsync timeline and the battery and temperature meters.',
+          points: [
+            'For 60 FPS on mobile: `Application.targetFrameRate = 60;`.',
+            'It costs more battery and heat: weigh it for your game.',
+            'Android and iOS ignore `QualitySettings.vSyncCount`.',
+            '`Time.fixedDeltaTime` only affects physics and `Time.timeScale` the game speed, not the FPS.'
+          ]
+        }
+      }
+    },
+    {
+      id: 'xr-confort', questions: ['prf-19', 'prf-20'], domain: 'perf', icon: '🥽', mount: mountXRComfort,
+      text: {
+        es: {
+          title: 'XR: confort, locomoción y UI',
+          summary: 'El mareo en VR aparece cuando lo que ves no coincide con lo que siente tu cuerpo, o cuando el visor repite frames. En **Locomoción**, compara movimiento continuo con teletransporte y snap turn, y baja los FPS por debajo de la frecuencia del visor. En **UI en XR**, prueba los modos de Canvas y la distancia.',
+          points: [
+            'Reducen el mareo: **teletransporte**, **snap turn**, viñetas al moverse y FPS **estables e iguales** a la frecuencia del visor (72/90/120 Hz).',
+            'Lo empeoran: sacudidas de cámara, head bob y caídas de FPS.',
+            'Menús en VR: Canvas en **World Space** a una distancia cómoda (≈1–3 m), no Screen Space.',
+            'El XR Interaction Toolkit usa `TrackedDeviceGraphicRaycaster` para interactuar con la UI en World Space.'
+          ]
+        },
+        en: {
+          title: 'XR: comfort, locomotion and UI',
+          summary: 'VR sickness appears when what you see does not match what your body feels, or when the headset repeats frames. In **Locomotion**, compare smooth movement with teleport and snap turn, and drop the FPS below the headset refresh rate. In **UI in XR**, try the Canvas modes and the distance.',
+          points: [
+            'They reduce sickness: **teleport**, **snap turn**, vignettes while moving and **stable** FPS **equal** to the headset refresh rate (72/90/120 Hz).',
+            'They make it worse: camera shake, head bob and FPS drops.',
+            'Menus in VR: a **World Space** Canvas at a comfortable distance (≈1–3 m), not Screen Space.',
+            'The XR Interaction Toolkit uses `TrackedDeviceGraphicRaycaster` to interact with World Space UI.'
+          ]
+        }
+      }
+    },
+    {
+      id: 'xr-stereo', questions: ['prf-21'], domain: 'perf', icon: '👓', mount: mountXRStereo,
+      text: {
+        es: {
+          title: 'XR: Multi Pass vs Single Pass Instanced',
+          summary: 'En VR hay que dibujar la escena para cada ojo. **Multi Pass** la dibuja dos veces (una pasada por ojo); **Single Pass Instanced** envía cada draw call una sola vez, con instancing, y escribe los dos ojos a la vez. Cambia de modo, sube el número de objetos y compara draw calls y coste de CPU.',
+          points: [
+            'Single Pass Instanced: un draw call con instance count 2 sobre un texture array → aprox. la mitad de trabajo de CPU.',
+            'Multi Pass: draw calls ×2, el modo más caro (y el más compatible).',
+            'Los shaders propios deben usar las macros de stereo instancing; si no, el objeto se ve en un solo ojo.',
+            'Deferred y Forward+ son rendering paths, no modos de renderizado estéreo.'
+          ]
+        },
+        en: {
+          title: 'XR: Multi Pass vs Single Pass Instanced',
+          summary: 'In VR the scene must be drawn for each eye. **Multi Pass** draws it twice (one pass per eye); **Single Pass Instanced** submits each draw call once, with instancing, and writes both eyes at the same time. Switch modes, raise the object count and compare draw calls and CPU cost.',
+          points: [
+            'Single Pass Instanced: one draw call with an instance count of 2 into a texture array → roughly half the CPU work.',
+            'Multi Pass: draw calls ×2, the most expensive mode (and the most compatible).',
+            'Custom shaders must use the stereo instancing macros; otherwise the object shows up in one eye only.',
+            'Deferred and Forward+ are rendering paths, not stereo rendering modes.'
           ]
         }
       }

@@ -153,7 +153,7 @@
     toggle(panes.a, L.auto, auto, (v) => { auto = v; });
     seg(panes.b, [{ v: 'destroy', l: 'Play() + Destroy' }, { v: 'point', l: 'PlayClipAtPoint' }], kill, (v) => { kill = v; cyc = 0; });
     button(panes.b, L.explode, () => { cyc = 0.999; }, true);
-    const stage = makeCanvas(host, (w) => (w < 520 ? 300 : 220));
+    const stage = makeCanvas(host, (w) => (w < 520 ? 300 : 240));
     const src = codeBlock(host);
     const out = readout(host);
 
@@ -182,6 +182,8 @@
         text(ctx, mode === 'play' ? L.source : L.voice + ' ' + (l + 1), lx + 8, ly + 13, c.muted);
         ctx.save(); roundRect(ctx, lx, ly + 2, lw, lh - 4, 6); ctx.clip();
         const mid = ly + lh / 2 + 4, amp = (lh - 22) / 2;
+        const cutList = voices.filter((v) => v.cut !== null);
+        const lastCut = cutList[cutList.length - 1];
         voices.filter((v) => v.lane === l).forEach((v) => {
           const end = Math.min(v.cut === null ? Infinity : v.cut, v.t0 + CLIP, t);
           const xa = Math.max(lx, X(v.t0)), xb = X(end);
@@ -196,7 +198,7 @@
           ctx.stroke();
           if (v.cut !== null && X(v.cut) > lx) {
             ctx.fillStyle = c.bad; ctx.fillRect(X(v.cut) - 1, mid - amp, 2.5, amp * 2);
-            if (lanes === 1 && t - v.cut < 0.5) text(ctx, '✂ ' + L.cut, X(v.cut) - 4, ly + 13, c.bad, { align: 'right' });
+            if (lanes === 1 && v === lastCut && t - v.cut < 0.6) text(ctx, '✂ ' + L.cut, X(v.cut) - 4, ly + 13, c.bad, { align: 'right' });
           }
         });
         ctx.restore();
@@ -387,10 +389,10 @@
       // Gráfica volumen / distancia
       panel(ctx, c, gr.x, gr.y, gr.w, gr.h, '');
       const meterH = 44;
-      const ax = gr.x + 12, aw = gr.w - 24, ay = gr.y + 22, ah = gr.h - meterH - 46;
+      const ax = gr.x + 12, aw = gr.w - 24, ay = gr.y + 22, ah = gr.h - meterH - 58;
       const GXp = (dd) => ax + (dd / GX) * aw, GYp = (v) => ay + ah - v * ah;
       text(ctx, L.vol, ax, gr.y + 11, c.muted);
-      text(ctx, L.dist + ' →', ax + aw, ay + ah + 26, c.muted, { align: 'right' });
+      text(ctx, L.dist + ' →', ax + aw, ay + ah + 25, c.muted, { align: 'right' });
       ctx.strokeStyle = c.border; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(ax, ay + ah); ctx.lineTo(ax + aw, ay + ah); ctx.stroke();
       dashed(ctx, true);
@@ -511,8 +513,8 @@
       const p0 = f, p1 = f - 1;
       const gone = imm ? p0 >= EV.call : p0 >= EV.kill;
       const logs = [];
-      if (p0 >= EV.log) logs.push(['[' + L.frame + ' N]  enemy == null → ', imm ? 'True' : 'False', imm ? c.ok : c.bad]);
-      if (p1 >= EV.log2) logs.push(['[' + L.frame + ' N+1] enemy == null → ', 'True', c.ok]);
+      if (p0 >= EV.log) logs.push(['[' + L.frame + ' N]   ', imm ? 'True' : 'False', imm ? c.ok : c.bad]);
+      if (p1 >= EV.log2) logs.push(['[' + L.frame + ' N+1] ', 'True', c.ok]);
       const yb = 118, hb = h - yb - 8;
       const narrow = w < 520;
       const sw = narrow ? Math.min(96, w * 0.3) : 150;
@@ -554,14 +556,14 @@
       const xs = [8, 8 + bw + gap, 8 + 2 * (bw + gap)];
       // Variable, wrapper C#, objeto nativo
       box(ctx, xs[0], y0, bw, bh, '', c.soft, c.text, { stroke: c.border });
-      text(ctx, fit(ctx, 'Enemy ' + L.vari, bw - 12, true), xs[0] + bw / 2, y0 + bh / 2, c.text, { align: 'center', mono: true });
+      text(ctx, pick(ctx, ['Enemy target', 'target'], bw - 12, true), xs[0] + bw / 2, y0 + bh / 2, c.text, { align: 'center', mono: true });
       box(ctx, xs[1], y0, bw, bh, '', c.accentSoft, c.text, { stroke: c.accent });
-      text(ctx, fit(ctx, L.wrap, bw - 12), xs[1] + bw / 2, y0 + bh / 2, c.text, { align: 'center' });
+      text(ctx, pick(ctx, [L.wrap, 'C#'], bw - 12), xs[1] + bw / 2, y0 + bh / 2, c.text, { align: 'center' });
       const dead = destroyed && t - dAt > 0.3;
       if (dead) { dashed(ctx, true); ctx.strokeStyle = c.bad; ctx.lineWidth = 1.5; roundRect(ctx, xs[2], y0, bw, bh, 8); ctx.stroke(); dashed(ctx, false); }
       else box(ctx, xs[2], y0, bw, bh, '', c.okSoft, c.text, { stroke: c.ok });
-      text(ctx, fit(ctx, dead ? '✗ ' + L.gone : L.native, bw - 12), xs[2] + bw / 2, y0 + bh / 2, dead ? c.bad : c.text, { align: 'center' });
-      if (dead) text(ctx, fit(ctx, L.native, bw), xs[2] + bw / 2, y0 + bh + 10, c.muted, { align: 'center' });
+      text(ctx, dead ? pick(ctx, ['✗ ' + L.gone, '✗'], bw - 12) : pick(ctx, [L.native, 'C++'], bw - 12), xs[2] + bw / 2, y0 + bh / 2, dead ? c.bad : c.text, { align: 'center' });
+      if (dead) text(ctx, pick(ctx, [L.native, 'C++'], bw), xs[2] + bw / 2, y0 + bh + 10, c.muted, { align: 'center' });
       arrow(ctx, xs[0] + bw, y0 + bh / 2, xs[1] - 2, y0 + bh / 2, c.text, 2);
       if (dead) { dashed(ctx, true); ctx.strokeStyle = c.bad; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(xs[1] + bw, y0 + bh / 2); ctx.lineTo(xs[2], y0 + bh / 2); ctx.stroke(); dashed(ctx, false); }
       else arrow(ctx, xs[1] + bw, y0 + bh / 2, xs[2] - 2, y0 + bh / 2, c.ok, 2);
@@ -688,7 +690,7 @@
       const { ctx, w, h } = stage;
       ctx.clearRect(0, 0, w, h);
       const narrow = w < 560;
-      const gw = narrow ? w - 16 : w * 0.64 - 12;
+      const gw = narrow ? w - 16 : w * 0.6 - 12;
       const gh = narrow ? h - 128 : h - 16;
       const cell = Math.min(gw / (XMAX - XMIN), gh / (YMAX - YMIN));
       const gx = 8, gy = 8;
@@ -725,9 +727,10 @@
       const isOk = mode === 'd' || mode === 'e';
       token(ctx, SX(wv.x), SY(wv.y), wv.r, sz * (0.3 + 0.7 * ease(k)), isOk ? c.ok : c.bad, null);
       if (inst.child) { dashed(ctx, true); ctx.strokeStyle = c.accent; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(SX(p.x), SY(p.y)); ctx.lineTo(SX(wv.x), SY(wv.y)); ctx.stroke(); dashed(ctx, false); }
-      text(ctx, 'Clone', SX(wv.x) + sz + 4, SY(wv.y) - sz, isOk ? c.ok : c.bad);
+      text(ctx, 'Clone', SX(wv.x) + sz + 6, SY(wv.y) + sz + 4, isOk ? c.ok : c.bad);
       // Jerarquía
-      const hr = narrow ? { x: 8, y: h - 112, w: w - 16, h: 104 } : { x: w * 0.64 + 4, y: 8, w: w * 0.36 - 12, h: 120 };
+      const gridR = gx + (XMAX - XMIN) * cell + 12;
+      const hr = narrow ? { x: 8, y: h - 112, w: w - 16, h: 104 } : { x: gridR, y: 8, w: w - gridR - 8, h: 120 };
       const rows = [{ name: 'Main Camera' }, { name: 'Enemies', tag: 'parent', color: c.accent }];
       const nm = 'Enemy(Clone)';
       if (inst.child) rows.push({ name: nm, depth: 1, color: isOk ? c.ok : c.bad });
@@ -835,13 +838,12 @@
       else if (A.phase === 'walk2') { A.x += SPD * dt; if (A.x >= GOALX) { A.x = GOALX; A.phase = 'done'; A.wait = 0; } }
       else { A.wait += dt; if (A.wait > (A.phase === 'stuck' ? 2.2 : 1.2)) resetA(); }
       const s = Math.min((w - 16) / 20, (h - 50) / 6);
-      const ox = (w - 20 * s) / 2, base = h - 10;
+      const ox = (w - 20 * s) / 2, base = Math.min(h - 10, 34 + 5.6 * s);
       const X = (x) => ox + x * s, Y = (y) => base - y * s;
       // Plataformas
       ctx.fillStyle = c.border;
-      roundRect(ctx, X(0), Y(2), 8 * s, 2 * s, 4); ctx.fill();
-      roundRect(ctx, X(11), Y(3), 9 * s, 3 * s, 4); ctx.fill();
-      ctx.fillStyle = c.soft; ctx.fillRect(X(8), Y(0.4), 3 * s, 0.4 * s);
+      roundRect(ctx, X(0), Y(2), 8 * s, h - Y(2) + 8, 4); ctx.fill();
+      roundRect(ctx, X(11), Y(3), 9 * s, h - Y(3) + 8, 4); ctx.fill();
       // NavMesh horneada (azul) sobre cada plataforma
       ctx.fillStyle = c.accentSoft; ctx.strokeStyle = c.accent; ctx.lineWidth = 1;
       roundRect(ctx, X(0.3), Y(2) - 6, 7.4 * s, 6, 3); ctx.fill(); ctx.stroke();
@@ -999,8 +1001,8 @@
     resetB();
     const panes = tabbed(host, [{ v: 'a', l: L.tabA }, { v: 'b', l: L.tabB }], (v) => { tab = v; });
     slider(panes.a, L.maxD, 0.25, 4, 0.25, maxD, (v) => { maxD = v; }, (v) => v.toFixed(2));
-    button(panes.a, L.rnd, () => sample(Math.random() * COLS, Math.random() * ROWS), true);
-    let method = 'nav';
+    button(panes.a, L.rnd, () => { autoOn = false; sample(Math.random() * COLS, Math.random() * ROWS); }, true);
+    let method = 'nav', autoT = 1.2, autoOn = true;
     seg(panes.a, [{ v: 'nav', l: 'NavMesh.SamplePosition' }, { v: 'ray', l: 'Physics.Raycast' }], 'nav', (v) => { method = v; tries = []; });
     button(panes.b, L.tp, () => { tf = Object.assign({}, S); wpath = null; act = 'tp'; actT = 0; });
     button(panes.b, L.warp, () => { tf = Object.assign({}, S); sim = Object.assign({}, S); wpath = null; act = 'warp'; actT = 0; }, true);
@@ -1019,6 +1021,7 @@
     let geo = gridGeo(300, 200, COLS, ROWS);
     const stage = makeCanvas(host, (w) => Math.round(Math.min(w, 560) / COLS * ROWS) + 12, (px, py) => {
       if (tab !== 'a') return;
+      autoOn = false;
       sample((px - geo.ox) / geo.cell, (py - geo.oy) / geo.cell);
     });
     const src = codeBlock(host);
@@ -1039,7 +1042,8 @@
       if (tries.length > 6) tries.shift();
     }
 
-    function drawSample(ctx, c, w, h) {
+    function drawSample(ctx, c, w, h, dt) {
+      if (autoOn) { autoT -= dt; if (autoT <= 0) { autoT = 2.6; sample(Math.random() * COLS, Math.random() * ROWS); } }
       geo = gridGeo(w, h, COLS, ROWS);
       const { cell, ox, oy } = geo;
       const X = (x) => ox + x * cell, Y = (y) => oy + y * cell;
@@ -1050,6 +1054,10 @@
         if (k === 'o') { ctx.strokeStyle = c.border; ctx.lineWidth = 1; ctx.strokeRect(X(x) + 0.5, Y(y) + 0.5, cell - 1, cell - 1); }
       }
       text(ctx, 'NavMesh', X(0.15), Y(0.5), c.accent);
+      text(ctx, fit(ctx, L.wall, cell * 3), X(2.1), Y(1.5), c.bg);
+      text(ctx, fit(ctx, L.water, cell * 3), X(11.15), Y(1.5), c.text);
+      text(ctx, fit(ctx, L.water, cell * 3), X(2.15), Y(7.5), c.text);
+      text(ctx, fit(ctx, L.hole, cell * 2 - 4), X(5), Y(4), c.muted, { align: 'center' });
       tries.forEach((tr, i) => {
         const last = i === tries.length - 1;
         const k = clamp((t - tr.t0) / 0.4, 0, 1);
@@ -1129,7 +1137,7 @@
       const c = colors();
       const { ctx, w, h } = stage;
       ctx.clearRect(0, 0, w, h);
-      if (tab === 'a') drawSample(ctx, c, w, h); else drawWarp(ctx, c, w, h, dt);
+      if (tab === 'a') drawSample(ctx, c, w, h, dt); else drawWarp(ctx, c, w, h, dt);
     });
     return () => { stop(); stage.destroy(); };
   }
@@ -1305,7 +1313,7 @@
     }[lang];
     let tab = 'ref', t = 0;
     // --- Recuento
-    let handles = [], insts = [], hid = 1, iid = 1, warnT = -9, memShow = 0, lastAct = -1;
+    let handles = [{ id: 1, t0: -9 }], insts = [], hid = 2, iid = 1, warnT = -9, memShow = 0, lastAct = -1;
     // --- Fuga
     let rel = false, sim;
     const resetSim = () => { sim = { mins: 0, room: 0, acc: 0, loaded: [], visited: [], samples: [], sAcc: 0, crash: 0 }; };
@@ -1322,14 +1330,14 @@
     button(panes.leak, L.reset, resetSim);
     seg(panes.res, [{ v: 'res', l: L.resMode }, { v: 'dir', l: L.dirMode }], resMode, (v) => { resMode = v; bt = 0; });
     button(panes.res, L.build, () => { bt = 0; }, true);
-    const stage = makeCanvas(host, (w) => (w < 560 ? 310 : 240));
+    const stage = makeCanvas(host, (w) => (w < 560 ? 336 : 240));
     const src = codeBlock(host);
     const out = readout(host);
 
     function bar(ctx, c, x, y, w, frac, color, label, value) {
       text(ctx, fit(ctx, label, w - tw(ctx, value) - 12), x, y, c.muted);
       text(ctx, value, x + w, y, c.text, { align: 'right' });
-      ctx.fillStyle = c.bg; roundRect(ctx, x, y + 9, w, 12, 6); ctx.fill();
+      ctx.fillStyle = c.soft; roundRect(ctx, x, y + 9, w, 12, 6); ctx.fill();
       ctx.fillStyle = color; roundRect(ctx, x, y + 9, Math.max(frac > 0 ? 6 : 0, w * clamp(frac, 0, 1)), 12, 6); ctx.fill();
     }
 
@@ -1438,7 +1446,7 @@
       for (let i = 0; i < N; i++) {
         const p = cell(pr, i);
         const used = USED.indexOf(i) >= 0;
-        ctx.fillStyle = used ? c.accent : c.border; roundRect(ctx, p.x, p.y, ts, ts, 4); ctx.fill();
+        ctx.fillStyle = used ? c.accent : c.warn; ctx.globalAlpha = used ? 1 : 0.4; roundRect(ctx, p.x, p.y, ts, ts, 4); ctx.fill(); ctx.globalAlpha = 1;
       }
       // Tiles que viajan a la build
       const BUILD = 1.4;
@@ -1455,7 +1463,7 @@
       ctx.fillStyle = c.accent; roundRect(ctx, 8, ly - 5, 10, 10, 2); ctx.fill();
       text(ctx, L.used, 22, ly, c.muted);
       const lw2 = tw(ctx, L.used) + 36;
-      ctx.fillStyle = c.border; roundRect(ctx, 8 + lw2, ly - 5, 10, 10, 2); ctx.fill();
+      ctx.fillStyle = c.warn; roundRect(ctx, 8 + lw2, ly - 5, 10, 10, 2); ctx.fill();
       text(ctx, fit(ctx, lang === 'es' ? 'sin usar' : 'unused', w - lw2 - 30), 22 + lw2, ly, c.muted);
       const by = ly + 16;
       const done = clamp(bt / BUILD, 0, 1);

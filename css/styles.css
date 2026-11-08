@@ -1015,7 +1015,7 @@ body.modal-open { overflow: hidden; }
 .qstatus { font-size: .74rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
 .qstatus.ok { background: var(--ok-soft); color: var(--ok); }
 .qstatus.bad { background: var(--bad-soft); color: var(--bad); }
-.related-list li a { color: var(--text); }
+.related-list li a { color: var(--text); overflow-wrap: anywhere; }
 .related-list li a:hover { color: var(--accent); }
 
 /* Seis secciones en la navegación: algo más compactas en pantallas medianas. */
