@@ -254,6 +254,12 @@
     app.innerHTML = html;
     setNav(navName);
     window.scrollTo(0, keepScroll ? y : 0);
+    // Animación de entrada solo al cambiar de vista o de pregunta, no al repintar la misma.
+    if (!keepScroll) {
+      app.classList.remove('view-enter');
+      void app.offsetWidth;
+      app.classList.add('view-enter');
+    }
   }
 
   let keyHandler = null;
@@ -526,7 +532,11 @@
     );
     refresh = () => renderPractice(true);
 
-    bindOptions(item, !p.revealed, () => renderPractice(true));
+    const onSelect = () => {
+      const cb = document.getElementById('checkBtn');
+      if (cb) cb.disabled = !readyToCheck(item);
+    };
+    bindOptions(item, !p.revealed, onSelect);
 
     const check = document.getElementById('checkBtn');
     if (check) check.onclick = checkPractice;
@@ -547,7 +557,7 @@
         else if (p.revealed) nextPractice();
         return;
       }
-      if (!p.revealed) keySelect(e, item, () => renderPractice(true));
+      if (!p.revealed) keySelect(e, item, onSelect);
     };
   }
 
@@ -602,17 +612,27 @@
     refresh = () => renderPracticeSummary(true);
   }
 
-  function bindOptions(item, enabled, rerender) {
+  // Actualiza las opciones en su sitio (sin repintar la vista) para que las transiciones se vean.
+  function syncOptions(item) {
+    app.querySelectorAll('.opt').forEach((btn) => {
+      const sel = item.selected.includes(Number(btn.dataset.opt));
+      btn.classList.toggle('selected', sel);
+      btn.setAttribute('aria-checked', sel);
+    });
+  }
+
+  function bindOptions(item, enabled, onChange) {
     if (!enabled) return;
     app.querySelectorAll('.opt').forEach((btn) => {
       btn.onclick = () => {
         toggleSelection(item, Number(btn.dataset.opt));
-        rerender();
+        syncOptions(item);
+        onChange();
       };
     });
   }
 
-  function keySelect(e, item, rerender) {
+  function keySelect(e, item, onChange) {
     let i = -1;
     const k = e.key.toUpperCase();
     if (/^[1-8]$/.test(k)) i = Number(k) - 1;
@@ -620,7 +640,8 @@
     if (i < 0 || i >= item.order.length) return;
     e.preventDefault();
     toggleSelection(item, item.order[i]);
-    rerender();
+    syncOptions(item);
+    onChange();
   }
 
   /* =========================================================
@@ -756,7 +777,7 @@
 
     render(
       '<div class="exam-top">' +
-        '<span>' + t('examBar', ex.idx + 1, total, answered) + '</span>' +
+        '<span id="examBar">' + t('examBar', ex.idx + 1, total, answered) + '</span>' +
         (ex.endAt ? '<span class="timer" id="timer">--:--</span>' : '<span class="muted small">' + t('noLimit') + '</span>') +
       '</div>' +
       '<article class="card">' + questionHTML(item, { revealed: false }) + '</article>' +
@@ -780,7 +801,15 @@
     refresh = () => renderExam(true);
 
     const rerender = () => { saveExam(); renderExam(true); };
-    bindOptions(item, true, rerender);
+    const onSelect = () => {
+      saveExam();
+      const n = ex.items.filter((it) => it.selected.length).length;
+      const bar = document.getElementById('examBar');
+      if (bar) bar.innerHTML = t('examBar', ex.idx + 1, total, n);
+      const cell = app.querySelector('.palette [data-go="' + ex.idx + '"]');
+      if (cell) cell.classList.toggle('answered', item.selected.length > 0);
+    };
+    bindOptions(item, true, onSelect);
 
     const go = (i) => { ex.idx = Math.max(0, Math.min(total - 1, i)); saveExam(); renderExam(); };
     document.getElementById('prevBtn').onclick = () => go(ex.idx - 1);
@@ -797,7 +826,7 @@
       if (e.key === 'ArrowLeft') { e.preventDefault(); go(ex.idx - 1); return; }
       if (e.key === 'Enter') { e.preventDefault(); if (isLast) confirmFinish(); else go(ex.idx + 1); return; }
       if (e.key.toLowerCase() === 'm') { e.preventDefault(); item.flagged = !item.flagged; rerender(); return; }
-      keySelect(e, item, rerender);
+      keySelect(e, item, onSelect);
     };
 
     if (ex.endAt) {

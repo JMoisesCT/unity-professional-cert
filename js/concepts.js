@@ -20,7 +20,7 @@
     const g = (n) => s.getPropertyValue(n).trim();
     return {
       bg: g('--bg-elev'), soft: g('--bg-soft'), border: g('--border'), text: g('--text'), muted: g('--text-soft'),
-      accent: g('--accent'), accentSoft: g('--accent-soft'), ok: g('--ok'), okSoft: g('--ok-soft'),
+      accent: g('--accent'), accentSoft: g('--accent-soft'), accentText: g('--accent-text'), ok: g('--ok'), okSoft: g('--ok-soft'),
       bad: g('--bad'), badSoft: g('--bad-soft'), warn: g('--warn'), warnSoft: g('--warn-soft')
     };
   }
@@ -165,6 +165,19 @@
 
   function code(s) { return '<code>' + s + '</code>'; }
 
+  // Reparte los trozos en varias líneas para que quepan en maxW (con la fuente ya elegida).
+  function wrapParts(ctx, parts, sep, maxW) {
+    const lines = [];
+    let cur = '';
+    parts.forEach((p, i) => {
+      const piece = p + (i < parts.length - 1 ? sep : '');
+      if (cur && ctx.measureText(cur + piece).width > maxW) { lines.push(cur.trimEnd()); cur = piece; }
+      else cur += piece;
+    });
+    if (cur) lines.push(cur);
+    return lines;
+  }
+
   /* ---------------------------------------------------------
      1. Ciclo de vida y bucle de frames (FixedUpdate vs Update)
      --------------------------------------------------------- */
@@ -188,11 +201,17 @@
     let fps = 72;
     let t = 0;
     let keyFrame = -1;
+    let keyMsg = '';
 
     const ctl = controls(host);
-    slider(ctl, L.fps, 15, 144, 1, fps, (v) => { fps = v; keyFrame = -1; });
-    button(ctl, L.key, () => { keyFrame = Math.floor(t * fps); }, true);
-    const stage = makeCanvas(host, 170);
+    slider(ctl, L.fps, 15, 144, 1, fps, (v) => { fps = v; keyFrame = -1; keyMsg = ''; });
+    button(ctl, L.key, () => {
+      keyFrame = Math.floor(t * fps);
+      // El mensaje se queda visible hasta la siguiente pulsación (el cabezal da la vuelta muy rápido).
+      const kn = fixedCount(keyFrame);
+      keyMsg = kn === 0 ? L.lost : L.caught.replace('{n}', kn);
+    }, true);
+    const stage = makeCanvas(host, (w) => (w < 560 ? 178 : 160));
     const out = readout(host);
 
     // Frame k ejecuta los pasos fijos j con j*FIXED en (T(k-1), T(k)].
@@ -214,19 +233,21 @@
       const nFrames = Math.ceil(WINDOW * fps);
       const cur = Math.floor(t * fps);
 
-      text(ctx, L.frames, x0, 14, c.muted);
-      text(ctx, L.fixed, x0, 92, c.muted);
-      text(ctx, L.slow, x1, 14, c.muted, { align: 'right' });
+      // Filas: frames (24-58) · líneas a los pasos fijos · puntos de FixedUpdate (100) · etiqueta (118).
+      const FY = 24, FH = 34, DOT = 100;
+      text(ctx, L.frames, x0, 12, c.muted);
+      text(ctx, L.fixed, x0, 118, c.muted);
+      text(ctx, L.slow, x1, 12, c.muted, { align: 'right' });
 
       for (let k = 0; k < nFrames; k++) {
         const a = X(k * frameDt), b = X(Math.min(WINDOW, (k + 1) * frameDt));
         const isCur = k === cur;
         ctx.fillStyle = isCur ? c.accent : (k % 2 ? c.soft : c.accentSoft);
-        ctx.fillRect(a, 28, Math.max(1, b - a - 1), 36);
+        ctx.fillRect(a, FY, Math.max(1, b - a - 1), FH);
         if (k === keyFrame) {
-          ctx.fillStyle = c.warn;
-          ctx.fillRect(a, 24, Math.max(2, b - a - 1), 4);
-          text(ctx, '⌨', (a + b) / 2, 76, c.warn, { align: 'center' });
+          ctx.strokeStyle = c.warn;
+          ctx.lineWidth = 2;
+          ctx.strokeRect(a + 1, FY + 1, Math.max(2, b - a - 3), FH - 2);
         }
         // Líneas desde cada paso fijo hasta el frame que lo ejecuta.
         const T = k / fps;
@@ -238,8 +259,8 @@
           ctx.strokeStyle = isCur ? c.accent : c.border;
           ctx.lineWidth = isCur ? 2 : 1;
           ctx.beginPath();
-          ctx.moveTo(fx, 108);
-          ctx.lineTo(a + 1, 64);
+          ctx.moveTo(fx, DOT - 4);
+          ctx.lineTo(a + 1, FY + FH);
           ctx.stroke();
         }
       }
@@ -247,24 +268,23 @@
         const fx = X(j * FIXED);
         ctx.fillStyle = j * FIXED <= t ? c.ok : c.muted;
         ctx.beginPath();
-        ctx.arc(fx, 112, 4, 0, Math.PI * 2);
+        ctx.arc(fx, DOT, 4, 0, Math.PI * 2);
         ctx.fill();
       }
       // Cabezal de reproducción
       const px = X(t);
       ctx.strokeStyle = c.text;
       ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.moveTo(px, 22); ctx.lineTo(px, 124); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(px, FY - 4); ctx.lineTo(px, DOT + 8); ctx.stroke();
 
       const n = fixedCount(cur);
-      const seq = (n ? 'FixedUpdate ×' + n + ' → ' : '') + 'Update → LateUpdate → Render';
-      text(ctx, L.frame + ' ' + cur + ': ' + seq, x0, 146, c.text, { mono: true });
+      const parts = [L.frame + ' ' + cur + ':'].concat(n ? ['FixedUpdate ×' + n] : [], ['Update', 'LateUpdate', 'Render']);
+      ctx.font = MONO;
+      // Primer separador es un espacio; el resto, flechas.
+      const lines = wrapParts(ctx, [parts[0] + ' ' + parts[1]].concat(parts.slice(2)), ' → ', x1 - x0);
+      lines.forEach((ln, i) => text(ctx, ln, x0, 140 + i * 17, c.text, { mono: true }));
 
-      let msg = '';
-      if (keyFrame >= 0) {
-        const kn = fixedCount(keyFrame);
-        msg = kn === 0 ? L.lost : L.caught.replace('{n}', kn);
-      }
+      const msg = keyMsg;
       out('<span>' + L.frame + ' ' + cur + ' · FixedUpdate: <b>' + n + '</b> ' + L.times + ' · 1 frame = ' + (frameDt * 1000).toFixed(1) + ' ms</span>' + (msg ? '<p>' + msg + '</p>' : ''));
     });
     return () => { stop(); stage.destroy(); };
@@ -434,8 +454,8 @@
       const Y = (v) => y0 - (v / vmax) * (y0 - y1);
       ctx.strokeStyle = c.border; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(x0, y1); ctx.lineTo(x0, y0); ctx.lineTo(x1, y0); ctx.stroke();
-      for (let s = 0; s <= 2; s += 0.5) text(ctx, String(s), X(s), y0 + 12, c.muted, { align: 'center' });
-      text(ctx, L.time, x1, y0 + 12, c.muted, { align: 'right' });
+      for (let s = 0; s <= 2; s += 0.5) text(ctx, String(s), X(s), y0 + 12, c.muted, { align: s === 2 ? 'right' : 'center' });
+      text(ctx, L.time, x1, y0 - 10, c.muted, { align: 'right' });
       text(ctx, L.vel, x0 + 4, y1, c.muted);
       const tEnd = Math.min(2, p);
       MODES.forEach((m) => {
@@ -533,7 +553,7 @@
         ctx.strokeStyle = c.border;
         roundRect(ctx, X(o.x) - 14, y - 22, 28, 44, 6); ctx.fill(); ctx.stroke();
         text(ctx, o.label, X(o.x), y + 36, inMask ? c.text : c.muted, { align: 'center' });
-        text(ctx, String(o.layer), X(o.x), y, inMask || isHit ? '#fff' : c.muted, { align: 'center' });
+        text(ctx, String(o.layer), X(o.x), y, inMask || isHit ? c.accentText : c.muted, { align: 'center' });
       });
       ctx.strokeStyle = c.warn; ctx.lineWidth = 3;
       ctx.beginPath(); ctx.moveTo(X(origin), y); ctx.lineTo(X(cur), y); ctx.stroke();
@@ -670,10 +690,12 @@
       const drawState = (x, label, active, progress) => {
         ctx.fillStyle = active ? c.accent : c.soft;
         roundRect(ctx, x, 20, bw, 46, 10); ctx.fill();
-        text(ctx, label, x + bw / 2, 36, active ? '#fff' : c.text, { align: 'center' });
-        ctx.fillStyle = active ? 'rgba(255,255,255,.35)' : c.border;
+        text(ctx, label, x + bw / 2, 36, active ? c.accentText : c.text, { align: 'center' });
+        ctx.fillStyle = active ? c.accentText : c.border;
+        ctx.globalAlpha = active ? 0.3 : 1;
         ctx.fillRect(x + 10, 52, bw - 20, 5);
-        ctx.fillStyle = active ? '#fff' : c.muted;
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = active ? c.accentText : c.muted;
         ctx.fillRect(x + 10, 52, (bw - 20) * progress, 5);
       };
       const xA = 14, xB = w - bw - 14;
@@ -758,7 +780,7 @@
     function replan() {
       // El agente replanifica desde su posición actual (celda más cercana).
       if (result && result.path.length) {
-        const i = Math.max(0, Math.min(result.path.length - 1, Math.floor(agentT)));
+        const i = Math.max(0, Math.min(result.path.length - 1, Math.round(agentT)));
         start = result.path[i];
       }
       result = astar();
@@ -768,7 +790,7 @@
     seg(ctl, [{ v: true, l: L.doorOpen }, { v: false, l: L.doorClosed }], true, (v) => { doorOpen = v; replan(); });
     seg(ctl, [{ v: 1, l: L.swamp + ' · ' + L.cost1 }, { v: 5, l: L.cost5 }, { v: Infinity, l: L.blocked }], 5, (v) => { swampCost = v; replan(); });
     let geo = { cell: 20, ox: 0, oy: 0 };
-    const stage = makeCanvas(host, (w) => Math.round(Math.min(w, 720) / COLS * ROWS) + 4, (px, py) => {
+    const stage = makeCanvas(host, (w) => Math.round(Math.min(w, 560) / COLS * ROWS) + 4, (px, py) => {
       const x = Math.floor((px - geo.ox) / geo.cell), y = Math.floor((py - geo.oy) / geo.cell);
       if (x < 0 || y < 0 || x >= COLS || y >= ROWS || cellCost(x, y) === Infinity) return;
       goal = { x, y };
@@ -892,14 +914,21 @@
     const ctl = controls(host);
     const sl = slider(ctl, L.ts, 0, 2, 0.1, ts, (v) => { ts = v; }, (v) => v.toFixed(1));
     const quick = el('div', 'seg-btns');
-    [0, 0.5, 1, 2].forEach((v) => {
-      const b = el('button', '', String(v));
+    const quickBtns = [0, 0.5, 1, 2].map((v) => {
+      const b = el('button', v === ts ? 'on' : '', String(v));
       b.type = 'button';
-      b.addEventListener('click', () => { ts = v; sl.value = v; sl.dispatchEvent(new Event('input')); });
+      b.dataset.v = v;
+      b.addEventListener('click', () => { sl.value = v; sl.dispatchEvent(new Event('input')); });
       quick.appendChild(b);
+      return b;
     });
     ctl.appendChild(quick);
-    const stage = makeCanvas(host, 220);
+    // Marca el botón rápido que coincide con el valor del slider.
+    sl.addEventListener('input', () => {
+      quickBtns.forEach((b) => b.classList.toggle('on', Math.abs(Number(b.dataset.v) - ts) < 1e-6));
+    });
+    const NARROW = 460;
+    const stage = makeCanvas(host, (w) => (w < NARROW ? 246 : 220));
     const out = readout(host);
 
     const stop = loop((dt) => {
@@ -919,21 +948,28 @@
       const c = colors();
       const { ctx, w, h } = stage;
       ctx.clearRect(0, 0, w, h);
-      const lx = 12, tx = Math.min(210, w * 0.45), tw = w - tx - 14;
+      // En pantallas estrechas cada etiqueta va encima de su pista para que no se monten.
+      const narrow = w < NARROW;
+      const lx = 12, tx = narrow ? lx : Math.min(210, w * 0.45), tw = w - tx - 14;
       const row = (y, label) => text(ctx, label, lx, y, c.text, { mono: true });
       const track = (y, v, color) => {
         ctx.fillStyle = c.soft; roundRect(ctx, tx, y - 9, tw, 18, 9); ctx.fill();
         ctx.fillStyle = color; ctx.beginPath(); ctx.arc(tx + 9 + v * (tw - 18), y, 7, 0, Math.PI * 2); ctx.fill();
       };
-      row(22, L.scaled); track(22, s.a, ts === 0 ? c.muted : c.accent);
-      row(56, L.unscaled); track(56, s.b, c.ok);
-      row(96, L.physics);
-      ctx.fillStyle = c.soft; roundRect(ctx, tx, 76, tw, 44, 8); ctx.fill();
+      const Y = narrow
+        ? { l1: 12, t1: 30, l2: 54, t2: 72, l3: 96, box: 106, wfs: 170, wfsr: 196, dt: 228 }
+        : { l1: 22, t1: 22, l2: 56, t2: 56, l3: 96, box: 76, wfs: 146, wfsr: 176, dt: 206 };
+      const cx = narrow ? w - 14 : tx;
+      const align = narrow ? 'right' : 'left';
+      row(Y.l1, L.scaled); track(Y.t1, s.a, ts === 0 ? c.muted : c.accent);
+      row(Y.l2, L.unscaled); track(Y.t2, s.b, c.ok);
+      row(Y.l3, L.physics);
+      ctx.fillStyle = c.soft; roundRect(ctx, tx, Y.box + (narrow ? 4 : 0), tw, narrow ? 40 : 44, 8); ctx.fill();
       ctx.fillStyle = ts === 0 ? c.muted : c.warn;
-      ctx.beginPath(); ctx.arc(tx + tw / 2, 82 + s.ballY * 30, 6, 0, Math.PI * 2); ctx.fill();
-      row(146, L.wfs); text(ctx, '⏱ ' + s.wfs, tx, 146, ts === 0 ? c.muted : c.accent, { mono: true });
-      row(176, L.wfsr); text(ctx, '⏱ ' + s.wfsr, tx, 176, c.ok, { mono: true });
-      text(ctx, 'Time.deltaTime = ' + (sdt).toFixed(4), lx, 206, c.muted, { mono: true });
+      ctx.beginPath(); ctx.arc(tx + tw / 2, Y.box + (narrow ? 11 : 6) + s.ballY * (narrow ? 26 : 30), 6, 0, Math.PI * 2); ctx.fill();
+      row(Y.wfs, L.wfs); text(ctx, '⏱ ' + s.wfs, cx, Y.wfs, ts === 0 ? c.muted : c.accent, { mono: true, align });
+      row(Y.wfsr, L.wfsr); text(ctx, '⏱ ' + s.wfsr, cx, Y.wfsr, c.ok, { mono: true, align });
+      text(ctx, 'Time.deltaTime = ' + (sdt).toFixed(4), lx, Y.dt, c.muted, { mono: true });
       out(L.updates + ': <b>' + s.updates + '</b> · ' + L.fixedCalls + ': <b>' + s.fixed + '</b>' +
         (ts === 0 ? '<p>' + (lang === 'es'
           ? 'Con <code>timeScale = 0</code>: Update sigue corriendo, FixedUpdate y <code>WaitForSeconds</code> se congelan, lo <i>unscaled</i> continúa.'
