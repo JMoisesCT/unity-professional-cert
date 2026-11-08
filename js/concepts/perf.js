@@ -1733,7 +1733,7 @@
     ctx.beginPath(); ctx.rect(v.x, v.y, v.w, v.h); ctx.clip();
     ctx.fillStyle = c.soft; ctx.fillRect(v.x, v.y, v.w, v.h);
     ctx.fillStyle = c.bg; ctx.fillRect(v.x, v.hy, v.w, v.y + v.h - v.hy);
-    ctx.strokeStyle = c.border; ctx.lineWidth = 1;
+    ctx.strokeStyle = c.muted; ctx.globalAlpha = 0.45; ctx.lineWidth = 1;
     const seg2 = (x1, z1, x2, z2) => {
       let a = project(cam, x1, 0, z1, v), b = project(cam, x2, 0, z2, v);
       const near = 0.25;
@@ -1751,6 +1751,7 @@
       seg2(gx + i * 2, gz - 24, gx + i * 2, gz + 24);
       seg2(gx - 24, gz + i * 2, gx + 24, gz + i * 2);
     }
+    ctx.globalAlpha = 1;
     // Columnas como referencia visual
     const px0 = Math.round(cam.x / 6) * 6, pz0 = Math.round(cam.z / 6) * 6;
     for (let i = -3; i <= 3; i++) for (let j = -3; j <= 3; j++) {
@@ -1912,7 +1913,7 @@
           ctx.globalAlpha = 0.85;
           box(ctx, v.x + v.w * 0.05 + off, v.y + v.h * 0.12, v.w * 0.9, v.h * 0.76, L.menu, c.accentSoft, c.text, { stroke: c.accent });
           ctx.globalAlpha = 1;
-          text(ctx, fit(ctx, L.stuck, v.w - 10), v.x + v.w / 2, v.y + v.h - 12, c.bad, { align: 'center' });
+          text(ctx, fit(ctx, L.stuck, v.w - 10), v.x + v.w / 2, v.y + 14, c.bad, { align: 'center' });
         } else {
           text(ctx, fit(ctx, L.nothing, v.w - 10), v.x + v.w / 2, v.y + 16, c.bad, { align: 'center' });
         }
@@ -1994,15 +1995,16 @@
       const multi = mode === 'multi';
       const cycle = multi ? 3 : 1.8, tt = t % cycle, k = clamp(tt / (cycle - 0.5), 0, 1);
       // CPU
-      const cpu = nar ? [8, 8, w - 16, 50] : [8, 8, 120, h - 16];
+      const cpu = nar ? [8, 8, w - 16, 50] : [8, 8, 140, h - 16];
       panel(ctx, cpu[0], cpu[1], cpu[2], cpu[3], c.soft);
       text(ctx, L.cpu, cpu[0] + 10, cpu[1] + 14, c.text);
       const dcs = multi ? objs * 2 : objs;
-      text(ctx, L.dc + ': ' + B(dcs), cpu[0] + 10, cpu[1] + 34, multi ? c.bad : c.ok, { mono: true });
+      if (nar) text(ctx, L.dc + ': ' + B(dcs), cpu[0] + 10, cpu[1] + 34, multi ? c.bad : c.ok, { mono: true });
+      else { text(ctx, L.dc, cpu[0] + 10, cpu[1] + 36, c.muted); text(ctx, B(dcs), cpu[0] + 10, cpu[1] + 56, multi ? c.bad : c.ok, { mono: true }); }
       // Ojos
-      const ex = nar ? 8 : 140, ey = nar ? 74 : 8, ew = nar ? (w - 24) / 2 : (w - 156) / 2, eh = nar ? h - 120 : h - 60;
+      const ex = nar ? 8 : 160, ey = nar ? 84 : 22, ew = nar ? (w - 24) / 2 : (w - 176) / 2, eh = nar ? h - 130 : h - 74;
       const eyes = [[ex, L.left], [ex + ew + 8, L.right]];
-      if (!multi) { ctx.strokeStyle = c.accent; ctx.setLineDash([5, 4]); ctx.lineWidth = 1.5; ctx.strokeRect(ex - 4, ey - 4, ew * 2 + 16, eh + 8); ctx.setLineDash([]); text(ctx, L.array + ' [0, 1]', ex + ew * 2 + 8, ey + eh + 14, c.accent, { align: 'right', mono: true }); }
+      if (!multi) { ctx.strokeStyle = c.accent; ctx.setLineDash([5, 4]); ctx.lineWidth = 1.5; ctx.strokeRect(ex - 4, ey - 4, ew * 2 + 16, eh + 8); ctx.setLineDash([]); text(ctx, L.array + ' [0, 1]', ex + ew * 2 + 8, ey - 13, c.accent, { align: 'right', mono: true }); }
       eyes.forEach((e, i) => {
         panel(ctx, e[0], ey, ew, eh, c.bg, c.border);
         text(ctx, e[1] + (multi ? ' · ' + L.pass + ' ' + (i + 1) : ''), e[0] + 8, ey + 12, c.muted);
@@ -2031,8 +2033,8 @@
       // Coste
       const ms = objs * 0.006 * (multi ? 2 : 1) + 0.2;
       const by = h - 30;
-      text(ctx, L.cost + ': ' + F(ms, 1) + ' ms', nar ? 8 : 140, by + 4, c.muted);
-      meter(ctx, nar ? 8 : 140, by + 14, (nar ? w - 16 : w - 148), 9, ms / 24.2, multi ? c.bad : c.ok, c);
+      text(ctx, L.cost + ': ' + F(ms, 1) + ' ms', nar ? 8 : 160, by + 4, c.muted);
+      meter(ctx, nar ? 8 : 160, by + 14, (nar ? w - 16 : w - 168), 9, ms / 24.2, multi ? c.bad : c.ok, c);
       const lines = ['struct appdata', '{', '    float4 vertex : POSITION;', '    UNITY_VERTEX_INPUT_INSTANCE_ID', '};', 'struct v2f', '{', '    float4 pos : SV_POSITION;', '    UNITY_VERTEX_OUTPUT_STEREO', '};',
         'v2f vert(appdata v)', '{', '    v2f o;', '    UNITY_SETUP_INSTANCE_ID(v);', '    UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);', '    o.pos = TransformObjectToHClip(v.vertex.xyz);', '    return o;', '}'];
       const marks = {};
