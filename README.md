@@ -17,7 +17,8 @@ Funciona en laptop y en el celular (diseño responsive, tema claro/oscuro), est�
   6. Desarrollo en equipo (Git, testing, depuración, arquitectura)
 - **Modo práctica** por tema o por subtema, con feedback inmediato. Hay preguntas de una sola respuesta, de varias y con fragmentos de código C#.
 - **Simulacro** con tiempo, preguntas equilibradas entre temas, marcado para revisar, mapa de preguntas y resultado por tema. Si recargas la página, puedes retomarlo.
-- **Conceptos animados**: 10 demos interactivas (bucle de frames y `FixedUpdate`, `Time.deltaTime`, tunneling, `ForceMode`, `LayerMask`, object pooling, Has Exit Time, NavMesh con Carve y costes de área, `material` vs `sharedMaterial`, `Time.timeScale`). Cada una tiene sus claves para el examen y un enlace a las preguntas de ese tema.
+- **Una animación para cada pregunta**: más de 70 demos interactivas (física y triggers, `FixedUpdate`, cámara, Input System, cuaterniones, Animator, iluminación, partículas, UI, guardado, audio, NavMesh, Profiler, batching, IL2CPP, XR, Git, tests, arquitectura…). Al responder una pregunta aparece el botón **Ver animación**, que abre la demo en una ventana sin perder la pregunta. Cada concepto tiene sus claves para el examen, la lista de preguntas que explica y un botón para practicarlas.
+- **Modo estudiar**: todas las preguntas con su respuesta correcta, la explicación y su animación, para repasar en cualquier momento sin contestar. Se puede filtrar por subtema, buscar texto y ocultar las respuestas para autoevaluarse.
 - **Repaso de errores**: cada pregunta fallada se guarda hasta que la respondas bien.
 - **Guía**: estrategia para el examen, cambios de API en Unity 6, plan de 6 semanas, chuleta de "si ves X, piensa en Y", ciclo de vida de MonoBehaviour y vocabulario en inglés.
 - **Bilingüe:** toda la interfaz, las preguntas, las explicaciones y los tips están en español e inglés. Puedes cambiar de idioma en cualquier momento, incluso a mitad de una pregunta o de un simulacro, sin perder tu respuesta. El idioma elegido se recuerda.
@@ -72,6 +73,8 @@ Para la versión en inglés, añade la misma pregunta (con el mismo `id`) en el 
 
 Si una pregunta no tiene traducción, se muestra en español.
 
+Cada pregunta debe tener al menos un concepto animado que la explique: añade su `id` a la lista `questions` del concepto correspondiente en `js/concepts.js` o `js/concepts/*.js` (o crea un concepto nuevo con el kit `UCP.conceptKit`).
+
 ## Estructura
 
 ```
@@ -81,6 +84,7 @@ js/core.js          Registro del banco de preguntas y traducciones
 js/data/*.js        Preguntas, objetivos y tips de cada tema (español)
 js/data/en/*.js     Traducción al inglés de cada tema
 js/i18n.js          Textos de la interfaz y de la guía (es / en)
-js/concepts.js      Conceptos animados (demos en canvas, es / en)
-js/app.js           Lógica: práctica, simulacro, repaso, guía e idioma
+js/concepts.js      Kit de demos (UCP.conceptKit) y primeros conceptos animados (canvas, es / en)
+js/concepts/*.js    Conceptos animados de cada tema; cada uno indica qué preguntas explica
+js/app.js           Lógica: práctica, simulacro, repaso, modo estudiar, conceptos, guía e idioma
 ```

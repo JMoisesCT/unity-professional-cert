@@ -901,3 +901,134 @@ table.history th { color: var(--text-soft); font-weight: 600; font-size: .8rem; 
 @media (min-width: 760px) and (max-width: 940px) {
   .brand-text { display: none; }
 }
+
+/* Kit de demos: código con líneas marcadas y casillas */
+.demo-code { margin: 10px 0 0; font-size: .8rem; }
+.demo-code code { display: block; }
+.demo-code .cl { display: block; padding: 0 6px; margin: 0 -6px; border-left: 3px solid transparent; white-space: pre; }
+.demo-code .cl-hl { background: rgba(107, 140, 255, .18); border-left-color: var(--accent); }
+.demo-code .cl-ok { background: rgba(52, 211, 153, .14); border-left-color: var(--ok); }
+.demo-code .cl-bad { background: rgba(248, 113, 113, .16); border-left-color: var(--bad); }
+.demo-code .cl-off { opacity: .38; }
+.demo-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: .86rem; font-weight: 600; color: var(--text-soft); min-height: 38px; cursor: pointer; }
+.demo-toggle input { width: 18px; height: 18px; accent-color: var(--accent); }
+
+/* ---------- Enlaces a la animación de cada pregunta ---------- */
+
+.concept-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.concept-link {
+  flex: 1 1 240px;
+  justify-content: flex-start;
+  gap: 10px;
+  text-align: left;
+  background: var(--bg-elev);
+  border-color: var(--accent);
+  min-height: 48px;
+}
+.concept-link:hover { background: var(--accent-soft); }
+.concept-link .cl-icon { font-size: 1.35rem; line-height: 1; flex: none; }
+.concept-link > span:last-child { display: flex; flex-direction: column; min-width: 0; }
+.concept-link b { color: var(--accent); font-size: .9rem; }
+.concept-link b + span { font-size: .8rem; font-weight: 500; color: var(--text-soft); overflow-wrap: anywhere; }
+
+.feedback.info { background: var(--accent-soft); border-color: var(--accent); }
+.feedback.info .fb-title { color: var(--accent); }
+
+/* ---------- Ventana modal con la animación ---------- */
+
+body.modal-open { overflow: hidden; }
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(8, 11, 18, .62);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow-y: auto;
+  padding: 16px 10px calc(16px + env(safe-area-inset-bottom));
+  overscroll-behavior: contain;
+}
+.modal {
+  width: 100%;
+  max-width: 900px;
+  margin: auto 0;
+  animation: modal-in .18s ease-out;
+}
+.modal h2 { margin: 6px 0 8px; }
+.modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.modal-head .qmeta { margin: 0; }
+.modal-close {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  color: var(--text);
+  font-size: 1rem;
+  cursor: pointer;
+}
+.modal-close:hover { border-color: var(--accent); }
+.modal-sub { margin: 18px 0 10px; font-size: 1rem; }
+.modal-actions { margin-top: 16px; }
+@keyframes modal-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* ---------- Modo estudiar ---------- */
+
+.banners { margin: 16px 0 0; }
+.banners .concepts-banner { margin: 0; }
+.study-search {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  margin-bottom: 12px;
+}
+.study-search:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.study-chips .chip { cursor: pointer; font: inherit; font-size: .84rem; font-weight: 600; }
+.chip.on { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.study-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 14px; margin-top: 10px; }
+.study-list { display: flex; flex-direction: column; gap: 14px; margin-top: 16px; }
+.study-card { margin: 0; scroll-margin-top: 80px; }
+.study-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.study-num {
+  display: inline-grid; place-items: center;
+  min-width: 28px; height: 28px; padding: 0 6px;
+  border-radius: 8px; background: var(--bg-soft); color: var(--text-soft);
+  font-weight: 800; font-size: .85rem;
+}
+.study-reveal { display: none; margin-left: auto; min-height: 34px; padding: 5px 12px; font-size: .85rem; }
+.hide-answers .study-reveal { display: inline-flex; }
+.hide-answers .study-card.show .study-reveal { opacity: .6; }
+.hide-answers .study-card:not(.show) .opt.correct { border-color: var(--border); background: var(--bg-elev); }
+.hide-answers .study-card:not(.show) .opt.correct .opt-key { background: var(--bg-soft); color: var(--text-soft); }
+.hide-answers .study-card:not(.show) .opt-mark,
+.hide-answers .study-card:not(.show) .study-answer { display: none; }
+.study-card .opt:disabled { opacity: 1; }
+.study-card.flash { animation: flash 1.6s ease-out; }
+@keyframes flash { 0%, 30% { box-shadow: 0 0 0 3px var(--accent); } 100% { box-shadow: var(--shadow); } }
+.qstatus { font-size: .74rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.qstatus.ok { background: var(--ok-soft); color: var(--ok); }
+.qstatus.bad { background: var(--bad-soft); color: var(--bad); }
+.related-list li a { color: var(--text); }
+.related-list li a:hover { color: var(--accent); }
+
+/* Seis secciones en la navegación: algo más compactas en pantallas medianas. */
+@media (min-width: 760px) and (max-width: 1080px) {
+  .nav a { padding: 8px 8px; font-size: .84rem; }
+}
+@media (min-width: 760px) and (max-width: 900px) {
+  .nav a span { display: none; }
+  .brand-text { display: inline; }
+}
+@media (min-width: 901px) and (max-width: 1139px) {
+  .brand-text { display: none; }
+}
+@media (min-width: 1140px) {
+  .topbar-inner { max-width: 1120px; }
+}

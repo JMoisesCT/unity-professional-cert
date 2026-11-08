@@ -123,6 +123,17 @@
   }
 
   const CONCEPTS = UCP.concepts || [];
+  const CONCEPT = {};
+  // Pregunta → conceptos animados que la explican.
+  const QCONCEPTS = {};
+  CONCEPTS.forEach((cc) => {
+    CONCEPT[cc.id] = cc;
+    (cc.questions || []).forEach((qid) => {
+      if (!Q[qid]) return;
+      (QCONCEPTS[qid] = QCONCEPTS[qid] || []).push(cc);
+    });
+  });
+  function conceptQuestions(cc) { return (cc.questions || []).filter((id) => Q[id]); }
 
   // Concepto en el idioma actual.
   function LC(cc) {
@@ -147,6 +158,7 @@
     try { localStorage.setItem(LANG_KEY, next); } catch (e) { /* noop */ }
     applyStaticTexts();
     refresh();
+    if (modal) openConceptModal(modal.id, modal.opener);
   }
 
   /* =========================================================
@@ -193,6 +205,8 @@
     out += esc(code.slice(last));
     return out;
   }
+
+  UCP.highlight = highlight;
 
   function shuffle(arr) {
     const a = arr.slice();
@@ -258,6 +272,10 @@
 
   let keyHandler = null;
   document.addEventListener('keydown', (e) => {
+    if (modal) {
+      if (e.key === 'Escape') { e.preventDefault(); closeConceptModal(); }
+      return;
+    }
     if (!keyHandler || e.ctrlKey || e.metaKey || e.altKey) return;
     const tag = (e.target.tagName || '').toLowerCase();
     if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
@@ -276,18 +294,21 @@
     const revealed = !!opts.revealed;
     const correctNow = revealed && sameSet(item.selected, q.answer);
 
+    const study = !!opts.study;
     const options = item.order.map((orig, i) => {
       const sel = item.selected.includes(orig);
       const isAns = q.answer.includes(orig);
       let cls = 'opt' + (multi ? ' multi' : '');
       let mark = '';
-      if (revealed) {
+      if (study) {
+        if (isAns) { cls += ' correct'; mark = '✓'; }
+      } else if (revealed) {
         if (isAns) { cls += ' correct'; mark = '✓'; if (!sel) cls += ' missed'; }
         else if (sel) { cls += ' wrong'; mark = '✗'; }
       } else if (sel) {
         cls += ' selected';
       }
-      return '<button type="button" class="' + cls + '" data-opt="' + orig + '" role="' + (multi ? 'checkbox' : 'radio') + '" aria-checked="' + sel + '"' + (revealed ? ' disabled' : '') + '>' +
+      return '<button type="button" class="' + cls + '" data-opt="' + orig + '" role="' + (multi ? 'checkbox' : 'radio') + '" aria-checked="' + (study ? isAns : sel) + '"' + (revealed || study ? ' disabled' : '') + '>' +
         '<span class="opt-key">' + LETTERS[i] + '</span>' +
         '<span class="opt-text">' + fmt(lq.options[orig]) + '</span>' +
         (mark ? '<span class="opt-mark" aria-hidden="true">' + mark + '</span>' : '') +
@@ -295,12 +316,16 @@
     }).join('');
 
     let feedback = '';
-    if (revealed && opts.showFeedback !== false) {
+    if (study) {
+      feedback = '<div class="feedback info study-answer">' +
+        '<div class="fb-title">' + t('explanationTitle') + '</div>' +
+        '<p>' + fmt(lq.explanation) + '</p>' + conceptLinks(q.id) + '</div>';
+    } else if (revealed && opts.showFeedback !== false) {
       const answered = item.selected.length > 0;
       const title = correctNow ? t('correct') : (answered ? t('incorrect') : t('unanswered'));
       feedback = '<div class="feedback ' + (correctNow ? 'ok' : 'bad') + '" role="status">' +
         '<div class="fb-title">' + title + '</div>' +
-        '<p>' + fmt(lq.explanation) + '</p></div>';
+        '<p>' + fmt(lq.explanation) + '</p>' + conceptLinks(q.id) + '</div>';
     }
 
     return '<div class="qmeta">' +
@@ -312,6 +337,18 @@
       (multi ? '<div class="hint">' + t('selectN', q.answer.length) + '</div>' : '') +
       '<div class="options" role="' + (multi ? 'group' : 'radiogroup') + '">' + options + '</div>' +
       feedback;
+  }
+
+  // Botones "Ver animación" de los conceptos que explican una pregunta.
+  function conceptLinks(qid) {
+    const list = QCONCEPTS[qid] || [];
+    if (!list.length) return '';
+    return '<div class="concept-links">' + list.map((cc) =>
+      '<button type="button" class="btn concept-link" data-concept="' + cc.id + '" data-qid="' + qid + '">' +
+        '<span class="cl-icon" aria-hidden="true">' + cc.icon + '</span>' +
+        '<span><b>' + t('watchAnimation') + '</b><span>' + esc(LC(cc).title) + '</span></span>' +
+      '</button>'
+    ).join('') + '</div>';
   }
 
   function toggleSelection(item, orig) {
@@ -327,6 +364,67 @@
   function readyToCheck(item) {
     return item.selected.length === Q[item.id].answer.length;
   }
+
+  /* =========================================================
+     Ventana con la animación de un concepto (sin salir de la pregunta)
+     ========================================================= */
+
+  let modal = null;
+
+  function openConceptModal(id, opener) {
+    const cc = CONCEPT[id];
+    if (!cc) return;
+    closeConceptModal(true);
+    const lc = LC(cc);
+    const d = DOMAIN[cc.domain];
+    const wrap = document.createElement('div');
+    wrap.className = 'modal-backdrop';
+    wrap.innerHTML =
+      '<div class="modal card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">' +
+        '<div class="modal-head">' +
+          '<div class="qmeta"><span class="tag">' + d.order + '. ' + esc(LD(d).title) + '</span><span class="tag tag-soft">' + t('interactive') + '</span></div>' +
+          '<button type="button" class="modal-close" data-close aria-label="' + esc(t('close')) + '" title="' + esc(t('close')) + '">✕</button>' +
+        '</div>' +
+        '<h2 id="modalTitle">' + cc.icon + ' ' + esc(lc.title) + '</h2>' +
+        '<p>' + fmt(lc.summary) + '</p>' +
+        '<div class="demo" id="modalDemo"></div>' +
+        '<h3 class="modal-sub">' + t('keyPoints') + '</h3>' +
+        '<ul class="tips-list">' + lc.points.map((pt) => '<li>' + fmt(pt) + '</li>').join('') + '</ul>' +
+        '<div class="btn-row modal-actions">' +
+          '<button type="button" class="btn btn-primary" data-close>' + t('backToQuestion') + '</button>' +
+          '<a class="btn" href="#/concepto/' + cc.id + '">' + t('openFullPage') + '</a>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(wrap);
+    document.body.classList.add('modal-open');
+    let destroy = null;
+    try { destroy = cc.mount(wrap.querySelector('#modalDemo'), lang); }
+    catch (e) { wrap.querySelector('#modalDemo').innerHTML = '<p class="muted">' + esc(String(e)) + '</p>'; }
+    modal = { id, el: wrap, destroy, opener: opener || null };
+    wrap.addEventListener('click', (e) => {
+      if (e.target === wrap || e.target.closest('[data-close]')) closeConceptModal();
+    });
+    const closeBtn = wrap.querySelector('.modal-close');
+    if (closeBtn) closeBtn.focus({ preventScroll: true });
+  }
+
+  function closeConceptModal(silent) {
+    if (!modal) return;
+    const m = modal;
+    modal = null;
+    if (m.destroy) { try { m.destroy(); } catch (e) { /* noop */ } }
+    m.el.remove();
+    document.body.classList.remove('modal-open');
+    if (!silent && m.opener && document.body.contains(m.opener)) m.opener.focus({ preventScroll: true });
+  }
+
+  // Delegación: cualquier botón con data-concept abre su animación.
+  app.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-concept]');
+    if (!b) return;
+    e.preventDefault();
+    openConceptModal(b.dataset.concept, b);
+  });
 
   /* =========================================================
      Inicio
@@ -368,7 +466,10 @@
         '<a href="#/tips"><span class="qicon">📘</span><b>' + t('quickGuide') + '</b><span>' + t('quickGuideSub') + '</span></a>' +
       '</nav>' +
 
-      '<a class="card concepts-banner" href="#/conceptos"><span class="qicon">🧪</span><span><b>' + t('conceptsBanner', CONCEPTS.length) + '</b><span>' + t('conceptsBannerSub') + '</span></span><span class="arrow" aria-hidden="true">→</span></a>' +
+      '<div class="grid grid-2 banners">' +
+        '<a class="card concepts-banner" href="#/estudiar"><span class="qicon">📖</span><span><b>' + t('studyBanner') + '</b><span>' + t('studyBannerSub', QUESTIONS.length) + '</span></span><span class="arrow" aria-hidden="true">→</span></a>' +
+        '<a class="card concepts-banner" href="#/conceptos"><span class="qicon">🧪</span><span><b>' + t('conceptsBanner', CONCEPTS.length) + '</b><span>' + t('conceptsBannerSub') + '</span></span><span class="arrow" aria-hidden="true">→</span></a>' +
+      '</div>' +
 
       '<div class="section-title"><h2>' + t('domainsTitle') + '</h2><span class="muted small">' + t('domainsHint') + '</span></div>' +
       '<div class="grid grid-2">' + domainCards + '</div>',
@@ -414,6 +515,7 @@
           '<a class="btn btn-primary" href="#/practica?d=' + d.id + '">' + t('practiceAll') + '</a>' +
           '<a class="btn" href="#/practica?d=' + d.id + '&m=new">' + t('onlyNew', s.total - s.seen) + '</a>' +
           '<a class="btn" href="#/practica?d=' + d.id + '&m=wrong">' + t('onlyWrong', wrong) + '</a>' +
+          '<a class="btn" href="#/estudiar/' + d.id + '">📖 ' + t('studyThis') + '</a>' +
         '</div>' +
       '</section>' +
 
@@ -442,7 +544,8 @@
 
   function practiceTitle(p) {
     let title;
-    if (p.scope === 'mistakes') title = t('mistakesTitle');
+    if (p.concept) title = LC(CONCEPT[p.concept]).title;
+    else if (p.scope === 'mistakes') title = t('mistakesTitle');
     else if (DOMAIN[p.scope]) title = LD(DOMAIN[p.scope]).title;
     else title = t('allDomains');
     if (p.topic) {
@@ -458,10 +561,14 @@
     const scope = params.get('d') || 'all';
     const mode = params.get('m') || 'all';
     const topic = params.get('t');
+    const concept = CONCEPT[params.get('c')] ? params.get('c') : null;
 
     let pool;
     let backHref = '#/';
-    if (scope === 'mistakes') {
+    if (concept) {
+      pool = conceptQuestions(CONCEPT[concept]).map((id) => Q[id]);
+      backHref = '#/concepto/' + concept;
+    } else if (scope === 'mistakes') {
       pool = store.mistakes.map((id) => Q[id]).filter(Boolean);
       backHref = '#/repaso';
     } else if (DOMAIN[scope]) {
@@ -486,6 +593,7 @@
       scope,
       mode,
       topic,
+      concept,
       backHref,
       items: shuffle(pool.map((q) => q.id)).map(makeItem),
       idx: 0,
@@ -1068,7 +1176,16 @@
     const d = DOMAIN[cc.domain];
     const prev = CONCEPTS[(idx - 1 + CONCEPTS.length) % CONCEPTS.length];
     const next = CONCEPTS[(idx + 1) % CONCEPTS.length];
-    const practiceHref = '#/practica?d=' + cc.practice.d + (cc.practice.t ? '&t=' + encodeURIComponent(cc.practice.t) : '');
+    const qids = conceptQuestions(cc);
+    const practiceHref = qids.length ? '#/practica?c=' + cc.id
+      : (cc.practice ? '#/practica?d=' + cc.practice.d + (cc.practice.t ? '&t=' + encodeURIComponent(cc.practice.t) : '') : '#/tema/' + cc.domain);
+    const related = qids.length
+      ? '<div class="section-title"><h2>' + t('relatedQuestions') + '</h2></div>' +
+        '<section class="card related-list"><ul class="list">' + qids.map((id) => {
+          const q = Q[id];
+          return '<li><a href="#/estudiar/' + q.domain + '?q=' + id + '">' + esc(plain(LQ(q).q)) + '</a> ' + statusBadge(id) + '</li>';
+        }).join('') + '</ul></section>'
+      : '';
 
     render(
       '<a class="back" href="#/conceptos">' + t('backConcepts') + '</a>' +
@@ -1080,8 +1197,9 @@
       '</section>' +
       '<div class="section-title"><h2>' + t('keyPoints') + '</h2></div>' +
       '<ul class="tips-list">' + lc.points.map((pt) => '<li>' + fmt(pt) + '</li>').join('') + '</ul>' +
+      related +
       '<div class="btn-row" style="margin-top:16px">' +
-        '<a class="btn btn-primary" href="' + practiceHref + '">' + t('practiceThis') + '</a>' +
+        '<a class="btn btn-primary" href="' + practiceHref + '">' + (qids.length ? t('practiceConcept', qids.length) : t('practiceThis')) + '</a>' +
         '<a class="btn" href="#/concepto/' + prev.id + '">← ' + esc(LC(prev).title) + '</a>' +
         '<a class="btn" href="#/concepto/' + next.id + '">' + esc(LC(next).title) + ' →</a>' +
       '</div>',
@@ -1094,6 +1212,129 @@
     }
   }
 
+  /* =========================================================
+     Modo estudiar: todas las preguntas con respuesta, explicación y animación
+     ========================================================= */
+
+  let studyHide = false;
+
+  function statusBadge(qid) {
+    const s = store.stats[qid];
+    if (store.mistakes.includes(qid)) return '<span class="qstatus bad" title="' + esc(t('statusWrong')) + '">✗ ' + t('statusWrong') + '</span>';
+    if (s && s.last) return '<span class="qstatus ok" title="' + esc(t('statusRight')) + '">✓ ' + t('statusRight') + '</span>';
+    return '';
+  }
+
+  function viewStudyIndex() {
+    const cards = DOMAINS.map((d) => {
+      const ld = LD(d);
+      const nc = CONCEPTS.filter((cc) => cc.domain === d.id).length;
+      return '<a class="card domain-card" href="#/estudiar/' + d.id + '">' +
+        '<div class="domain-num">' + d.order + '</div>' +
+        '<div class="domain-body"><h3>' + esc(ld.title) + '</h3>' +
+          '<div class="domain-meta"><span>' + t('questionsN', d.questions.length) + '</span><span>' + t('animationsN', nc) + '</span></div>' +
+        '</div></a>';
+    }).join('');
+    render(
+      '<section class="card">' +
+        '<h1>📖 ' + t('studyTitle') + '</h1>' +
+        '<p class="muted" style="margin:0">' + t('studyIntro') + '</p>' +
+        '<div class="btn-row" style="margin-top:14px"><a class="btn btn-primary" href="#/estudiar/all">' + t('studyAll', QUESTIONS.length) + '</a></div>' +
+      '</section>' +
+      '<div class="section-title"><h2>' + t('domainsTitle') + '</h2></div>' +
+      '<div class="grid grid-2">' + cards + '</div>',
+      'study'
+    );
+  }
+
+  function viewStudy(scope, params) {
+    const d = DOMAIN[scope];
+    if (!d && scope !== 'all') return viewNotFound();
+    const list = d ? d.questions : DOMAINS.reduce((a, x) => a.concat(x.questions), []);
+    const focus = params.get('q');
+    let topic = params.get('t') || '';
+    let query = '';
+
+    const topics = [];
+    const topicLabel = {};
+    list.forEach((q) => {
+      const key = (d ? '' : q.domain + '|') + q.topic;
+      if (!topicLabel[key]) { topics.push(key); topicLabel[key] = LQ(q).topic; }
+    });
+
+    const cards = list.map((q, i) => {
+      const lq = LQ(q);
+      const item = { id: q.id, order: q.options.map((_, k) => k), selected: [] };
+      const key = (d ? '' : q.domain + '|') + q.topic;
+      const hay = (plain(lq.q) + ' ' + lq.options.map(plain).join(' ') + ' ' + plain(lq.explanation) + ' ' + (q.code || '')).toLowerCase();
+      return '<article class="card study-card" id="q-' + q.id + '" data-topic="' + esc(key) + '" data-hay="' + esc(hay) + '">' +
+        '<div class="study-head"><span class="study-num">' + (i + 1) + '</span>' + statusBadge(q.id) +
+          '<button type="button" class="btn btn-ghost study-reveal">' + t('studyShow') + '</button></div>' +
+        questionHTML(item, { study: true }) +
+      '</article>';
+    }).join('');
+
+    const title = d ? LD(d).title : t('allDomains');
+    render(
+      '<a class="back" href="#/estudiar">' + t('backStudy') + '</a>' +
+      '<section class="card">' +
+        '<h1>📖 ' + esc(title) + '</h1>' +
+        '<p class="muted" style="margin:0 0 12px">' + t('studyIntroShort') + '</p>' +
+        '<input type="search" class="study-search" id="studySearch" placeholder="' + esc(t('studySearch')) + '" aria-label="' + esc(t('studySearch')) + '">' +
+        '<div class="chips study-chips" id="studyChips">' +
+          '<button type="button" class="chip" data-topic="">' + t('allTopics') + '</button>' +
+          topics.map((k) => '<button type="button" class="chip" data-topic="' + esc(k) + '">' + esc(topicLabel[k]) + '</button>').join('') +
+        '</div>' +
+        '<div class="study-tools">' +
+          '<label class="demo-toggle"><input type="checkbox" id="studyHide"' + (studyHide ? ' checked' : '') + '><span>' + t('studyHide') + '</span></label>' +
+          '<span class="muted small" id="studyCount"></span>' +
+        '</div>' +
+      '</section>' +
+      '<div class="study-list' + (studyHide ? ' hide-answers' : '') + '" id="studyList">' + cards + '</div>' +
+      '<p class="muted center" id="studyEmpty" hidden>' + t('studyNone') + '</p>',
+      'study'
+    );
+    refresh = () => {
+      const y = window.scrollY;
+      viewStudy(scope, new URLSearchParams(topic ? 't=' + encodeURIComponent(topic) : ''));
+      window.scrollTo(0, y);
+    };
+
+    const listEl = document.getElementById('studyList');
+    const cardEls = Array.from(listEl.querySelectorAll('.study-card'));
+    const chipEls = Array.from(document.querySelectorAll('#studyChips .chip'));
+    function apply() {
+      let n = 0;
+      cardEls.forEach((c) => {
+        const show = (!topic || c.dataset.topic === topic) && (!query || c.dataset.hay.includes(query));
+        c.hidden = !show;
+        if (show) n++;
+      });
+      chipEls.forEach((c) => c.classList.toggle('on', c.dataset.topic === topic));
+      document.getElementById('studyCount').textContent = t('studyCount', n, cardEls.length);
+      document.getElementById('studyEmpty').hidden = n > 0;
+    }
+    chipEls.forEach((c) => { c.onclick = () => { topic = c.dataset.topic; apply(); }; });
+    document.getElementById('studySearch').oninput = (e) => { query = e.target.value.trim().toLowerCase(); apply(); };
+    document.getElementById('studyHide').onchange = (e) => {
+      studyHide = e.target.checked;
+      listEl.classList.toggle('hide-answers', studyHide);
+      cardEls.forEach((c) => c.classList.remove('show'));
+    };
+    listEl.querySelectorAll('.study-reveal').forEach((b) => {
+      b.onclick = () => b.closest('.study-card').classList.toggle('show');
+    });
+    if (!topicLabel[topic]) topic = '';
+    apply();
+
+    if (focus && document.getElementById('q-' + focus)) {
+      const target = document.getElementById('q-' + focus);
+      target.hidden = false;
+      target.classList.add('show', 'flash');
+      requestAnimationFrame(() => target.scrollIntoView({ block: 'start' }));
+    }
+  }
+
   function viewNotFound() {
     render('<section class="card empty"><div class="big">🧭</div><h2>' + t('notFound') + '</h2><p><a href="#/">' + t('backToHome') + '</a></p></section>', 'home');
   }
@@ -1103,6 +1344,7 @@
      ========================================================= */
 
   function route() {
+    closeConceptModal(true);
     const raw = location.hash.replace(/^#\/?/, '');
     const [path, query] = raw.split('?');
     const parts = path.split('/').filter(Boolean).map(decodeURIComponent);
@@ -1118,6 +1360,7 @@
       case 'tips': return viewTips();
       case 'conceptos': return viewConcepts();
       case 'concepto': return viewConcept(parts[1]);
+      case 'estudiar': return parts[1] ? viewStudy(parts[1], params) : viewStudyIndex();
       default: return viewNotFound();
     }
   }
