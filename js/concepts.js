@@ -165,6 +165,86 @@
 
   function code(s) { return '<code>' + s + '</code>'; }
 
+  function escHTML(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  // Bloque de código C# con resaltado. set(code, lines) marca las líneas indicadas (índices desde 0).
+  // lineClass puede ser 'hl' (resaltado), 'off' (código que no se compila / atenuado), 'ok' o 'bad'.
+  function codeBlock(host) {
+    const pre = el('pre', 'code demo-code');
+    const c = el('code');
+    pre.appendChild(c);
+    host.appendChild(pre);
+    let last = '';
+    return (src, marks) => {
+      marks = marks || {};
+      const key = src + '|' + JSON.stringify(marks);
+      if (key === last) return;
+      last = key;
+      const hl = UCP.highlight || escHTML;
+      c.innerHTML = src.split('\n').map((line, i) => {
+        const m = marks[i];
+        return '<span class="cl' + (m ? ' cl-' + m : '') + '">' + (line ? hl(line) : ' ') + '</span>';
+      }).join('');
+    };
+  }
+
+  // Casilla de verificación con etiqueta.
+  function toggle(parent, label, value, onChange) {
+    const w = el('label', 'demo-toggle');
+    const input = el('input');
+    input.type = 'checkbox';
+    input.checked = !!value;
+    input.addEventListener('change', () => onChange(input.checked));
+    w.appendChild(input);
+    w.appendChild(el('span', '', label));
+    parent.appendChild(w);
+    return input;
+  }
+
+  // Arrastre con puntero (ratón o dedo) sobre el canvas de un stage. Coordenadas en píxeles CSS.
+  function drag(stage, h) {
+    const cv = stage.cv;
+    cv.style.touchAction = 'none';
+    cv.style.cursor = 'grab';
+    let down = false;
+    const pos = (e) => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+    cv.addEventListener('pointerdown', (e) => { down = true; try { cv.setPointerCapture(e.pointerId); } catch (x) { /* noop */ } const p = pos(e); if (h.down) h.down(p[0], p[1]); });
+    cv.addEventListener('pointermove', (e) => { if (!down) return; const p = pos(e); if (h.move) h.move(p[0], p[1]); });
+    const end = (e) => { if (!down) return; down = false; const p = pos(e); if (h.up) h.up(p[0], p[1]); };
+    cv.addEventListener('pointerup', end);
+    cv.addEventListener('pointercancel', end);
+  }
+
+  function arrow(ctx, x1, y1, x2, y2, color, width) {
+    const a = Math.atan2(y2 - y1, x2 - x1);
+    const hs = 6 + (width || 2);
+    ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = width || 2;
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2 - Math.cos(a) * hs * 0.6, y2 - Math.sin(a) * hs * 0.6); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(x2 - hs * Math.cos(a - 0.45), y2 - hs * Math.sin(a - 0.45));
+    ctx.lineTo(x2 - hs * Math.cos(a + 0.45), y2 - hs * Math.sin(a + 0.45));
+    ctx.closePath(); ctx.fill();
+  }
+
+  // Caja con texto centrado (nodos de diagramas, estados, bloques).
+  function box(ctx, x, y, w, h, label, fill, color, opts) {
+    opts = opts || {};
+    ctx.fillStyle = fill;
+    roundRect(ctx, x, y, w, h, opts.r === undefined ? 8 : opts.r); ctx.fill();
+    if (opts.stroke) { ctx.strokeStyle = opts.stroke; ctx.lineWidth = opts.lw || 1.5; ctx.stroke(); }
+    if (label) text(ctx, label, x + w / 2, y + h / 2, color, { align: 'center', mono: opts.mono });
+  }
+
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const ease = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+
+  // Kit compartido con los archivos de js/concepts/*.js
+  UCP.conceptKit = { colors, FONT, MONO, el, makeCanvas, loop, controls, button, seg, slider, toggle, readout, roundRect, text, code, codeBlock, drag, arrow, box, lerp, clamp, ease, esc: escHTML };
+
   /* ---------------------------------------------------------
      1. Ciclo de vida y bucle de frames (FixedUpdate vs Update)
      --------------------------------------------------------- */
@@ -638,15 +718,24 @@
 
   function mountExitTime(host, lang) {
     const L = {
-      es: { on: 'Has Exit Time: ON', off: 'Has Exit Time: OFF', trigger: 'SetTrigger("Attack")', pending: 'Trigger activo (esperando transición)', delay: 'Retraso desde SetTrigger', idle: 'Idle (en bucle)', attack: 'Attack', exit: 'Exit Time 0.9' },
-      en: { on: 'Has Exit Time: ON', off: 'Has Exit Time: OFF', trigger: 'SetTrigger("Attack")', pending: 'Trigger set (waiting for transition)', delay: 'Delay since SetTrigger', idle: 'Idle (looping)', attack: 'Attack', exit: 'Exit Time 0.9' }
+      es: { on: 'Has Exit Time: ON', off: 'Has Exit Time: OFF', trigger: 'SetTrigger("Attack")', stun: 'Aturdir (estado Stun)', reset: 'ResetTrigger("Attack")',
+        pending: 'activo, esperando una transición que lo consuma', delay: 'Retraso desde SetTrigger', idle: 'Idle (en bucle)', attack: 'Attack', stunS: 'Stun (sin transición a Attack)', exit: 'Exit Time 0.9',
+        inStun: 'En Stun ninguna transición usa <code>Attack</code>: el trigger se queda activo.', late: '⚠️ El trigger seguía activo desde el Stun y se consumió al volver a Idle: ataque "fantasma". Llama a <code>ResetTrigger</code> si ya no lo quieres.',
+        cleared: '<code>ResetTrigger</code> limpió el trigger: no habrá ataque fantasma.' },
+      en: { on: 'Has Exit Time: ON', off: 'Has Exit Time: OFF', trigger: 'SetTrigger("Attack")', stun: 'Stun (Stun state)', reset: 'ResetTrigger("Attack")',
+        pending: 'set, waiting for a transition to consume it', delay: 'Delay since SetTrigger', idle: 'Idle (looping)', attack: 'Attack', stunS: 'Stun (no transition to Attack)', exit: 'Exit Time 0.9',
+        inStun: 'No transition in Stun uses <code>Attack</code>: the trigger stays set.', late: '⚠️ The trigger was still set from the Stun and was consumed back in Idle: a "ghost" attack. Call <code>ResetTrigger</code> if you no longer want it.',
+        cleared: '<code>ResetTrigger</code> cleared the trigger: no ghost attack.' }
     }[lang];
-    const IDLE = 1.5, ATTACK = 0.8, EXIT = 0.9;
-    let exitTime = true, state = 'idle', tIdle = 0, tAtk = 0, trig = false, trigAt = 0, now = 0, lastDelay = null;
+    const IDLE = 1.5, ATTACK = 0.8, EXIT = 0.9, STUN = 2.2;
+    let exitTime = true, state = 'idle', tIdle = 0, tAtk = 0, tStun = 0, trig = false, trigAt = 0, now = 0, lastDelay = null;
+    let trigInStun = false, note = '';
     const ctl = controls(host);
     seg(ctl, [{ v: true, l: L.on }, { v: false, l: L.off }], true, (v) => { exitTime = v; });
-    button(ctl, L.trigger, () => { trig = true; trigAt = now; }, true);
-    const stage = makeCanvas(host, 160);
+    button(ctl, L.trigger, () => { trig = true; trigAt = now; trigInStun = state === 'stun'; note = trigInStun ? L.inStun : ''; }, true);
+    button(ctl, L.stun, () => { if (state !== 'attack') { state = 'stun'; tStun = 0; note = trig ? L.inStun : ''; trigInStun = trig; } });
+    button(ctl, L.reset, () => { if (trig) note = L.cleared; trig = false; trigInStun = false; });
+    const stage = makeCanvas(host, 200);
     const out = readout(host);
 
     const stop = loop((dt) => {
@@ -658,41 +747,50 @@
         const crossed = (prevN < EXIT && n >= EXIT) || (n < prevN && prevN < EXIT);
         if (trig && (!exitTime || crossed)) {
           trig = false; state = 'attack'; tAtk = 0; lastDelay = now - trigAt;
+          note = trigInStun ? L.late : ''; trigInStun = false;
         }
-      } else {
+      } else if (state === 'attack') {
         tAtk += dt;
         if (tAtk >= ATTACK) { state = 'idle'; tIdle = 0; }
+      } else {
+        tStun += dt;
+        if (tStun >= STUN) { state = 'idle'; tIdle = 0; }
       }
       const c = colors();
-      const { ctx, w, h } = stage;
-      ctx.clearRect(0, 0, w, h);
-      const bw = Math.min(150, w * 0.35);
-      const drawState = (x, label, active, progress) => {
-        ctx.fillStyle = active ? c.accent : c.soft;
-        roundRect(ctx, x, 20, bw, 46, 10); ctx.fill();
-        text(ctx, label, x + bw / 2, 36, active ? '#fff' : c.text, { align: 'center' });
+      const { ctx, w } = stage;
+      ctx.clearRect(0, 0, w, stage.h);
+      const bw = Math.min(150, w * 0.36);
+      const drawState = (x, y, label, active, progress, color) => {
+        ctx.fillStyle = active ? (color || c.accent) : c.soft;
+        roundRect(ctx, x, y, bw, 46, 10); ctx.fill();
+        text(ctx, label, x + bw / 2, y + 16, active ? '#fff' : c.text, { align: 'center' });
         ctx.fillStyle = active ? 'rgba(255,255,255,.35)' : c.border;
-        ctx.fillRect(x + 10, 52, bw - 20, 5);
+        ctx.fillRect(x + 10, y + 32, bw - 20, 5);
         ctx.fillStyle = active ? '#fff' : c.muted;
-        ctx.fillRect(x + 10, 52, (bw - 20) * progress, 5);
+        ctx.fillRect(x + 10, y + 32, (bw - 20) * progress, 5);
       };
-      const xA = 14, xB = w - bw - 14;
-      drawState(xA, L.idle, state === 'idle', (tIdle % IDLE) / IDLE);
-      drawState(xB, L.attack, state === 'attack', state === 'attack' ? tAtk / ATTACK : 0);
+      const xA = 14, xB = w - bw - 14, xS = (w - bw) / 2;
+      drawState(xA, 20, L.idle, state === 'idle', (tIdle % IDLE) / IDLE);
+      drawState(xB, 20, L.attack, state === 'attack', state === 'attack' ? tAtk / ATTACK : 0);
+      drawState(xS, 112, w < 420 ? 'Stun' : L.stunS, state === 'stun', state === 'stun' ? tStun / STUN : 0, c.warn);
       if (exitTime) {
         ctx.fillStyle = c.warn;
         ctx.fillRect(xA + 10 + (bw - 20) * EXIT - 1, 48, 2, 13);
-        text(ctx, L.exit, xA + 10 + (bw - 20) * EXIT, 76, c.warn, { align: 'center' });
+        text(ctx, L.exit, xA + 10 + (bw - 20) * EXIT, 74, c.warn, { align: 'center' });
       }
-      ctx.strokeStyle = trig ? c.warn : c.border; ctx.lineWidth = 2;
+      ctx.strokeStyle = trig && state === 'idle' ? c.warn : c.border; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(xA + bw + 6, 43); ctx.lineTo(xB - 10, 43); ctx.stroke();
-      ctx.fillStyle = trig ? c.warn : c.border;
+      ctx.fillStyle = trig && state === 'idle' ? c.warn : c.border;
       ctx.beginPath(); ctx.moveTo(xB - 4, 43); ctx.lineTo(xB - 12, 38); ctx.lineTo(xB - 12, 48); ctx.fill();
+      // Stun vuelve a Idle (sin transición hacia Attack)
+      ctx.strokeStyle = c.border; ctx.setLineDash([4, 4]);
+      ctx.beginPath(); ctx.moveTo(xS, 135); ctx.lineTo(xA + bw / 2, 135); ctx.lineTo(xA + bw / 2, 70); ctx.stroke();
+      ctx.setLineDash([]);
       // Indicador del trigger
       ctx.fillStyle = trig ? c.warn : c.soft;
-      ctx.beginPath(); ctx.arc(24, 118, 8, 0, Math.PI * 2); ctx.fill();
-      text(ctx, 'Attack (trigger)' + (trig ? ' — ' + L.pending : ''), 40, 118, trig ? c.warn : c.muted);
-      out(L.delay + ': <b>' + (lastDelay === null ? '—' : Math.round(lastDelay * 1000) + ' ms') + '</b>');
+      ctx.beginPath(); ctx.arc(22, 182, 8, 0, Math.PI * 2); ctx.fill();
+      text(ctx, 'Attack (trigger)' + (trig ? (w < 420 ? ' ●' : ' — ' + L.pending) : ''), 38, 182, trig ? c.warn : c.muted);
+      out(L.delay + ': <b>' + (lastDelay === null ? '—' : Math.round(lastDelay * 1000) + ' ms') + '</b>' + (note ? '<p>' + note + '</p>' : ''));
     });
     return () => { stop(); stage.destroy(); };
   }
@@ -884,11 +982,11 @@
 
   function mountTimeScale(host, lang) {
     const L = {
-      es: { ts: 'Time.timeScale', scaled: 'Update + deltaTime', unscaled: 'Update + unscaledDeltaTime', physics: 'FixedUpdate (física)', wfs: 'WaitForSeconds(1)', wfsr: 'WaitForSecondsRealtime(1)', updates: 'Llamadas a Update', fixedCalls: 'Llamadas a FixedUpdate' },
-      en: { ts: 'Time.timeScale', scaled: 'Update + deltaTime', unscaled: 'Update + unscaledDeltaTime', physics: 'FixedUpdate (physics)', wfs: 'WaitForSeconds(1)', wfsr: 'WaitForSecondsRealtime(1)', updates: 'Update calls', fixedCalls: 'FixedUpdate calls' }
+      es: { ts: 'Time.timeScale', scaled: 'Update + deltaTime', unscaled: 'Update + unscaledDeltaTime', physics: 'FixedUpdate (física)', animN: 'Animator · Normal', animU: 'Animator · Unscaled Time', wfs: 'WaitForSeconds(1)', wfsr: 'WaitForSecondsRealtime(1)', updates: 'Llamadas a Update', fixedCalls: 'Llamadas a FixedUpdate' },
+      en: { ts: 'Time.timeScale', scaled: 'Update + deltaTime', unscaled: 'Update + unscaledDeltaTime', physics: 'FixedUpdate (physics)', animN: 'Animator · Normal', animU: 'Animator · Unscaled Time', wfs: 'WaitForSeconds(1)', wfsr: 'WaitForSecondsRealtime(1)', updates: 'Update calls', fixedCalls: 'FixedUpdate calls' }
     }[lang];
     let ts = 1;
-    const s = { a: 0, b: 0, ballY: 0, ballV: 0, fixedAcc: 0, wfs: 0, wfsAcc: 0, wfsr: 0, wfsrAcc: 0, updates: 0, fixed: 0 };
+    const s = { animN: 0, animU: 0, a: 0, b: 0, ballY: 0, ballV: 0, fixedAcc: 0, wfs: 0, wfsAcc: 0, wfsr: 0, wfsrAcc: 0, updates: 0, fixed: 0 };
     const ctl = controls(host);
     const sl = slider(ctl, L.ts, 0, 2, 0.1, ts, (v) => { ts = v; }, (v) => v.toFixed(1));
     const quick = el('div', 'seg-btns');
@@ -899,12 +997,14 @@
       quick.appendChild(b);
     });
     ctl.appendChild(quick);
-    const stage = makeCanvas(host, 220);
+    const stage = makeCanvas(host, (w) => (w < 520 ? 390 : 282));
     const out = readout(host);
 
     const stop = loop((dt) => {
       const sdt = dt * ts;
       s.updates++;
+      s.animN = (s.animN + sdt * 0.8) % 1;
+      s.animU = (s.animU + dt * 0.8) % 1;
       s.a = (s.a + sdt * 0.4) % 1;
       s.b = (s.b + dt * 0.4) % 1;
       s.fixedAcc += sdt;
@@ -919,25 +1019,43 @@
       const c = colors();
       const { ctx, w, h } = stage;
       ctx.clearRect(0, 0, w, h);
-      const lx = 12, tx = Math.min(210, w * 0.45), tw = w - tx - 14;
-      const row = (y, label) => text(ctx, label, lx, y, c.text, { mono: true });
-      const track = (y, v, color) => {
-        ctx.fillStyle = c.soft; roundRect(ctx, tx, y - 9, tw, 18, 9); ctx.fill();
-        ctx.fillStyle = color; ctx.beginPath(); ctx.arc(tx + 9 + v * (tw - 18), y, 7, 0, Math.PI * 2); ctx.fill();
+      // En pantallas estrechas cada fila pone la etiqueta encima de su pista.
+      const narrow = w < 520;
+      const lx = 12, tx = narrow ? 12 : Math.min(210, w * 0.45), tw = w - tx - 14;
+      const LH = narrow ? 16 : 0;
+      let y = narrow ? 14 : 22;
+      const rowAt = (label, hgt) => {
+        const cy = narrow ? y + LH + hgt / 2 - 4 : y + (hgt - 22) / 2;
+        text(ctx, label, lx, narrow ? y : cy, c.text, { mono: true });
+        y += LH + hgt + (narrow ? 6 : 12);
+        return cy;
       };
-      row(22, L.scaled); track(22, s.a, ts === 0 ? c.muted : c.accent);
-      row(56, L.unscaled); track(56, s.b, c.ok);
-      row(96, L.physics);
-      ctx.fillStyle = c.soft; roundRect(ctx, tx, 76, tw, 44, 8); ctx.fill();
+      const track = (cy, v, color) => {
+        ctx.fillStyle = c.soft; roundRect(ctx, tx, cy - 9, tw, 18, 9); ctx.fill();
+        ctx.fillStyle = color; ctx.beginPath(); ctx.arc(tx + 9 + v * (tw - 18), cy, 7, 0, Math.PI * 2); ctx.fill();
+      };
+      track(rowAt(L.scaled, 22), s.a, ts === 0 ? c.muted : c.accent);
+      track(rowAt(L.unscaled, 22), s.b, c.ok);
+      const py = rowAt(L.physics, 44);
+      ctx.fillStyle = c.soft; roundRect(ctx, tx, py - 22, tw, 44, 8); ctx.fill();
       ctx.fillStyle = ts === 0 ? c.muted : c.warn;
-      ctx.beginPath(); ctx.arc(tx + tw / 2, 82 + s.ballY * 30, 6, 0, Math.PI * 2); ctx.fill();
-      row(146, L.wfs); text(ctx, '⏱ ' + s.wfs, tx, 146, ts === 0 ? c.muted : c.accent, { mono: true });
-      row(176, L.wfsr); text(ctx, '⏱ ' + s.wfsr, tx, 176, c.ok, { mono: true });
-      text(ctx, 'Time.deltaTime = ' + (sdt).toFixed(4), lx, 206, c.muted, { mono: true });
+      ctx.beginPath(); ctx.arc(tx + tw / 2, py - 16 + s.ballY * 30, 6, 0, Math.PI * 2); ctx.fill();
+      // Botón de menú animado por un Animator (pulso): Normal usa deltaTime, Unscaled Time usa el tiempo real.
+      const pulse = (cy, phase, color) => {
+        const r = 6 + 4 * Math.sin(phase * Math.PI * 2);
+        ctx.fillStyle = c.soft; roundRect(ctx, tx, cy - 11, 64, 22, 7); ctx.fill();
+        ctx.fillStyle = color; roundRect(ctx, tx + 32 - r * 2.4, cy - r, r * 4.8, r * 2, 5); ctx.fill();
+        text(ctx, 'Play', tx + 76, cy, c.muted);
+      };
+      pulse(rowAt(L.animN, 22), s.animN, ts === 0 ? c.muted : c.accent);
+      pulse(rowAt(L.animU, 22), s.animU, c.ok);
+      text(ctx, '⏱ ' + s.wfs, tx, rowAt(L.wfs, 18), ts === 0 ? c.muted : c.accent, { mono: true });
+      text(ctx, '⏱ ' + s.wfsr, tx, rowAt(L.wfsr, 18), c.ok, { mono: true });
+      text(ctx, 'Time.deltaTime = ' + (sdt).toFixed(4), lx, y + 2, c.muted, { mono: true });
       out(L.updates + ': <b>' + s.updates + '</b> · ' + L.fixedCalls + ': <b>' + s.fixed + '</b>' +
         (ts === 0 ? '<p>' + (lang === 'es'
-          ? 'Con <code>timeScale = 0</code>: Update sigue corriendo, FixedUpdate y <code>WaitForSeconds</code> se congelan, lo <i>unscaled</i> continúa.'
-          : 'With <code>timeScale = 0</code>: Update keeps running, FixedUpdate and <code>WaitForSeconds</code> freeze, <i>unscaled</i> keeps going.') + '</p>' : ''));
+          ? 'Con <code>timeScale = 0</code>: Update sigue corriendo, FixedUpdate y <code>WaitForSeconds</code> se congelan, lo <i>unscaled</i> continúa. El menú con Animator en <b>Normal</b> se queda quieto; en <b>Unscaled Time</b> sigue animándose.'
+          : 'With <code>timeScale = 0</code>: Update keeps running, FixedUpdate and <code>WaitForSeconds</code> freeze, <i>unscaled</i> keeps going. The menu with its Animator on <b>Normal</b> freezes; on <b>Unscaled Time</b> it keeps animating.') + '</p>' : ''));
     });
     return () => { stop(); stage.destroy(); };
   }
@@ -948,7 +1066,7 @@
 
   UCP.concepts = [
     {
-      id: 'ciclo-de-vida', domain: 'team', practice: { d: 'team', t: 'Ciclo de vida' }, icon: '🔁', mount: mountLifecycle,
+      id: 'ciclo-de-vida', questions: ['core-01', 'core-06'], domain: 'team', practice: { d: 'team', t: 'Ciclo de vida' }, icon: '🔁', mount: mountLifecycle,
       text: {
         es: {
           title: 'Bucle de frames: Update vs FixedUpdate',
@@ -963,7 +1081,7 @@
       }
     },
     {
-      id: 'delta-time', domain: 'core', practice: { d: 'core', t: 'Movimiento' }, icon: '⏩', mount: mountDeltaTime,
+      id: 'delta-time', questions: ['core-09'], domain: 'core', practice: { d: 'core', t: 'Movimiento' }, icon: '⏩', mount: mountDeltaTime,
       text: {
         es: {
           title: 'Time.deltaTime: movimiento independiente de los FPS',
@@ -978,7 +1096,7 @@
       }
     },
     {
-      id: 'tunneling', domain: 'core', practice: { d: 'core', t: 'Física' }, icon: '💥', mount: mountTunneling,
+      id: 'tunneling', questions: ['core-03'], domain: 'core', practice: { d: 'core', t: 'Física' }, icon: '💥', mount: mountTunneling,
       text: {
         es: {
           title: 'Tunneling: Discrete vs Continuous',
@@ -993,7 +1111,7 @@
       }
     },
     {
-      id: 'force-mode', domain: 'core', practice: { d: 'core', t: 'Física' }, icon: '🚀', mount: mountForceMode,
+      id: 'force-mode', questions: ['core-12'], domain: 'core', practice: { d: 'core', t: 'Física' }, icon: '🚀', mount: mountForceMode,
       text: {
         es: {
           title: 'ForceMode: Force, Acceleration, Impulse, VelocityChange',
@@ -1008,7 +1126,7 @@
       }
     },
     {
-      id: 'layer-mask', domain: 'core', practice: { d: 'core', t: 'Raycasts y capas' }, icon: '🎯', mount: mountLayerMask,
+      id: 'layer-mask', questions: ['core-04'], domain: 'core', practice: { d: 'core', t: 'Raycasts y capas' }, icon: '🎯', mount: mountLayerMask,
       text: {
         es: {
           title: 'LayerMask: máscaras de bits y raycasts',
@@ -1023,7 +1141,7 @@
       }
     },
     {
-      id: 'object-pooling', domain: 'scene', practice: { d: 'scene', t: 'Object pooling' }, icon: '♻️', mount: mountPooling,
+      id: 'object-pooling', questions: ['scn-06', 'scn-07'], domain: 'scene', practice: { d: 'scene', t: 'Object pooling' }, icon: '♻️', mount: mountPooling,
       text: {
         es: {
           title: 'Object pooling vs Instantiate/Destroy',
@@ -1038,22 +1156,22 @@
       }
     },
     {
-      id: 'exit-time', domain: 'art', practice: { d: 'art', t: 'Animación 3D' }, icon: '🎬', mount: mountExitTime,
+      id: 'exit-time', questions: ['art-05', 'art-06'], domain: 'art', practice: { d: 'art', t: 'Animación 3D' }, icon: '🎬', mount: mountExitTime,
       text: {
         es: {
           title: 'Animator: Has Exit Time y triggers',
-          summary: 'Con **Has Exit Time** activado, una transición solo puede ocurrir cuando la animación actual llega a su Exit Time, aunque la condición ya se cumpla. Mientras tanto, el trigger se queda activo esperando. Pulsa `SetTrigger` con la opción activada y desactivada y compara el retraso.',
+          summary: 'Con **Has Exit Time** activado, una transición solo puede ocurrir cuando la animación actual llega a su Exit Time, aunque la condición ya se cumpla. Mientras tanto, el trigger se queda activo esperando. Pulsa `SetTrigger` con la opción activada y desactivada y compara el retraso. Después aturde al personaje y pulsa `SetTrigger` durante el Stun: verás que el trigger sigue activo y provoca un ataque al volver a Idle.',
           points: ['Acciones inmediatas (atacar, saltar): desactiva Has Exit Time.', 'Un trigger sigue activo hasta que una transición lo consume.', 'Si nadie lo consume, puede dispararse más tarde: usa `ResetTrigger`.', 'Guarda los IDs con `Animator.StringToHash`.']
         },
         en: {
           title: 'Animator: Has Exit Time and triggers',
-          summary: 'With **Has Exit Time** enabled, a transition can only happen when the current animation reaches its Exit Time, even if the condition is already met. Meanwhile, the trigger stays set, waiting. Press `SetTrigger` with the option on and off and compare the delay.',
+          summary: 'With **Has Exit Time** enabled, a transition can only happen when the current animation reaches its Exit Time, even if the condition is already met. Meanwhile, the trigger stays set, waiting. Press `SetTrigger` with the option on and off and compare the delay. Then stun the character and press `SetTrigger` during the Stun: the trigger stays set and causes an attack when it gets back to Idle.',
           points: ['Immediate actions (attack, jump): disable Has Exit Time.', 'A trigger stays set until a transition consumes it.', 'If nothing consumes it, it can fire later: use `ResetTrigger`.', 'Cache IDs with `Animator.StringToHash`.']
         }
       }
     },
     {
-      id: 'navmesh', domain: 'scene', practice: { d: 'scene', t: 'Navegación' }, icon: '🧭', mount: mountNavMesh,
+      id: 'navmesh', questions: ['scn-09', 'scn-10', 'scn-14'], domain: 'scene', practice: { d: 'scene', t: 'Navegación' }, icon: '🧭', mount: mountNavMesh,
       text: {
         es: {
           title: 'NavMesh: rutas, Carve y costes de área',
@@ -1068,7 +1186,7 @@
       }
     },
     {
-      id: 'materiales', domain: 'art', practice: { d: 'art', t: 'Materiales' }, icon: '🎨', mount: mountMaterials,
+      id: 'materiales', questions: ['art-01', 'art-03'], domain: 'art', practice: { d: 'art', t: 'Materiales' }, icon: '🎨', mount: mountMaterials,
       text: {
         es: {
           title: 'material vs sharedMaterial vs MaterialPropertyBlock',
@@ -1083,16 +1201,16 @@
       }
     },
     {
-      id: 'time-scale', domain: 'systems', practice: { d: 'systems', t: 'Pausa y tiempo' }, icon: '⏸️', mount: mountTimeScale,
+      id: 'time-scale', questions: ['sys-04', 'sys-05'], domain: 'systems', practice: { d: 'systems', t: 'Pausa y tiempo' }, icon: '⏸️', mount: mountTimeScale,
       text: {
         es: {
           title: 'Time.timeScale: qué se detiene al pausar',
-          summary: 'Poner `Time.timeScale = 0` no detiene el juego entero: `Update` se sigue llamando, pero `Time.deltaTime` vale 0, la física se detiene y `WaitForSeconds` se congela. Lo que usa tiempo *unscaled* sigue funcionando. Mueve el slider y observa cada fila.',
+          summary: 'Poner `Time.timeScale = 0` no detiene el juego entero: `Update` se sigue llamando, pero `Time.deltaTime` vale 0, la física se detiene y `WaitForSeconds` se congela. Lo que usa tiempo **unscaled** sigue funcionando. Mueve el slider y observa cada fila (también los dos Animator del menú de pausa).',
           points: ['`Update`: se sigue llamando (por eso puedes leer el input del menú de pausa).', '`FixedUpdate`: deja de ejecutarse con timeScale 0.', '`WaitForSeconds` se congela; `WaitForSecondsRealtime` sigue.', 'UI animada en pausa: `unscaledDeltaTime` o Animator en **Unscaled Time**.']
         },
         en: {
           title: 'Time.timeScale: what stops when you pause',
-          summary: 'Setting `Time.timeScale = 0` does not stop the whole game: `Update` is still called, but `Time.deltaTime` is 0, physics stops and `WaitForSeconds` freezes. Anything using *unscaled* time keeps working. Move the slider and watch each row.',
+          summary: 'Setting `Time.timeScale = 0` does not stop the whole game: `Update` is still called, but `Time.deltaTime` is 0, physics stops and `WaitForSeconds` freezes. Anything using **unscaled** time keeps working. Move the slider and watch each row (including the two Animators of the pause menu).',
           points: ['`Update`: still called (that is why you can read pause-menu input).', '`FixedUpdate`: stops running with timeScale 0.', '`WaitForSeconds` freezes; `WaitForSecondsRealtime` keeps going.', 'Animated UI while paused: `unscaledDeltaTime` or an Animator on **Unscaled Time**.']
         }
       }
