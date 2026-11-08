@@ -1653,7 +1653,7 @@
     let opt = 'def', t = 0, bat = 0.3, temp = 0.3;
     const ctl = controls(host);
     seg(ctl, L.opts, opt, (v) => { opt = v; });
-    const stage = makeCanvas(host, (w) => (narrow(w) ? 300 : 260));
+    const stage = makeCanvas(host, 300);
     const out = readout(host);
     const cb = codeBlock(host);
     const LINE = { def: 'Application.targetFrameRate = -1; // ' + (lang === 'es' ? 'por defecto' : 'default'), tfr: 'Application.targetFrameRate = 60;',
