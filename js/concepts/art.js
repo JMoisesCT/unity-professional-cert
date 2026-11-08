@@ -120,8 +120,14 @@
     const GRAY = '#b8bec9', RED = '#e5484d';
     let shader = 'urp', name = '_Color', base = GRAY, shown = GRAY, emis = false, kw = false, mode = 'editor', scan = null, last = null, glow = 0, t = 0;
 
+    function finish() {
+      scan.done = true;
+      if (scan.found >= 0) { if (scan.isEmis) emis = true; else base = RED; }
+      if (!scan.isEmis) last = { nm: scan.nm, target: scan.target, ok: scan.found >= 0 };
+    }
     function doSet(nm, isEmis) {
       const sh = SH[shader];
+      if (scan && !scan.done) finish();
       const target = nm === 'material.color' ? sh.main : nm;
       scan = { nm, target, isEmis, found: sh.props.findIndex((p) => p[0] === target), t: 0, done: false, hold: 0 };
     }
@@ -146,9 +152,7 @@
         scan.t += dt * 7;
         const end = scan.found >= 0 ? scan.found : sh.props.length;
         if (scan.t >= end) {
-          scan.t = end; scan.done = true;
-          if (scan.found >= 0) { if (scan.isEmis) emis = true; else base = RED; }
-          if (!scan.isEmis) last = { nm: scan.nm, target: scan.target, ok: scan.found >= 0 };
+          scan.t = end; finish();
         }
       } else if (scan) { scan.hold += dt; if (scan.hold > 2.2) scan = null; }
       const glowing = emis && kw && mode !== 'strip';
@@ -159,25 +163,24 @@
       const { ctx, w, h } = stage;
       ctx.clearRect(0, 0, w, h);
       const narrow = w < 520;
-      const sx = narrow ? w / 2 : Math.min(130, w * 0.18), sy = narrow ? 54 : h / 2 - 12, r = narrow ? 38 : 56;
+      const sx = narrow ? w / 2 : Math.min(130, w * 0.18), sy = narrow ? 48 : h / 2 - 12, r = narrow ? 36 : 56;
       // Esfera
       if (glow > 0.01) {
         const g = ctx.createRadialGradient(sx, sy, r * 0.6, sx, sy, r * 1.6);
-        g.addColorStop(0, 'rgba(34,211,238,' + (0.55 * glow * (0.85 + 0.15 * Math.sin(t * 4))) + ')');
+        g.addColorStop(0, 'rgba(34,211,238,' + (0.8 * glow * (0.85 + 0.15 * Math.sin(t * 4))) + ')');
         g.addColorStop(1, 'rgba(34,211,238,0)');
         ctx.fillStyle = g; ctx.beginPath(); ctx.arc(sx, sy, r * 1.6, 0, TAU); ctx.fill();
       }
-      const body = mix(shown, '#a5f3fc', 0.65 * glow);
+      const body = mix(shown, '#ffffff', 0.25 * glow);
       const g2 = ctx.createRadialGradient(sx - r * 0.35, sy - r * 0.4, r * 0.08, sx, sy, r);
       g2.addColorStop(0, mix(body, '#ffffff', 0.6)); g2.addColorStop(0.55, body); g2.addColorStop(1, mix(body, '#000000', 0.5 - 0.3 * glow));
       ctx.fillStyle = g2; ctx.beginPath(); ctx.arc(sx, sy, r, 0, TAU); ctx.fill();
-      const capY = sy + r + (narrow ? 16 : 22);
+      const capY = sy + r + (narrow ? 14 : 22);
       text(ctx, sh.short || sh.name, sx, capY, c.text, { align: 'center', mono: true });
-      text(ctx, mode === 'editor' ? L.editor : L.build, sx, capY + 16, c.muted, { align: 'center' });
-      if (mode === 'strip') text(ctx, L.variant, sx, capY + 32, c.bad, { align: 'center' });
+      text(ctx, mode === 'editor' ? L.editor : mode === 'build' ? L.build : L.build + ': ' + L.variant, sx, capY + 16, mode === 'strip' ? c.bad : c.muted, { align: 'center' });
 
       // Lista de propiedades (como el Inspector)
-      const lx = narrow ? 12 : Math.max(sx * 2 + 30, w * 0.38), ly = narrow ? 128 : 14;
+      const lx = narrow ? 12 : Math.max(sx * 2 + 30, w * 0.38), ly = narrow ? 134 : 14;
       const lw = narrow ? w - 24 : Math.min(w - lx - 12, 440), rh = 22;
       ctx.fillStyle = c.soft; roundRect(ctx, lx, ly, lw, rh * 8 + 8, 8); ctx.fill();
       text(ctx, L.props + ' · ' + (sh.short || sh.name), lx + 10, ly + 13, c.muted);
@@ -232,7 +235,7 @@
 
   function mountEventsRoot(host, lang) {
     const L = {
-      es: { tabE: 'Animation Events', tabR: 'Root Motion', speed: 'animator.speed', same: 'Script en el GameObject del Animator', ev: 'Animation Event', timer: 'Corrutina cada 0,5 s',
+      es: { tabE: 'Animation Events', tabR: 'Root Motion', speed: 'animator.speed', same: 'Script en el GameObject del Animator', ev: 'Animation Event', timer: 'Corrutina cada 0,5 s', timerS: 'Corrutina 0,5 s', cRecv: '// En un componente del GameObject que tiene el Animator', cFrag: '// alternativa frágil',
         clip: 'Clip Walk (1 s)', off: 'Apply Root Motion OFF', on: 'Apply Root Motion ON', wall: 'pared', inPlace: 'en el sitio', noGrav: 'sin gravedad', stuck: 'choca',
         evOk: '✓ El Animation Event ' + cd('Footstep()') + ' está en 0.25 y 0.75 del clip: suena justo en el contacto del pie, a cualquier velocidad.',
         evBad: '✗ Consola: ' + cd("'Footstep' AnimationEvent has no receiver!") + ' El método debe estar en un componente del GameObject que tiene el ' + cd('Animator') + '.',
@@ -244,7 +247,7 @@
         rIk: '✗ ' + cd('OnAnimatorIK') + ' sirve para cinemática inversa (manos, pies, mirada). No toma el control del root motion: se comporta igual que Apply Root Motion.',
         cOff: '// El desplazamiento del clip se descarta', cOn: '// Sin OnAnimatorMove: Unity aplica el movimiento del clip',
         cMove: '// respeta paredes y suelo', cIk: '// IK: no controla el root motion' },
-      en: { tabE: 'Animation Events', tabR: 'Root Motion', speed: 'animator.speed', same: 'Script on the Animator’s GameObject', ev: 'Animation Event', timer: 'Coroutine every 0.5 s',
+      en: { tabE: 'Animation Events', tabR: 'Root Motion', speed: 'animator.speed', same: 'Script on the Animator’s GameObject', ev: 'Animation Event', timer: 'Coroutine every 0.5 s', timerS: 'Coroutine 0.5 s', cRecv: '// On a component of the GameObject that has the Animator', cFrag: '// fragile alternative',
         clip: 'Walk clip (1 s)', off: 'Apply Root Motion OFF', on: 'Apply Root Motion ON', wall: 'wall', inPlace: 'in place', noGrav: 'no gravity', stuck: 'blocked',
         evOk: '✓ The Animation Event ' + cd('Footstep()') + ' sits at 0.25 and 0.75 of the clip: it plays exactly on foot contact, at any speed.',
         evBad: '✗ Console: ' + cd("'Footstep' AnimationEvent has no receiver!") + ' The method must live on a component of the GameObject that has the ' + cd('Animator') + '.',
@@ -267,7 +270,7 @@
     const pr = controls(host);
     seg(pr, [{ v: 'off', l: L.off }, { v: 'on', l: L.on }, { v: 'move', l: 'OnAnimatorMove' }, { v: 'ik', l: 'OnAnimatorIK' }], rmode, (v) => { rmode = v; needReset = true; });
     show(pr, false);
-    const stage = makeCanvas(host, 204);
+    const stage = makeCanvas(host, 210);
     const out = readout(host);
     const cb = codeBlock(host);
 
@@ -303,11 +306,12 @@
         if (v > 0) { ctx.globalAlpha = v; ctx.fillStyle = col; ctx.beginPath(); ctx.arc(lx, y, 10, 0, TAU); ctx.fill(); ctx.beginPath(); ctx.arc(lx, y, 10 + (1 - v) * 12, 0, TAU); ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.stroke(); ctx.globalAlpha = 1; }
         text(ctx, label, lx + 18, y, okLamp ? c.text : c.muted);
       };
-      lamp(42, same ? lampE : 0, c.ok, '🔊 ' + L.ev, same);
-      lamp(86, lampT, c.warn, '🔊 ' + L.timer, true);
+      const nar = w < 480, tl = nar ? L.timerS : L.timer;
+      lamp(42, same ? lampE : 0, c.ok, (nar ? '' : '🔊 ') + L.ev, same);
+      lamp(86, lampT, c.warn, (nar ? '' : '🔊 ') + tl, true);
       // Línea de tiempo del clip
       const x0 = 14, x1 = w - 14, ty = 166;
-      text(ctx, L.clip, x0, 146, c.muted);
+      text(ctx, L.clip, x0, 200, c.muted);
       ctx.fillStyle = c.soft; roundRect(ctx, x0, ty - 6, x1 - x0, 12, 6); ctx.fill();
       [0.25, 0.75].forEach((e) => {
         const x = lerp(x0, x1, e);
@@ -321,17 +325,17 @@
         ctx.fillStyle = c.warn; ctx.beginPath(); ctx.arc(lerp(x0, x1, m.p), ty + 16, 4, 0, TAU); ctx.fill();
         ctx.globalAlpha = 1;
       });
-      text(ctx, '● ' + L.timer, x1, 194, c.warn, { align: 'right' });
+      text(ctx, '● ' + tl, x1, 200, c.warn, { align: 'right' });
       ctx.strokeStyle = c.text; ctx.lineWidth = 2;
       const px2 = lerp(x0, x1, ph);
       ctx.beginPath(); ctx.moveTo(px2, ty - 10); ctx.lineTo(px2, ty + 10); ctx.stroke();
-      out('<span>' + (same ? L.evOk : L.evBad) + '</span><p>' + (lastErr < 15 ? L.tSync : L.tOff(Math.round(lastErr))) + '</p>');
-      cb(['// En un componente del GameObject que tiene el Animator',
+      out('<span>' + (same ? L.evOk : L.evBad) + '</span><p>' + (lastErr < 40 ? L.tSync : L.tOff(Math.round(lastErr))) + '</p>');
+      cb([L.cRecv,
         'public void Footstep() => source.PlayOneShot(stepClip);',
         '',
-        'IEnumerator StepTimer() {   // alternativa frágil',
+        'IEnumerator StepTimer() {   ' + L.cFrag,
         '    while (true) { source.PlayOneShot(stepClip); yield return new WaitForSeconds(0.5f); }',
-        '}'].join('\n'), { 1: same ? 'ok' : 'bad', 3: lastErr < 15 ? 'off' : 'bad', 4: lastErr < 15 ? 'off' : 'bad', 5: 'off' });
+        '}'].join('\n'), { 1: same ? 'ok' : 'bad', 3: lastErr < 40 ? 'off' : 'bad', 4: lastErr < 40 ? 'off' : 'bad', 5: 'off' });
     }
 
     function drawRoot(c, ctx, w, dt) {
@@ -369,7 +373,7 @@
       }
       if (rmode === 'move' && !moving) text(ctx, L.stuck, wallX - 40, 52, c.ok, { align: 'center' });
       const dp = rmode === 'off' ? 0.024 : (v / 50) * (1 / 60);
-      text(ctx, 'animator.deltaPosition.z ≈ ' + dp.toFixed(3) + ' m/frame', x0, 14, c.muted, { mono: true });
+      text(ctx, 'deltaPosition ≈ ' + dp.toFixed(3) + ' m/frame', x0, 14, c.muted, { mono: true });
       out({ off: L.rOff, on: L.rOn, move: L.rMove, ik: L.rIk }[rmode]);
       const src = {
         off: ['animator.applyRootMotion = false;', L.cOff],
@@ -455,7 +459,7 @@
       }
       const clipV = CL[state].th;
       const slipping = mode === 'states' && Math.abs(clipV - speed) > 0.6;
-      if (slipping) text(ctx, '⚠ ' + L.slip, fx0 + fw / 2, fyb + 12, c.bad, { align: 'center' });
+      if (slipping) text(ctx, '⚠ ' + L.slip, fx0 + fw / 2, fyb + 15, c.bad, { align: 'center' });
       // Diagrama de umbrales y pesos
       const dx = narrow ? 14 : w * 0.47, dw = narrow ? w - 28 : w * 0.53 - 16, dy = narrow ? 6 : 18;
       const lx0 = dx + 8, lx1 = dx + dw - 8, ly = dy + 34;
@@ -665,7 +669,7 @@
       const narrow = w < 560;
       const ps = narrow ? 96 : Math.min(170, h - 56), pX = narrow ? 14 : 18, pY = 30;
       // Panel de UVs (el propio lightmap)
-      const title = !isStatic ? 'Lightmap' : uv1 ? 'Lightmap · UV1' : 'UV0 · ' + L.overlap;
+      const title = !isStatic ? 'Lightmap · ' + L.out : uv1 ? 'Lightmap · UV1' : 'UV0 · ' + L.overlap;
       text(ctx, title, pX, 14, !isStatic ? c.muted : uv1 ? c.ok : c.bad);
       ctx.fillStyle = c.soft; ctx.fillRect(pX, pY, ps, ps);
       ctx.strokeStyle = c.border; ctx.lineWidth = 1; ctx.strokeRect(pX + 0.5, pY + 0.5, ps, ps);
@@ -673,7 +677,7 @@
       const revealed = (k) => k / total < bake;
       if (!isStatic) {
         ctx.setLineDash([4, 4]); ctx.strokeStyle = c.muted; ctx.strokeRect(pX + 8, pY + 8, ps - 16, ps - 16); ctx.setLineDash([]);
-        text(ctx, L.out, pX + ps / 2, pY + ps / 2, c.muted, { align: 'center' });
+        text(ctx, '—', pX + ps / 2, pY + ps / 2, c.muted, { align: 'center' });
       } else {
         const charts = uv1 ? { top: [0.05, 0.05], front: [0.53, 0.05], right: [0.05, 0.53] } : { top: [0.1, 0.1], front: [0.1, 0.1], right: [0.1, 0.1] };
         const cs = uv1 ? 0.42 : 0.8;
@@ -723,8 +727,8 @@
 
     // --- Light Probes ---
     function lightAt(nx, ny) {
-      const wv = 0.25 + 0.6 * nx, red = Math.max(0, 1 - nx / 0.5) * 0.9, blue = Math.max(0, (ny - 0.35) / 0.65) * 0.9;
-      return [50 + 120 * wv + 170 * red, 50 + 115 * wv + 30 * red + 40 * blue, 55 + 100 * wv + 170 * blue];
+      const wv = 0.3 + 0.5 * nx, red = Math.max(0, 1 - nx / 0.45), blue = Math.max(0, (ny - 0.4) / 0.6);
+      return [70 + 110 * wv + 200 * red - 40 * blue, 70 + 110 * wv - 30 * red - 10 * blue, 80 + 100 * wv + 200 * blue - 40 * red].map((v) => clamp(v, 0, 255));
     }
     const PX = [0.12, 0.31, 0.5, 0.69, 0.88], PY = [0.45, 0.85];
     function probeAt(nx, ny) {
@@ -745,6 +749,12 @@
       else { cx += dir * dt * 0.12; if (cx > 0.86) { cx = 0.86; dir = -1; } if (cx < 0.14) { cx = 0.14; dir = 1; } }
       const { rx, ry, rw, rh } = roomFrame(w, h);
       ctx.fillStyle = '#3a3f4b'; ctx.fillRect(rx, ry, rw, rh);
+      const gl = ctx.createLinearGradient(rx, 0, rx + rw * 0.45, 0);
+      gl.addColorStop(0, 'rgba(224,72,74,.45)'); gl.addColorStop(1, 'rgba(224,72,74,0)');
+      ctx.fillStyle = gl; ctx.fillRect(rx, ry, rw, rh);
+      const gb = ctx.createLinearGradient(0, ry + rh, 0, ry + rh * 0.45);
+      gb.addColorStop(0, 'rgba(59,130,246,.45)'); gb.addColorStop(1, 'rgba(59,130,246,0)');
+      ctx.fillStyle = gb; ctx.fillRect(rx, ry, rw, rh);
       ctx.fillStyle = '#e0484a'; ctx.fillRect(rx, ry, 14, rh);
       ctx.fillStyle = '#3b82f6'; ctx.fillRect(rx, ry + rh - 14, rw, 14);
       ctx.fillStyle = '#ffe9a8'; ctx.fillRect(rx + rw - 70, ry + 12, 50, 34);
@@ -768,7 +778,7 @@
       g.addColorStop(0, colL); g.addColorStop(1, colR);
       ctx.fillStyle = g; roundRect(ctx, cp[0] - bw / 2, by, bw, bh, 12); ctx.fill();
       ctx.beginPath(); ctx.arc(cp[0], by - 12, 10, 0, TAU); ctx.fill();
-      text(ctx, L.drag, rx + rw - 8, ry + rh - 28, '#e8ecf4', { align: 'right' });
+      text(ctx, L.drag, rx + rw - 80, ry + 28, '#e8ecf4', { align: 'right' });
       out(probes ? L.lpOk : L.lpNo);
     }
 
@@ -794,7 +804,7 @@
         }
         text(ctx, 'cubemap', rx + 14 + 92, ry + 20, '#fff');
       }
-      const r = Math.min(rh * 0.24, 54), scx = rx + rw * 0.5, scy = ry + rh * 0.78 - r * 0.6;
+      const r = Math.min(rh * 0.24, rw * 0.15, 54), scx = rx + rw * 0.5, scy = ry + rh * 0.78 - r * 0.6;
       ctx.save();
       ctx.beginPath(); ctx.arc(scx, scy, r, 0, TAU); ctx.clip();
       const X0 = scx - r, Y0 = scy - r, D = 2 * r;
@@ -915,7 +925,7 @@
         const f = p.age / p.life;
         ctx.globalAlpha = Math.max(0, 1 - f * f);
         ctx.fillStyle = mul(p.spark ? mix('#ffffff', '#ffd54a', f) : grad(f), p.col);
-        ctx.beginPath(); ctx.arc(ex + p.x, ey + p.y, p.spark ? 2.2 : 6 * (1 - f * 0.6), 0, TAU); ctx.fill();
+        ctx.beginPath(); ctx.arc(ex + p.x, ey + p.y, p.spark ? 3 : 6 * (1 - f * 0.6), 0, TAU); ctx.fill();
       });
       ctx.globalAlpha = 1;
       pops = pops.filter((p) => (p.age += dt) < 1);
@@ -1005,7 +1015,7 @@
       let x = rx;
       for (let i = 0; i < (mips ? levels : 1); i++) {
         const s = P / Math.pow(2, i);
-        if (s < 2) { text(ctx, '… ' + levels + ' ' + L.levels, x + 4, baseY - 6, c.muted); break; }
+        if (s < 2) break;
         const y = baseY - s;
         const cells = 4;
         for (let a = 0; a < cells; a++) for (let b = 0; b < cells; b++) {
@@ -1022,10 +1032,10 @@
         if (s >= 30) text(ctx, 'mip ' + i, x + s / 2, baseY + 11, isUsed ? c.ok : c.muted, { align: 'center' });
         x += s + 6;
       }
-      text(ctx, 'mip 0 = ' + size + '×' + size + (used === 0 ? ' · ' + L.inUse : ''), rx, ry + 6, c.text);
+      text(ctx, 'mip 0 = ' + size + '×' + size + (mips ? ' · ' + levels + ' ' + L.levels : ''), rx, ry + 6, c.text);
       if (mips && scen === 'ui') text(ctx, '+33 % · ' + L.unused, rx + P + 6, baseY - P / 2 - 12, c.bad);
       else if (mips) text(ctx, 'mip ' + used + ' · ' + L.inUse, rx + P + 6, baseY - P / 2 - 12, c.ok);
-      else if (scen === '3d') text(ctx, '⚠ ' + L.alias, rx + P + 8, baseY - P / 2, c.warn);
+      else if (scen === '3d') L.alias.split(': ').forEach((ln, k) => text(ctx, (k ? '' : '⚠ ') + ln + (k ? '' : ':'), rx + P + 8, baseY - P / 2 - 8 + k * 16, c.warn));
       // Barras de memoria
       const bx = narrow ? 14 : w * 0.5 + 6, bw = narrow ? w - 28 : w * 0.5 - 20, by = narrow ? ry + rh + 12 : 18;
       const bar = (y, label, val, col) => {
@@ -1217,7 +1227,7 @@
     const ctl2 = controls(host);
     seg(ctl2, [{ v: false, l: L.rg }, { v: true, l: L.compat }], compat, (v) => { compat = v; });
     toggle(ctl2, L.cull, noCull, (v) => { noCull = v; });
-    const stage = makeCanvas(host, (w) => (w < 640 ? 362 : 262));
+    const stage = makeCanvas(host, (w) => (w < 640 ? 402 : 262));
     const out = readout(host);
     const cb = codeBlock(host);
     function stateOf(p) {
@@ -1239,10 +1249,14 @@
       const { ctx, w, h } = stage;
       ctx.clearRect(0, 0, w, h);
       const narrow = w < 640;
-      const tx = 12, ty = 42, rh = 28, pwid = narrow ? 132 : 170;
+      const tx = 12, ty = narrow ? 82 : 42, rh = 28, pwid = narrow ? 124 : 170;
       const colX0 = tx + pwid + 12, colW = narrow ? (w - 12 - colX0) / RES.length : Math.min(76, (w * 0.62 - colX0) / RES.length);
       const CX = (k) => colX0 + colW * (k + 0.5), RY = (i) => ty + rh * i + rh / 2;
-      RES.forEach((r, k) => text(ctx, r, CX(k), narrow ? (k % 2 ? 30 : 14) : 22, c.muted, { align: 'center', mono: true }));
+      RES.forEach((r, k) => {
+        if (!narrow) { text(ctx, r, CX(k), 22, c.muted, { align: 'center', mono: true }); return; }
+        ctx.save(); ctx.translate(CX(k), ty - 6); ctx.rotate(-Math.PI / 2);
+        text(ctx, r, 0, 0, c.muted, { mono: true }); ctx.restore();
+      });
       // Vida de cada recurso entre su primer y último uso (en passes que se ejecutan)
       RES.forEach((r, k) => {
         const uses = runIdx.filter((i) => (PASSES[i].r || []).concat(PASSES[i].w || []).indexOf(r) >= 0);
@@ -1270,7 +1284,7 @@
         (p.w || []).forEach((r) => { const k = RES.indexOf(r); ctx.fillStyle = c.warn; ctx.fillRect(CX(k) - 5, RY(i) - 5, 10, 10); });
         (p.r || []).forEach((r) => { const k = RES.indexOf(r); ctx.strokeStyle = c.ok; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(CX(k), RY(i), 5, 0, TAU); ctx.stroke(); });
       });
-      if (st[4] === 'culled') text(ctx, L.alloc, CX(2), RY(5) + 2, c.muted, { align: 'center' });
+      if (st[4] === 'culled' && !narrow) text(ctx, L.alloc, CX(2), RY(5) + 2, c.muted, { align: 'center' });
       const legY = ty + rh * PASSES.length + 10;
       text(ctx, L.legend, tx, legY, c.muted);
       // Vista previa del frame

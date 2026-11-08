@@ -606,5 +606,1137 @@
     }
   );
 
-  /* @@PART2@@ */
+  /* =========================================================
+     5. Ramas por funcionalidad y pull requests
+     ========================================================= */
+
+  function mountBranches(host, lang) {
+    const L = {
+      es: { pr: 'Ramas + pull request', direct: 'Todos en main', bug: 'El próximo commit rompe un test', nb: '🌿 Nueva rama', commit: '● Commit', open: 'Abrir PR', ci: '▶ Ejecutar CI', approve: '👍 Aprobar', merge: 'Merge',
+        mainOk: 'main ✓ build OK', mainBad: 'main ✗ build roto', team: 'equipo', review: 'Revisión', none: '—', run: 'ejecutando…', pass: '✓ tests OK', fail: '✗ tests fallan', ok: '✓ aprobado', blocked: 'bloqueado', allowed: 'permitido',
+        m: { start: 'Crea una rama para tu funcionalidad.', onlyPr: 'En «Todos en main» no hay ramas ni PR: cada commit va directo a main.', open: 'Ya tienes una rama abierta: haz commits o abre el PR.',
+          nb: 'Rama creada: trabajas aislado, main no se toca.', noBr: 'Primero crea una rama.', cBr: 'Commit en la rama. main sigue estable.', cBug: 'Commit con un bug en la rama: main sigue verde porque aún no se ha fusionado.',
+          noC: 'Haz al menos un commit antes de abrir el PR.', opened: 'PR abierto: ahora toca revisión de código y CI.', noPr: 'Abre primero el pull request.', ciRun: 'CI ejecutando los tests…',
+          appr: 'Un compañero revisó el código y lo aprobó.', needCi: '✗ Merge bloqueado: el CI tiene que pasar (protección de rama).', needRev: '✗ Merge bloqueado: falta la aprobación de la revisión.',
+          merged: '✓ Merge en main: revisado y con tests en verde. main sigue estable.', dOk: 'Commit directo en main.', dBad: '✗ Commit directo con un bug: main se rompe para <b>todo el equipo</b> hasta que alguien lo arregle.', dFix: 'Commit que arregla main.' } },
+      en: { pr: 'Branches + pull request', direct: 'Everyone on main', bug: 'Next commit breaks a test', nb: '🌿 New branch', commit: '● Commit', open: 'Open PR', ci: '▶ Run CI', approve: '👍 Approve', merge: 'Merge',
+        mainOk: 'main ✓ build OK', mainBad: 'main ✗ build broken', team: 'team', review: 'Review', none: '—', run: 'running…', pass: '✓ tests pass', fail: '✗ tests fail', ok: '✓ approved', blocked: 'blocked', allowed: 'allowed',
+        m: { start: 'Create a branch for your feature.', onlyPr: 'In “Everyone on main” there are no branches or PRs: every commit goes straight to main.', open: 'You already have an open branch: commit or open the PR.',
+          nb: 'Branch created: you work in isolation and main is untouched.', noBr: 'Create a branch first.', cBr: 'Commit on the branch. main stays stable.', cBug: 'Buggy commit on the branch: main stays green because it has not been merged yet.',
+          noC: 'Make at least one commit before opening the PR.', opened: 'PR opened: now code review and CI.', noPr: 'Open the pull request first.', ciRun: 'CI running the tests…',
+          appr: 'A teammate reviewed the code and approved it.', needCi: '✗ Merge blocked: CI must pass (branch protection).', needRev: '✗ Merge blocked: review approval missing.',
+          merged: '✓ Merged into main: reviewed and with green tests. main stays stable.', dOk: 'Direct commit on main.', dBad: '✗ Direct commit with a bug: main breaks for <b>the whole team</b> until someone fixes it.', dFix: 'Commit that fixes main.' } }
+    }[lang];
+    const NAMES = ['feature/jump', 'feature/inventory', 'feature/boss-ai'];
+    let mode = 'pr', bug = false, seq = 0, nodes = [], br = null, brN = 0, msg = '', mainBroken = false, ciT = 0, now = 0;
+    const add = (lane, bad, extra) => { const n = Object.assign({ s: seq++, lane, bad, born: now, b: br ? brN : -1 }, extra || {}); nodes.push(n); return n; };
+    function reset() { seq = 0; nodes = []; br = null; mainBroken = false; for (let i = 0; i < 3; i++) add(0, false); msg = mode === 'pr' ? L.m.start : ''; }
+    const lastMain = () => nodes.filter((n) => n.lane === 0).slice(-1)[0];
+
+    const ctl = controls(host);
+    seg(ctl, [{ v: 'pr', l: L.pr }, { v: 'direct', l: L.direct }], mode, (v) => { mode = v; reset(); });
+    toggle(ctl, L.bug, false, (v) => { bug = v; });
+    const ctl2 = controls(host);
+    button(ctl2, L.nb, () => {
+      if (mode !== 'pr') { msg = L.m.onlyPr; return; }
+      if (br && !br.merged) { msg = L.m.open; return; }
+      brN++; br = { name: NAMES[(brN - 1) % NAMES.length], base: lastMain().s, commits: 0, broken: false, pr: false, ci: 'none', approved: false, merged: false, id: brN };
+      msg = L.m.nb;
+    }, true);
+    button(ctl2, L.commit, () => {
+      if (mode === 'direct') { add(0, bug); mainBroken = bug; msg = bug ? L.m.dBad : (msg === L.m.dBad ? L.m.dFix : L.m.dOk); return; }
+      if (!br || br.merged) { msg = L.m.noBr; return; }
+      add(1, bug); br.commits++; br.broken = bug; br.ci = 'none'; msg = bug ? L.m.cBug : L.m.cBr;
+    });
+    const need = (fn) => () => { if (mode !== 'pr') { msg = L.m.onlyPr; return; } if (!br || br.merged) { msg = L.m.noBr; return; } fn(); };
+    button(ctl2, L.open, need(() => { if (!br.commits) { msg = L.m.noC; return; } br.pr = true; msg = L.m.opened; }));
+    button(ctl2, L.ci, need(() => { if (!br.pr) { msg = L.m.noPr; return; } br.ci = 'run'; ciT = 0; msg = L.m.ciRun; }));
+    button(ctl2, L.approve, need(() => { if (!br.pr) { msg = L.m.noPr; return; } br.approved = true; msg = L.m.appr; }));
+    button(ctl2, L.merge, need(() => {
+      if (!br.pr) { msg = L.m.noPr; return; }
+      if (br.ci !== 'pass') { msg = L.m.needCi; return; }
+      if (!br.approved) { msg = L.m.needRev; return; }
+      const lf = nodes.filter((n) => n.b === br.id).slice(-1)[0];
+      add(0, false, { merge: lf.s }); br.merged = true; msg = L.m.merged;
+    }));
+    const stage = makeCanvas(host, 214);
+    const out = readout(host);
+    reset();
+
+    const stop = loop((dt) => {
+      now += dt;
+      if (br && br.ci === 'run') { ciT += dt; if (ciT > 1.5) { br.ci = br.broken ? 'fail' : 'pass'; msg = br.broken ? L.fail : L.pass; } }
+      const c = colors();
+      const { ctx, w, h } = stage;
+      ctx.clearRect(0, 0, w, h);
+      const VIS = w < NARROW ? 8 : 11, first = Math.max(0, seq - VIS), sp = Math.min(60, (w - 50) / VIS);
+      const X = (s) => 24 + (s - first) * sp;
+      const yM = 56, yF = 112;
+      const byS = {};
+      nodes.forEach((n) => { byS[n.s] = n; });
+      const vis = (s) => s >= first - 1;
+      // aristas
+      const mains = nodes.filter((n) => n.lane === 0);
+      for (let i = 1; i < mains.length; i++) if (vis(mains[i].s)) line(ctx, X(Math.max(first - 0.4, mains[i - 1].s)), yM, X(mains[i].s), yM, c.border, 3);
+      const brs = {};
+      nodes.filter((n) => n.lane === 1).forEach((n) => { (brs[n.b] = brs[n.b] || []).push(n); });
+      Object.keys(brs).forEach((k) => {
+        const list = brs[k];
+        const base = nodes.filter((n) => n.lane === 0 && n.s < list[0].s).slice(-1)[0];
+        let px = X(base.s), py = yM;
+        list.forEach((n) => { if (vis(n.s)) line(ctx, Math.max(px, 0), py, X(n.s), yF, c.accent, 2); px = X(n.s); py = yF; });
+      });
+      if (br && !br.merged && !br.commits) {
+        line(ctx, X(br.base), yM, X(br.base) + sp, yF, c.accent, 2, [4, 4]);
+      }
+      mains.filter((n) => n.merge !== undefined && vis(n.s)).forEach((n) => line(ctx, X(byS[n.merge].s), yF, X(n.s), yM, c.ok, 2));
+      // nodos
+      nodes.forEach((n) => {
+        if (!vis(n.s) || X(n.s) < 8) return;
+        const k = clamp((now - n.born) / 0.3, 0, 1);
+        const col = n.bad ? c.bad : n.merge !== undefined ? c.ok : n.lane ? c.accent : c.muted;
+        dot(ctx, X(n.s), n.lane ? yF : yM, (n.merge !== undefined ? 9 : 7) * ease(k), col);
+      });
+      tx(ctx, 'main', 6, yM - 18, c.muted);
+      // estado de main y equipo
+      const mb = mode === 'direct' && mainBroken;
+      pill(ctx, w - 10, 16, mb ? L.mainBad : L.mainOk, mb ? c.bad : c.okSoft, mb ? '#fff' : c.ok, 'right');
+      if (mode === 'direct') {
+        tx(ctx, L.team + ':', 24, yF, c.muted);
+        ctx.font = K.FONT;
+        const tw = ctx.measureText(L.team + ':').width;
+        for (let i = 0; i < 5; i++) { dot(ctx, 24 + tw + 16 + i * 22, yF, 8, mb ? c.bad : c.ok); tx(ctx, mb ? '✗' : '✓', 24 + tw + 16 + i * 22, yF, '#fff', { align: 'center' }); }
+      }
+      if (br && (!br.merged || now - nodes[nodes.length - 1].born < 3)) {
+        const fn = nodes.filter((n) => n.b === br.id)[0];
+        const bx = fn ? X(fn.s) : X(br.base) + sp;
+        if (bx > 0) tx(ctx, br.name, Math.min(bx, w - 130), yF + 20, c.accent, { mono: true }, 126);
+      }
+      // panel del PR
+      if (mode === 'pr' && br && br.pr) {
+        const y = 168;
+        ctx.fillStyle = c.soft; roundRect(ctx, 8, y - 18, w - 16, 54, 8); ctx.fill();
+        tx(ctx, 'PR #' + (11 + br.id) + ' ' + br.name + ' → main' + (br.merged ? ' · merged' : ''), 16, y - 6, c.text, { mono: true }, w - 32);
+        const ciLab = br.ci === 'run' ? '⏳ ' + L.run : br.ci === 'pass' ? L.pass : br.ci === 'fail' ? L.fail : 'CI ' + L.none;
+        const ciCol = br.ci === 'pass' ? c.ok : br.ci === 'fail' ? c.bad : br.ci === 'run' ? c.warn : c.muted;
+        let x = 16;
+        x += pill(ctx, x, y + 18, ciLab, ciCol === c.muted ? c.bg : ciCol, ciCol === c.muted ? c.muted : '#fff') + 6;
+        x += pill(ctx, x, y + 18, br.approved ? L.ok : L.review + ' ' + L.none, br.approved ? c.ok : c.bg, br.approved ? '#fff' : c.muted) + 6;
+        const can = br.ci === 'pass' && br.approved;
+        if (x + 120 < w) pill(ctx, x, y + 18, 'merge: ' + (br.merged ? '✓' : can ? L.allowed : L.blocked), can || br.merged ? c.okSoft : c.badSoft, can || br.merged ? c.ok : c.bad);
+        if (br.ci === 'run') { ctx.fillStyle = c.warn; ctx.fillRect(8, y + 34, (w - 16) * clamp(ciT / 1.5, 0, 1), 3); }
+      }
+      out(msg || L.m.dOk);
+    });
+    return () => { stop(); stage.destroy(); };
+  }
+
+  /* =========================================================
+     6. Tests de Edit Mode y Play Mode
+     ========================================================= */
+
+  function mountTests(host, lang) {
+    const L = {
+      es: { run: '▶ Ejecutar tests', noY: '[Test] sin yield', editT: 'Edit Mode · [Test]', play: 'Play Mode · [UnityTest]', playT: 'Play Mode · [Test]', entering: 'Entrando en Play Mode…', noPlay: 'sin entrar en Play Mode', frames: 'frames', resume: 'yield', assert: 'Assert',
+        m: { test: '✗ Con <code>[Test]</code> todo ocurre en una sola llamada síncrona: no pasa ningún frame ni paso de física, así que la bola sigue en y = 0 y <code>Assert.Less</code> falla.',
+          null: '⚠️ <code>yield return null</code> espera <b>un frame</b>, pero en ese frame puede que la física no haya hecho ningún paso (FixedUpdate se ejecuta 0..n veces): el test es inestable. Ejecútalo varias veces.',
+          fixed: '✓ <code>WaitForFixedUpdate</code> reanuda tras un paso de física: la bola ya bajó un poco y el test pasa.',
+          secs: '✓ <code>WaitForSeconds(1f)</code> deja pasar 1 s de juego (unos 60 frames y 50 pasos de física): la bola cae unos 5 m y el test pasa.' },
+        edit: 'El test de Edit Mode de <code>CalculateDamage</code> pasa al instante: es lógica pura, sin frames ni física.' },
+      en: { run: '▶ Run tests', noY: '[Test] without yield', editT: 'Edit Mode · [Test]', play: 'Play Mode · [UnityTest]', playT: 'Play Mode · [Test]', entering: 'Entering Play Mode…', noPlay: 'without entering Play Mode', frames: 'frames', resume: 'yield', assert: 'Assert',
+        m: { test: '✗ With <code>[Test]</code> everything happens in a single synchronous call: no frame or physics step passes, so the ball is still at y = 0 and <code>Assert.Less</code> fails.',
+          null: '⚠️ <code>yield return null</code> waits <b>one frame</b>, but physics may not have stepped in that frame (FixedUpdate runs 0..n times): the test is flaky. Run it a few times.',
+          fixed: '✓ <code>WaitForFixedUpdate</code> resumes after a physics step: the ball has dropped a little and the test passes.',
+          secs: '✓ <code>WaitForSeconds(1f)</code> lets 1 s of game time pass (about 60 frames and 50 physics steps): the ball falls about 5 m and the test passes.' },
+        edit: 'The Edit Mode test of <code>CalculateDamage</code> passes instantly: it is pure logic, no frames or physics.' }
+    }[lang];
+    const OPTS = [{ v: 'test', l: L.noY }, { v: 'null', l: 'yield return null' }, { v: 'fixed', l: 'WaitForFixedUpdate' }, { v: 'secs', l: 'WaitForSeconds(1f)' }];
+    const WAIT = { test: 0, null: 1 / 60, fixed: 0.02, secs: 1 };
+    const TS = 0.9, SPAN = 1.2;
+    let opt = 'secs', t = 0, flaky = false;
+    const ctl = controls(host);
+    seg(ctl, OPTS, opt, (v) => { opt = v; t = 0; flaky = Math.random() < 0.5; });
+    button(ctl, L.run, () => { t = 0; flaky = Math.random() < 0.5; }, true);
+    const stage = makeCanvas(host, (w) => (w < NARROW ? 360 : 190));
+    const out = readout(host);
+    const cb = codeBlock(host);
+    const steps = () => (opt === 'test' ? 0 : opt === 'null' ? (flaky ? 0 : 1) : opt === 'fixed' ? 1 : 50);
+    const yAt = (n) => -9.81 * 0.0004 * n * (n + 1) / 2;
+
+    const stop = loop((dt) => {
+      t += dt;
+      if (t > TS + SPAN + 3) t = 0;
+      const c = colors();
+      const { ctx, w, h } = stage;
+      ctx.clearRect(0, 0, w, h);
+      const nar = w < NARROW;
+      const P1 = nar ? { x: 8, y: 8, w: w - 16, h: 110 } : { x: 8, y: 8, w: (w - 24) * 0.42, h: h - 16 };
+      const P2 = nar ? { x: 8, y: 128, w: w - 16, h: h - 136 } : { x: P1.x + P1.w + 8, y: 8, w: w - P1.w - 24, h: h - 16 };
+      [P1, P2].forEach((p) => { ctx.fillStyle = c.soft; roundRect(ctx, p.x, p.y, p.w, p.h, 10); ctx.fill(); });
+      // Edit Mode
+      const eDone = t > 0.15;
+      tx(ctx, L.editT, P1.x + 10, P1.y + 14, c.text, {}, P1.w - 50);
+      tx(ctx, eDone ? '✓' : '⏳', P1.x + P1.w - 12, P1.y + 14, eDone ? c.ok : c.warn, { align: 'right' });
+      tx(ctx, 'CalculateDamage(10, 3)', P1.x + 10, P1.y + 42, c.text, { mono: true }, P1.w - 20);
+      if (eDone) {
+        tx(ctx, '→ 7   AreEqual(7) ✓', P1.x + 10, P1.y + 64, c.ok, { mono: true }, P1.w - 20);
+        tx(ctx, '0.001 s · ' + L.noPlay, P1.x + 10, P1.y + 88, c.muted, {}, P1.w - 20);
+      }
+      // Play Mode
+      tx(ctx, opt === 'test' ? L.playT : L.play, P2.x + 10, P2.y + 14, c.text, {}, P2.w - 50);
+      const tt = t - TS;
+      const waitEnd = WAIT[opt];
+      const n = steps();
+      const done = tt > Math.max(waitEnd, 0.05);
+      const yEnd = yAt(n);
+      const pass = yEnd < 0;
+      tx(ctx, done ? (pass ? '✓' : '✗') : '⏳', P2.x + P2.w - 12, P2.y + 14, done ? (pass ? c.ok : c.bad) : c.warn, { align: 'right' });
+      if (tt < 0) {
+        tx(ctx, L.entering, P2.x + 10, P2.y + 44, c.muted);
+        ctx.fillStyle = c.border; ctx.fillRect(P2.x + 10, P2.y + 58, P2.w - 20, 5);
+        ctx.fillStyle = c.accent; ctx.fillRect(P2.x + 10, P2.y + 58, (P2.w - 20) * clamp(t / TS, 0, 1), 5);
+      } else {
+        // escena: bola que cae
+        const gx = P2.x + 34, gTop = P2.y + 36, gBot = P2.y + P2.h - 58;
+        const tSim = Math.min(tt, waitEnd);
+        const ns = opt === 'secs' ? Math.floor(tSim / 0.02) : done ? n : 0;
+        const y = yAt(ns);
+        line(ctx, P2.x + 10, gBot + 10, P2.x + 60, gBot + 10, c.border, 2);
+        const by = gTop + clamp(-y / 5, 0, 1) * (gBot - gTop);
+        dot(ctx, gx, by, 9, c.accent);
+        tx(ctx, 'y = ' + y.toFixed(4), P2.x + 66, gTop + 4, c.text, { mono: true }, P2.w - 76);
+        if (done) tx(ctx, 'Assert.Less(y, 0) ' + (pass ? '✓' : '✗'), P2.x + 66, gTop + 26, pass ? c.ok : c.bad, { mono: true }, P2.w - 76);
+        // línea de tiempo con frames
+        const tx0 = P2.x + 12, tx1 = P2.x + P2.w - 12, ty = P2.y + P2.h - 30;
+        const TX = (s) => tx0 + (s / SPAN) * (tx1 - tx0);
+        line(ctx, tx0, ty, tx1, ty, c.border, 1);
+        for (let k = 0; k * (1 / 60) <= SPAN; k++) { const fx = TX(k / 60); line(ctx, fx, ty - 4, fx, ty + 4, k / 60 <= Math.min(tt, waitEnd) ? c.accent : c.border, 1); }
+        const rx = TX(waitEnd);
+        line(ctx, rx, ty - 12, rx, ty + 8, opt === 'test' ? c.bad : c.ok, 2);
+        tx(ctx, (opt === 'test' ? L.assert : L.resume + ' → ' + L.assert), Math.min(rx + 4, tx1 - 80), ty - 14, opt === 'test' ? c.bad : c.ok, {}, 120);
+        tx(ctx, L.frames + ' (1.2 s)', tx1, ty + 16, c.muted, { align: 'right' });
+        const ph = TX(clamp(tt, 0, SPAN));
+        line(ctx, ph, ty - 8, ph, ty + 8, c.text, 2);
+      }
+      out(L.edit + (tt > 0 && done ? '<p>' + L.m[opt] + (opt === 'null' ? ' (' + (flaky ? '0' : '1') + ' FixedUpdate)' : '') + '</p>' : ''));
+      const yl = { test: '    // (sin yield: no pasa ningún frame)', null: '    yield return null;', fixed: '    yield return new WaitForFixedUpdate();', secs: '    yield return new WaitForSeconds(1f);' }[opt];
+      let src = '// Edit Mode: sin Play Mode, instantáneo\n[Test]\npublic void Damage_ArmorReducesIt()\n{\n    Assert.AreEqual(7, Combat.CalculateDamage(10, 3));\n}\n\n// Play Mode: deja pasar frames con yield\n' +
+        (opt === 'test' ? '[Test]\npublic void Ball_FallsWithGravity()' : '[UnityTest]\npublic IEnumerator Ball_FallsWithGravity()') +
+        '\n{\n    var ball = new GameObject("Ball").AddComponent<Rigidbody>();\n    float y0 = ball.position.y;\n' + yl + '\n    Assert.Less(ball.position.y, y0);\n}';
+      if (lang === 'en') src = src.replace('sin Play Mode, instantáneo', 'no Play Mode, instant').replace('deja pasar frames con yield', 'let frames pass with yield').replace('(sin yield: no pasa ningún frame)', '(no yield: no frame passes)');
+      const marks = { 1: 'hl', 4: eDone ? 'ok' : 'hl', 8: opt === 'test' ? 'bad' : 'hl', 13: tt > 0 && !done ? 'hl' : opt === 'test' ? 'bad' : '' };
+      if (done && tt > 0) marks[14] = pass ? 'ok' : 'bad';
+      cb(src, marks);
+    });
+    return () => { stop(); stage.destroy(); };
+  }
+
+  /* =========================================================
+     7. Assembly Definitions: compilación y dependencias
+     ========================================================= */
+
+  function mountAsmdef(host, lang) {
+    const L = {
+      es: { single: 'Todo en Assembly-CSharp', asm: 'Con asmdefs', cyc: 'MyGame referencia a MyGame.Tests', eGame: '✎ Enemy.cs', eTest: '✎ EnemyTests.cs', eEd: '✎ LevelTool.cs',
+        sub: { acs: 'juego + plugins (sin asmdef)', acse: 'scripts en carpetas Editor', tests: 'asmdef · tests', third: 'asmdef · 300 scripts', game: 'asmdef · 120 scripts', editor: 'asmdef · herramientas' },
+        recompile: 'Recompilación', err: 'error', cyclic: '✗ Referencia circular detectada: Unity no compila ensamblados con dependencias cíclicas.',
+        tErr: '✗ <code>error CS0246: The type or namespace name \'Enemy\' could not be found</code>. El código del juego está en <b>Assembly-CSharp</b> y un asmdef <b>no puede referenciarlo</b>. Solución: crea <code>MyGame.asmdef</code> y haz que <code>MyGame.Tests</code> lo referencie.',
+        singleMsg: 'Sin asmdefs, tocar un script recompila <b>todo</b> Assembly-CSharp (también los 300 scripts de plugins) y lo que depende de él.',
+        asmOk: 'Solo se recompila el ensamblado editado y los que dependen de él; <code>ThirdParty</code> no se toca.', vs: 'misma edición' },
+      en: { single: 'Everything in Assembly-CSharp', asm: 'With asmdefs', cyc: 'MyGame references MyGame.Tests', eGame: '✎ Enemy.cs', eTest: '✎ EnemyTests.cs', eEd: '✎ LevelTool.cs',
+        sub: { acs: 'game + plugins (no asmdef)', acse: 'scripts in Editor folders', tests: 'asmdef · tests', third: 'asmdef · 300 scripts', game: 'asmdef · 120 scripts', editor: 'asmdef · tools' },
+        recompile: 'Recompile', err: 'error', cyclic: '✗ Cyclic reference detected: Unity does not compile assemblies with circular dependencies.',
+        tErr: '✗ <code>error CS0246: The type or namespace name \'Enemy\' could not be found</code>. The game code is in <b>Assembly-CSharp</b> and an asmdef <b>cannot reference it</b>. Fix: create <code>MyGame.asmdef</code> and make <code>MyGame.Tests</code> reference it.',
+        singleMsg: 'Without asmdefs, touching one script recompiles <b>all</b> of Assembly-CSharp (including 300 plugin scripts) and whatever depends on it.',
+        asmOk: 'Only the edited assembly and the ones that depend on it recompile; <code>ThirdParty</code> is not touched.', vs: 'same edit' }
+    }[lang];
+    const DEF = {
+      single: [{ id: 'acs', n: 'Assembly-CSharp', d: 7.0, deps: [] }, { id: 'acse', n: 'Assembly-CSharp-Editor', d: 0.6, deps: ['acs'] }, { id: 'tests', n: 'MyGame.Tests', d: 0.6, deps: ['acs'], bad: true }],
+      asm: [{ id: 'third', n: 'ThirdParty', d: 4.4, deps: [] }, { id: 'game', n: 'MyGame', d: 2.0, deps: ['third'] }, { id: 'tests', n: 'MyGame.Tests', d: 0.6, deps: ['game'] }, { id: 'editor', n: 'MyGame.Editor', d: 0.4, deps: ['game'] }]
+    };
+    const FILE = { game: { single: 'acs', asm: 'game' }, tests: { single: 'tests', asm: 'tests' }, editor: { single: 'acse', asm: 'editor' } };
+    const SPEED = 2.6;
+    let mode = 'single', cyc = false, file = 'game', queue = [], qi = 0, qt = 0, elapsed = 0, state = {};
+    function nodesOf(m) { const ns = DEF[m].map((x) => Object.assign({}, x, { deps: x.deps.slice() })); if (m === 'asm' && cyc) ns.find((x) => x.id === 'game').deps.push('tests'); return ns; }
+    function affected(m, f) {
+      const ns = nodesOf(m), start = FILE[f][m], res = [start];
+      for (let i = 0; i < res.length; i++) ns.forEach((x) => { if (x.deps.indexOf(res[i]) >= 0 && res.indexOf(x.id) < 0) res.push(x.id); });
+      return res;
+    }
+    const total = (m, f) => affected(m, f).reduce((s, id) => s + DEF[m].find((x) => x.id === id).d, 0);
+    function edit(f) { file = f; queue = affected(mode, f); qi = 0; qt = 0; elapsed = 0; state = {}; }
+    const ctl = controls(host);
+    seg(ctl, [{ v: 'single', l: L.single }, { v: 'asm', l: L.asm }], mode, (v) => { mode = v; edit(file); });
+    toggle(ctl, L.cyc, false, (v) => { cyc = v; edit(file); });
+    const ctl2 = controls(host);
+    button(ctl2, L.eGame, () => edit('game'), true);
+    button(ctl2, L.eTest, () => edit('tests'));
+    button(ctl2, L.eEd, () => edit('editor'));
+    const stage = makeCanvas(host, (w) => (w < NARROW ? 262 : 214));
+    const out = readout(host);
+    edit('game');
+
+    function layout(w) {
+      const nar = w < NARROW, half = (w - 30) / 2;
+      if (mode === 'single') return nar
+        ? { acs: { x: 10, y: 10, w: w - 20, h: 50 }, tests: { x: 10, y: 120, w: half, h: 50 }, acse: { x: 20 + half, y: 120, w: half, h: 50 } }
+        : { acs: { x: 14, y: 52, w: w * 0.4, h: 56 }, tests: { x: w * 0.56, y: 14, w: w * 0.4, h: 50 }, acse: { x: w * 0.56, y: 100, w: w * 0.4, h: 50 } };
+      return nar
+        ? { third: { x: 10, y: 8, w: w - 20, h: 44 }, game: { x: 10, y: 70, w: w - 20, h: 44 }, tests: { x: 10, y: 132, w: half, h: 44 }, editor: { x: 20 + half, y: 132, w: half, h: 44 } }
+        : { third: { x: 12, y: 58, w: w * 0.24, h: 50 }, game: { x: w * 0.36, y: 58, w: w * 0.24, h: 50 }, tests: { x: w * 0.72, y: 14, w: w * 0.26, h: 50 }, editor: { x: w * 0.72, y: 102, w: w * 0.26, h: 50 } };
+    }
+    function edgePt(r, x2, y2) {
+      const cx = r.x + r.w / 2, cy = r.y + r.h / 2, dx = x2 - cx, dy = y2 - cy;
+      const s = Math.min(dx ? (r.w / 2) / Math.abs(dx) : 1e9, dy ? (r.h / 2) / Math.abs(dy) : 1e9);
+      return [cx + dx * s, cy + dy * s];
+    }
+
+    const stop = loop((dt) => {
+      const ns = nodesOf(mode);
+      const cyclic = mode === 'asm' && cyc;
+      if (!cyclic && qi < queue.length) {
+        const cur = ns.find((x) => x.id === queue[qi]);
+        qt += dt * SPEED; elapsed += dt * SPEED;
+        state[cur.id] = { p: clamp(qt / cur.d, 0, 1) };
+        if (qt >= cur.d) { state[cur.id] = { p: 1, err: !!cur.bad }; qi++; qt = 0; }
+      }
+      const c = colors();
+      const { ctx, w, h } = stage;
+      ctx.clearRect(0, 0, w, h);
+      const lay = layout(w);
+      ns.forEach((x) => x.deps.forEach((d) => {
+        const a = lay[x.id], b = lay[d];
+        const bc = [b.x + b.w / 2, b.y + b.h / 2], ac = [a.x + a.w / 2, a.y + a.h / 2];
+        const p1 = edgePt(a, bc[0], bc[1]), p2 = edgePt(b, ac[0], ac[1]);
+        const bad = x.bad || (cyclic && (x.id === 'game' && d === 'tests' || x.id === 'tests' && d === 'game'));
+        if (bad) { line(ctx, p1[0], p1[1], p2[0], p2[1], c.bad, 2, [5, 4]); tx(ctx, '✗', (p1[0] + p2[0]) / 2 + 6, (p1[1] + p2[1]) / 2, c.bad); }
+        else arrow(ctx, p1[0], p1[1], p2[0], p2[1], c.muted, 1.5);
+      }));
+      ns.forEach((x) => {
+        const r = lay[x.id], st = state[x.id];
+        const inQ = queue.indexOf(x.id) >= 0;
+        const fill = cyclic ? c.badSoft : st && st.err ? c.bad : st && st.p >= 1 ? c.okSoft : st ? c.warnSoft : c.soft;
+        ctx.fillStyle = fill; roundRect(ctx, r.x, r.y, r.w, r.h, 8); ctx.fill();
+        ctx.strokeStyle = inQ ? c.accent : c.border; ctx.lineWidth = inQ ? 2 : 1; ctx.stroke();
+        const fg = st && st.err ? '#fff' : c.text;
+        tx(ctx, x.n, r.x + 8, r.y + 16, fg, { mono: true }, r.w - 16);
+        tx(ctx, st && st.err ? '✗ ' + L.err : L.sub[x.id] + ' · ' + x.d.toFixed(1) + ' s', r.x + 8, r.y + 34, st && st.err ? '#fff' : c.muted, {}, r.w - 16);
+        if (st && st.p < 1) { ctx.fillStyle = c.warn; ctx.fillRect(r.x + 4, r.y + r.h - 6, (r.w - 8) * st.p, 3); }
+      });
+      // barra de tiempo
+      const y = h - 26, other = mode === 'single' ? 'asm' : 'single';
+      const T = total(mode, file), Tmax = 9;
+      tx(ctx, L.recompile + ': ' + (cyclic ? '—' : elapsed.toFixed(1) + ' s'), 12, y - 8, c.text);
+      const oLab = w < NARROW ? (mode === 'single' ? 'asmdefs' : 'Assembly-CSharp') : (mode === 'single' ? L.asm : L.single);
+      tx(ctx, '┆ ' + oLab + ': ' + total(other, file).toFixed(1) + ' s', w - 12, y - 8, c.muted, { align: 'right' }, w / 2 - 10);
+      ctx.fillStyle = c.soft; roundRect(ctx, 12, y + 2, w - 24, 10, 5); ctx.fill();
+      ctx.fillStyle = mode === 'single' ? c.bad : c.ok; roundRect(ctx, 12, y + 2, Math.max(4, (w - 24) * Math.min(elapsed, T) / Tmax), 10, 5); ctx.fill();
+      const ox = 12 + (w - 24) * total(other, file) / Tmax; line(ctx, ox, y - 1, ox, y + 15, c.muted, 1.5, [3, 3]);
+      const testsErr = state.tests && state.tests.err;
+      out(cyclic ? L.cyclic : testsErr ? L.tErr : mode === 'single' ? L.singleMsg : L.asmOk);
+    });
+    return () => { stop(); stage.destroy(); };
+  }
+
+  /* =========================================================
+     8. Depuración: breakpoints y Debug.Log en builds
+     ========================================================= */
+
+  function mountDebugging(host, lang) {
+    const L = {
+      es: { tBp: 'Breakpoints', tLog: 'Debug.Log en builds', attach: 'Attach to Unity (IDE)', step: 'Step Over (F10)', cont: 'Continuar (F5)',
+        game: 'Juego (Play Mode)', paused: '⏸ pausado en el depurador', watch: 'Variables (Watch)', notBreak: 'solo con la ejecución detenida', frame: 'frame', status: 'Barra de estado',
+        m: { off: 'El depurador no está adjuntado: el breakpoint no hace nada. Activa «Attach to Unity».', rel: '⚠️ <b>Code Optimization: Release</b>. Unity compila el código optimizado y el depurador puede saltarse el breakpoint o no mostrar variables. Cambia a <b>Debug</b> desde el icono de la barra de estado (pide recompilar).',
+          run: 'Depurador adjuntado en modo Debug: espera a que se llame a <code>TakeHit</code>…', pause: '✓ Ejecución detenida en el breakpoint: el juego se congela y ves las variables. Usa Step Over o Continuar.' },
+        lm: { plain: '✗ En una build de release, <code>Debug.Log</code> <b>se sigue ejecutando</b>: construye el string (basura), captura la traza y escribe en el log, cada frame.',
+          off: '⚠️ <code>Debug.unityLogger.logEnabled = false</code> corta la <b>salida</b>, pero la llamada se sigue haciendo y el string de los argumentos se sigue construyendo.',
+          cond: '✓ Sin el símbolo <code>ENABLE_LOGS</code>, el compilador <b>elimina la llamada y sus argumentos</b> gracias a <code>[Conditional]</code>: coste cero.',
+          sym: 'Con <code>ENABLE_LOGS</code> definido (p. ej. en builds de desarrollo, en Scripting Define Symbols), los logs vuelven a funcionar con todo su coste.' },
+        cpu: 'CPU por frame', gc: 'basura por frame', removed: 'llamada eliminada al compilar', st: ['Update()', 'string +', 'Debug.Log()', 'Player.log'] },
+      en: { tBp: 'Breakpoints', tLog: 'Debug.Log in builds', attach: 'Attach to Unity (IDE)', step: 'Step Over (F10)', cont: 'Continue (F5)',
+        game: 'Game (Play Mode)', paused: '⏸ paused in the debugger', watch: 'Variables (Watch)', notBreak: 'only while execution is stopped', frame: 'frame', status: 'Status bar',
+        m: { off: 'The debugger is not attached: the breakpoint does nothing. Turn on “Attach to Unity”.', rel: '⚠️ <b>Code Optimization: Release</b>. Unity compiles optimized code and the debugger may skip the breakpoint or not show variables. Switch to <b>Debug</b> from the status bar icon (it recompiles).',
+          run: 'Debugger attached in Debug mode: wait for <code>TakeHit</code> to be called…', pause: '✓ Execution stopped at the breakpoint: the game freezes and you can see the variables. Use Step Over or Continue.' },
+        lm: { plain: '✗ In a release build, <code>Debug.Log</code> <b>still runs</b>: it builds the string (garbage), captures the stack trace and writes to the log, every frame.',
+          off: '⚠️ <code>Debug.unityLogger.logEnabled = false</code> stops the <b>output</b>, but the call still happens and the argument string is still built.',
+          cond: '✓ Without the <code>ENABLE_LOGS</code> symbol, the compiler <b>removes the call and its arguments</b> thanks to <code>[Conditional]</code>: zero cost.',
+          sym: 'With <code>ENABLE_LOGS</code> defined (e.g. for development builds, in Scripting Define Symbols), logging works again with its full cost.' },
+        cpu: 'CPU per frame', gc: 'garbage per frame', removed: 'call removed at compile time', st: ['Update()', 'string +', 'Debug.Log()', 'Player.log'] }
+    }[lang];
+    let tab = 'bp', opt = 'release', attached = true, paused = false, lineNo = -1, flash = 0, gt = 0, frames = 0, health = 50, final = null, nextHit = 1.2;
+    let lmode = 'plain', pk = [], pkAcc = 0;
+    const ctl = controls(host);
+    seg(ctl, [{ v: 'bp', l: L.tBp }, { v: 'log', l: L.tLog }], tab, (v) => { tab = v; sync(); });
+    const c1 = row(host), c2 = row(host);
+    seg(c1, [{ v: 'release', l: 'Release' }, { v: 'debug', l: 'Debug' }], opt, (v) => { opt = v; resume(); });
+    toggle(c1, L.attach, true, (v) => { attached = v; resume(); });
+    button(c1, L.step, () => { if (!paused) return; stepLine(); });
+    button(c1, L.cont, () => { if (!paused) return; while (paused) stepLine(); }, true);
+    seg(c2, [{ v: 'plain', l: 'Debug.Log' }, { v: 'off', l: 'logEnabled = false' }, { v: 'cond', l: '[Conditional]' }, { v: 'sym', l: '[Conditional] + ENABLE_LOGS' }], lmode, (v) => { lmode = v; pk = []; });
+    const hfn = (w) => (tab === 'bp' ? (w < NARROW ? 236 : 170) : 170);
+    const stage = makeCanvas(host, hfn);
+    const out = readout(host);
+    const cb = codeBlock(host);
+    function sync() { c1.show(tab === 'bp'); c2.show(tab === 'log'); refit(stage, hfn); }
+    sync();
+    function resume() { paused = false; lineNo = -1; }
+    function stepLine() {
+      if (lineNo === 3) { final = 7; lineNo = 4; }
+      else if (lineNo === 4) { health -= 7; lineNo = 5; }
+      else { if (health <= 0) health = 50; paused = false; lineNo = -1; }
+    }
+    function hit() {
+      final = null;
+      if (attached && opt === 'debug') { paused = true; lineNo = 3; }
+      else { health -= 7; if (health <= 0) health = 50; flash = 0.8; }
+    }
+
+    function drawBp(c, ctx, w, h) {
+      const nar = w < NARROW;
+      const G = nar ? { x: 8, y: 8, w: w - 16, h: 74 } : { x: 8, y: 8, w: w * 0.42, h: h - 50 };
+      const W = nar ? { x: 8, y: 90, w: w - 16, h: 104 } : { x: G.x + G.w + 8, y: 8, w: w - G.w - 24, h: h - 50 };
+      [G, W].forEach((p) => { ctx.fillStyle = c.soft; roundRect(ctx, p.x, p.y, p.w, p.h, 8); ctx.fill(); });
+      tx(ctx, L.game + ' · ' + L.frame + ' ' + frames, G.x + 10, G.y + 14, c.text, {}, G.w - 20);
+      const px = G.x + 14 + ((gt * 40) % Math.max(20, G.w - 170));
+      box(ctx, px, G.y + G.h - 34, 22, 22, '', paused ? c.muted : c.accent, '#fff', { r: 5 });
+      ctx.fillStyle = c.border; ctx.fillRect(G.x + G.w - 110, G.y + G.h - 26, 96, 8);
+      ctx.fillStyle = c.ok; ctx.fillRect(G.x + G.w - 110, G.y + G.h - 26, 96 * health / 50, 8);
+      tx(ctx, 'HP ' + health, G.x + G.w - 114, G.y + G.h - 22, c.text, { align: 'right' });
+      if (paused) tx(ctx, L.paused, G.x + 10, G.y + 34, c.warn, {}, G.w - 20);
+      tx(ctx, L.watch, W.x + 10, W.y + 14, c.text, {}, W.w - 20);
+      if (paused) {
+        const vars = [['damage', '10'], ['armor', '3'], ['final', final === null ? '?' : String(final)], ['health', String(health)]];
+        vars.forEach((v, i) => {
+          const col = i % 2, rw = nar ? (W.w - 20) / 2 : W.w - 20;
+          const x = W.x + 10 + (nar ? col * rw : 0), y = W.y + 36 + (nar ? Math.floor(i / 2) * 22 : i * 20);
+          tx(ctx, v[0] + ' = ' + v[1], x, y, c.text, { mono: true }, rw - 6);
+        });
+      } else tx(ctx, '(' + L.notBreak + ')', W.x + 10, W.y + 40, c.muted, {}, W.w - 20);
+      // barra de estado
+      const y = h - 18;
+      ctx.fillStyle = c.soft; ctx.fillRect(0, y - 14, w, 32);
+      const pw = pill(ctx, 8, y, (opt === 'debug' ? '🐞 Debug' : '⚡ Release'), opt === 'debug' ? c.ok : c.warn, '#fff');
+      pill(ctx, 16 + pw, y, attached ? 'IDE: attached' : 'IDE: —', attached ? c.accentSoft : c.bg, attached ? c.accent : c.muted);
+    }
+
+    function drawLog(c, ctx, w, h) {
+      const nar = w < NARROW, n = 4, gap = nar ? 6 : 10, bw = (w - 16 - gap * (n - 1)) / n, y = 18;
+      const labs = nar ? ['Update', 'string', 'Log()', 'output'] : L.st;
+      const active = (i) => (lmode === 'cond' ? i === 0 : lmode === 'off' ? i <= 2 : true);
+      for (let i = 0; i < n; i++) {
+        const x = 8 + i * (bw + gap), on = active(i);
+        box(ctx, x, y, bw, 36, '', on ? c.accentSoft : c.soft, c.text, { r: 8, stroke: on ? c.accent : c.border });
+        tx(ctx, labs[i], x + bw / 2, y + 18, on ? c.text : c.muted, { align: 'center', mono: !nar }, bw - 6);
+        if (i && !on) tx(ctx, '✗', x + bw - 8, y + 6, c.bad, { align: 'right' });
+      }
+      if (lmode === 'cond') tx(ctx, L.removed, w / 2, y + 52, c.ok, { align: 'center' }, w - 16);
+      pk.forEach((p) => {
+        const stopAt = lmode === 'off' ? 2 : 3;
+        const pos = Math.min(p, stopAt);
+        const x = 8 + pos * (bw + gap) + bw / 2;
+        ctx.globalAlpha = p > stopAt ? clamp(1 - (p - stopAt), 0, 1) : 1;
+        dot(ctx, x, y + 52, 5, p > stopAt && lmode === 'off' ? c.bad : c.warn);
+        ctx.globalAlpha = 1;
+      });
+      const COST = { plain: [0.35, 0.6], off: [0.03, 0.2], cond: [0, 0], sym: [0.35, 0.6] }[lmode];
+      const by = 92;
+      [[L.cpu, COST[0], 0.4, '≈ ' + COST[0].toFixed(2) + ' ms'], [L.gc, COST[1], 0.7, '≈ ' + COST[1].toFixed(1) + ' KB']].forEach((r, i) => {
+        const yy = by + i * 34;
+        tx(ctx, r[0], 10, yy, c.muted, {}, w / 2);
+        tx(ctx, r[3], w - 10, yy, c.text, { align: 'right' });
+        ctx.fillStyle = c.soft; roundRect(ctx, 10, yy + 10, w - 20, 10, 5); ctx.fill();
+        if (r[1] > 0) { ctx.fillStyle = r[1] / r[2] > 0.5 ? c.bad : c.warn; roundRect(ctx, 10, yy + 10, (w - 20) * r[1] / r[2], 10, 5); ctx.fill(); }
+      });
+    }
+
+    const stop = loop((dt) => {
+      const c = colors();
+      const { ctx, w, h } = stage;
+      ctx.clearRect(0, 0, w, h);
+      if (tab === 'bp') {
+        if (!paused) { gt += dt; frames += Math.round(dt * 60); nextHit -= dt; if (nextHit <= 0) { nextHit = 2.4; hit(); } }
+        flash = Math.max(0, flash - dt);
+        drawBp(c, ctx, w, h);
+        out(!attached ? L.m.off : opt === 'release' ? L.m.rel : paused ? L.m.pause : L.m.run);
+        const src = 'void TakeHit(int damage)\n{\n    int armor = stats.armor;\n    int final = damage - armor;    // ● breakpoint\n    health -= final;\n    if (health <= 0) Die();\n}';
+        const marks = { 3: attached ? (opt === 'debug' ? 'bad' : 'off') : 'off' };
+        if (paused) marks[lineNo] = 'hl';
+        else if (flash > 0) [2, 3, 4, 5].forEach((i) => { if (flash > 0.8 - (i - 1) * 0.15) marks[i] = 'hl'; });
+        cb(src, marks);
+      } else {
+        pkAcc += dt;
+        if (pkAcc > 0.5) { pkAcc = 0; if (lmode !== 'cond') pk.push(0); }
+        pk = pk.map((p) => p + dt * 2.2).filter((p) => p < 4.2);
+        drawLog(c, ctx, w, h);
+        out(L.lm[lmode]);
+        const call = lmode === 'plain' || lmode === 'off' ? '    Debug.Log("Enemy " + name + " at " + transform.position);' : '    Log.Info("Enemy " + name + " at " + transform.position);';
+        let src = (lmode === 'off' ? 'void Awake() { Debug.unityLogger.logEnabled = false; }\n\n' : '') +
+          (lmode === 'cond' || lmode === 'sym' ? (lmode === 'sym' ? '#define ENABLE_LOGS   // o en Player > Scripting Define Symbols\n' : '') + 'public static class Log\n{\n    [System.Diagnostics.Conditional("ENABLE_LOGS")]\n    public static void Info(string msg) => Debug.Log(msg);\n}\n\n' : '') +
+          'void Update()\n{\n' + call + '\n}';
+        if (lang === 'en') src = src.replace('o en Player', 'or in Player');
+        const lines = src.split('\n'), marks = {};
+        lines.forEach((s, i) => {
+          if (s.indexOf('Enemy ') >= 0) marks[i] = lmode === 'cond' ? 'off' : 'bad';
+          if (s.indexOf('Conditional') >= 0) marks[i] = 'ok';
+          if (s.indexOf('logEnabled') >= 0) marks[i] = 'hl';
+          if (s.indexOf('#define') >= 0) marks[i] = 'hl';
+        });
+        cb(src, marks);
+      }
+    });
+    return () => { stop(); stage.destroy(); };
+  }
+
+  /* =========================================================
+     9. Componentes con responsabilidad única y RequireComponent
+     ========================================================= */
+
+  function mountComponents(host, lang) {
+    const L = {
+      es: { tSrp: 'Responsabilidad única', tReq: 'RequireComponent', mono: 'PlayerController (2000 líneas)', comp: 'Componentes pequeños', reuse: 'Reutilizar Health en Enemy',
+        lines: 'líneas', same: '✗ Mismo archivo → conflicto de merge', diff: '✓ Archivos distintos → sin conflicto', copy: '✗ copiar y pegar la vida', reused: '♻ mismo componente',
+        m: { mono: 'Un solo script hace input, movimiento, vida, sonido y UI: Ana (movimiento) y Ben (vida) editan el <b>mismo archivo</b>, y el enemigo no puede reutilizar la vida sin arrastrar todo lo demás.',
+          comp: 'Cada componente tiene <b>una sola responsabilidad</b>: Ana y Ben tocan archivos distintos, cada pieza se puede testear sola y <code>Health</code> sirve también para el enemigo.' },
+        attr: 'Atributo [RequireComponent]', add: 'Add Component: Jump', rem: 'Quitar Rigidbody', play: '▶ Play (saltar)', reset: '↺ Reiniciar', auto: 'añadido automáticamente',
+        r: { start: 'Añade el script <code>Jump</code> al GameObject.', added: '✓ Al añadir <code>Jump</code>, Unity añadió el <b>Rigidbody</b> automáticamente.', addedNo: 'Se añadió <code>Jump</code>, pero nada garantiza que haya un Rigidbody.', has: 'Jump ya está.',
+          blocked: '✗ Unity no deja quitarlo: «Can\'t remove Rigidbody because Jump (Script) depends on it».', removed: 'Rigidbody eliminado. Nada lo impide sin el atributo…', noRb: 'No hay Rigidbody que quitar.',
+          noJump: 'Primero añade Jump.', ok: '✓ Salta: el Rigidbody está ahí.', err: '✗ <b>MissingComponentException</b> en el Editor (<b>NullReferenceException</b> en una build): no hay Rigidbody y <code>rb</code> es null.' } },
+      en: { tSrp: 'Single responsibility', tReq: 'RequireComponent', mono: 'PlayerController (2000 lines)', comp: 'Small components', reuse: 'Reuse Health on Enemy',
+        lines: 'lines', same: '✗ Same file → merge conflict', diff: '✓ Different files → no conflict', copy: '✗ copy-paste the health code', reused: '♻ same component',
+        m: { mono: 'One script does input, movement, health, audio and UI: Ana (movement) and Ben (health) edit the <b>same file</b>, and the enemy cannot reuse health without dragging everything else along.',
+          comp: 'Each component has <b>a single responsibility</b>: Ana and Ben touch different files, each piece can be tested on its own and <code>Health</code> works for the enemy too.' },
+        attr: '[RequireComponent] attribute', add: 'Add Component: Jump', rem: 'Remove Rigidbody', play: '▶ Play (jump)', reset: '↺ Reset', auto: 'added automatically',
+        r: { start: 'Add the <code>Jump</code> script to the GameObject.', added: '✓ When you added <code>Jump</code>, Unity added the <b>Rigidbody</b> automatically.', addedNo: '<code>Jump</code> was added, but nothing guarantees there is a Rigidbody.', has: 'Jump is already there.',
+          blocked: '✗ Unity will not remove it: “Can\'t remove Rigidbody because Jump (Script) depends on it”.', removed: 'Rigidbody removed. Without the attribute nothing prevents it…', noRb: 'There is no Rigidbody to remove.',
+          noJump: 'Add Jump first.', ok: '✓ It jumps: the Rigidbody is there.', err: '✗ <b>MissingComponentException</b> in the Editor (<b>NullReferenceException</b> in a build): there is no Rigidbody and <code>rb</code> is null.' } }
+    }[lang];
+    const PARTS = [['Input', 'PlayerInput.cs', 150, '#8b5cf6'], ['Movement', 'PlayerMovement.cs', 320, '#3b82f6'], ['Health', 'Health.cs', 120, '#e5484d'], ['Audio', 'PlayerAudio.cs', 90, '#d97706'], ['UI', 'HealthBarUI.cs', 80, '#059669']];
+    let tab = 'srp', mode = 'mono', reuse = false, rt = 0, t = 0, st = 0;
+    let attr = true, comps = [], msg = L.r.start, jumpT = -1, errT = -1, dlgT = -1;
+    const ctl = controls(host);
+    seg(ctl, [{ v: 'srp', l: L.tSrp }, { v: 'req', l: L.tReq }], tab, (v) => { tab = v; sync(); });
+    const c1 = row(host), c2 = row(host);
+    seg(c1, [{ v: 'mono', l: L.mono }, { v: 'comp', l: L.comp }], mode, (v) => { mode = v; st = 0; });
+    toggle(c1, L.reuse, false, (v) => { reuse = v; rt = 0; });
+    toggle(c2, L.attr, attr, (v) => { attr = v; resetReq(); });
+    const has = (n) => comps.some((x) => x.n === n);
+    button(c2, L.add, () => {
+      if (has('Jump')) { msg = L.r.has; return; }
+      comps.push({ n: 'Jump (Script)', key: 'Jump', born: t });
+      comps[comps.length - 1].n = 'Jump (Script)';
+      if (attr && !has('Rigidbody')) { comps.push({ n: 'Rigidbody', auto: true, born: t + 0.25 }); msg = L.r.added; } else msg = attr ? L.r.added : L.r.addedNo;
+    }, true);
+    button(c2, L.rem, () => {
+      if (!has('Rigidbody')) { msg = L.r.noRb; return; }
+      if (attr && hasJump()) { msg = L.r.blocked; dlgT = t; return; }
+      comps = comps.filter((x) => x.n !== 'Rigidbody'); msg = L.r.removed;
+    });
+    button(c2, L.play, () => {
+      if (!hasJump()) { msg = L.r.noJump; return; }
+      if (!has('Rigidbody')) { msg = L.r.err; errT = t; return; }
+      msg = L.r.ok; jumpT = t;
+    });
+    button(c2, L.reset, () => resetReq());
+    function hasJump() { return comps.some((x) => x.key === 'Jump'); }
+    function resetReq() { comps = []; msg = L.r.start; jumpT = errT = dlgT = -1; }
+    const hfn = (w) => (w < NARROW ? (tab === 'srp' ? 360 : 300) : (tab === 'srp' ? 236 : 210));
+    const stage = makeCanvas(host, hfn);
+    const out = readout(host);
+    const cb = codeBlock(host);
+    function sync() { c1.show(tab === 'srp'); c2.show(tab === 'req'); refit(stage, hfn); }
+    sync();
+
+    function drawSrp(c, ctx, w, h) {
+      const nar = w < NARROW;
+      const A = nar ? { x: 8, y: 8, w: w - 16, h: 228 } : { x: 8, y: 8, w: w * 0.6, h: h - 16 };
+      const B = nar ? { x: 8, y: 244, w: w - 16, h: h - 252 } : { x: A.w + 16, y: 8, w: w - A.w - 24, h: h - 16 };
+      [A, B].forEach((p) => { ctx.fillStyle = c.soft; roundRect(ctx, p.x, p.y, p.w, p.h, 10); ctx.fill(); });
+      tx(ctx, 'Player', A.x + 10, A.y + 14, c.muted);
+      tx(ctx, 'Enemy', B.x + 10, B.y + 14, c.muted);
+      const rows = [];
+      if (mode === 'mono') {
+        const fx = A.x + 10, fy = A.y + 26, fw = A.w - 90;
+        box(ctx, fx, fy, fw, 24, '', c.bg, c.text, { r: 6, stroke: c.border });
+        tx(ctx, 'PlayerController.cs · 2000 ' + L.lines, fx + 8, fy + 12, c.text, { mono: true }, fw - 16);
+        PARTS.forEach((p, i) => { const y = fy + 28 + i * 28; box(ctx, fx, y, fw, 26, '', p[3], '#fff', { r: 0 }); tx(ctx, p[0], fx + 8, y + 13, '#fff', {}, fw - 16); rows.push([fx + fw, y + 13]); });
+      } else {
+        PARTS.forEach((p, i) => {
+          const y = A.y + 26 + i * 34, fw = A.w - 90;
+          box(ctx, A.x + 10, y, fw, 28, '', p[3], '#fff', { r: 6 });
+          tx(ctx, p[1] + ' · ' + p[2], A.x + 18, y + 14, '#fff', { mono: !nar }, fw - 16);
+          rows.push([A.x + 10 + fw, y + 14]);
+        });
+      }
+      // Ana y Ben
+      const k = clamp(st / 0.8, 0, 1);
+      [[1, 'Ana', c.accent], [2, 'Ben', c.warn]].forEach((d) => {
+        const r = rows[d[0]];
+        arrow(ctx, r[0] + 60 - 50 * ease(k), r[1], r[0] + 4, r[1], d[2], 2);
+        tx(ctx, '✎ ' + d[1], r[0] + 64 - 50 * ease(k) + 12, r[1], d[2]);
+      });
+      if (st > 1.2) tx(ctx, mode === 'mono' ? L.same : L.diff, A.x + 10, A.y + A.h - 12, mode === 'mono' ? c.bad : c.ok, {}, A.w - 20);
+      // Enemy
+      box(ctx, B.x + 10, B.y + 26, B.w - 20, 26, 'EnemyAI', c.bg, c.text, { r: 6, stroke: c.border, mono: true });
+      if (reuse) {
+        if (mode === 'comp') {
+          const q = ease(clamp(rt / 0.8, 0, 1)), src = rows[2];
+          const x = lerp(src[0] - (A.w - 90), B.x + 10, q), y = lerp(src[1] - 14, B.y + 58, q);
+          box(ctx, x, y, B.w - 20, 28, 'Health.cs', PARTS[2][3], '#fff', { r: 6, mono: true });
+          if (q >= 1) tx(ctx, L.reused, B.x + 10, B.y + 102, c.ok, {}, B.w - 20);
+        } else tx(ctx, L.copy, B.x + 10, B.y + 70, c.bad, {}, B.w - 20);
+      }
+      out(L.m[mode]);
+      cb('// ' + (mode === 'mono' ? 'PlayerController.cs' : 'Health.cs') + '\n' + (mode === 'mono'
+        ? 'public class PlayerController : MonoBehaviour\n{\n    void Update() { ReadInput(); Move(); UpdateHealthBar(); PlayFootsteps(); }\n    public void TakeDamage(int amount) { /* vida + sonido + UI */ }\n    // ... 2000 líneas\n}'
+        : 'public class Health : MonoBehaviour\n{\n    [SerializeField] int max = 100;\n    public int Current { get; private set; }\n    public event System.Action<int> Changed;\n    public void TakeDamage(int amount) { Current -= amount; Changed?.Invoke(Current); }\n}').replace('vida + sonido + UI', lang === 'en' ? 'health + audio + UI' : 'vida + sonido + UI').replace('2000 líneas', lang === 'en' ? '2000 lines' : '2000 líneas'),
+      mode === 'mono' ? { 3: 'bad', 4: 'bad' } : { 6: 'ok' });
+    }
+
+    function drawReq(c, ctx, w, h) {
+      const nar = w < NARROW;
+      const I = nar ? { x: 8, y: 8, w: w - 16, h: 150 } : { x: 8, y: 8, w: w * 0.55, h: h - 16 };
+      const S = nar ? { x: 8, y: 166, w: w - 16, h: h - 174 } : { x: I.w + 16, y: 8, w: w - I.w - 24, h: h - 16 };
+      [I, S].forEach((p) => { ctx.fillStyle = c.soft; roundRect(ctx, p.x, p.y, p.w, p.h, 10); ctx.fill(); });
+      tx(ctx, 'Inspector · Player', I.x + 10, I.y + 14, c.muted, {}, I.w - 20);
+      const list = [{ n: 'Transform', born: -9 }].concat(comps);
+      list.forEach((cp, i) => {
+        const k = ease(clamp((t - cp.born) / 0.35, 0, 1));
+        if (k <= 0) return;
+        const y = I.y + 28 + i * 30;
+        ctx.globalAlpha = k;
+        box(ctx, I.x + 10 + (1 - k) * 30, y, I.w - 20, 26, '', cp.auto && t - cp.born < 1.6 ? c.okSoft : c.bg, c.text, { r: 6, stroke: c.border });
+        tx(ctx, cp.n, I.x + 20 + (1 - k) * 30, y + 13, c.text, { mono: true }, I.w - 40);
+        if (cp.auto) tx(ctx, L.auto, I.x + I.w - 18, y + 13, c.ok, { align: 'right' }, (I.w - 20) / 2);
+        ctx.globalAlpha = 1;
+      });
+      if (dlgT >= 0 && t - dlgT < 2.5) {
+        const y = I.y + I.h - 38;
+        box(ctx, I.x + 10, y, I.w - 20, 30, '', c.bad, '#fff', { r: 6 });
+        tx(ctx, "Can't remove Rigidbody: Jump depends on it", I.x + 18, y + 15, '#fff', {}, I.w - 36);
+      }
+      // escena
+      const gy = S.y + S.h - 22;
+      line(ctx, S.x + 10, gy, S.x + S.w - 10, gy, c.border, 2);
+      const jt = jumpT >= 0 ? t - jumpT : 9;
+      const jy = jt < 0.8 ? Math.sin(jt / 0.8 * Math.PI) * Math.min(60, S.h - 60) : 0;
+      const err = errT >= 0 && t - errT < 1.5;
+      box(ctx, S.x + S.w / 2 - 14, gy - 28 - jy, 28, 28, '', err ? c.bad : c.accent, '#fff', { r: 6 });
+      if (err) tx(ctx, '✗ Exception', S.x + S.w / 2, S.y + 16, c.bad, { align: 'center' });
+    }
+
+    const stop = loop((dt) => {
+      t += dt; rt += dt; st += dt;
+      if (st > 5) st = 0;
+      const c = colors();
+      const { ctx, w, h } = stage;
+      ctx.clearRect(0, 0, w, h);
+      if (tab === 'srp') drawSrp(c, ctx, w, h);
+      else {
+        drawReq(c, ctx, w, h);
+        out(msg);
+        cb((attr ? '[RequireComponent(typeof(Rigidbody))]\n' : '') + 'public class Jump : MonoBehaviour\n{\n    Rigidbody rb;\n    void Awake() => rb = GetComponent<Rigidbody>();\n    public void DoJump() => rb.AddForce(Vector3.up * 5f, ForceMode.Impulse);\n}',
+          attr ? { 0: 'ok' } : { 4: has('Rigidbody') ? '' : 'bad', 5: has('Rigidbody') ? '' : 'bad' });
+      }
+    });
+    return () => { stop(); stage.destroy(); };
+  }
+
+  /* =========================================================
+     10. Interfaces: IDamageable
+     ========================================================= */
+
+  function mountInterfaces(host, lang) {
+    const L = {
+      es: { iface: 'Interfaz IDamageable', chain: 'Cadena de tipos', crate: 'Añadir un tipo nuevo: Crate', none: 'sin IDamageable',
+        m: { iface: 'El proyectil solo pregunta «¿implementas <code>IDamageable</code>?» y llama a <code>TakeDamage</code>, sin conocer el tipo concreto.', chain: 'El proyectil conoce cada clase: una comprobación por tipo.' },
+        wall: 'Wall no implementa <code>IDamageable</code>: <code>TryGetComponent</code> devuelve false (sin generar basura) y no pasa nada.',
+        crI: '✓ <code>Crate</code> implementa <code>IDamageable</code> y recibe daño <b>sin tocar el proyectil</b> (principio abierto/cerrado).',
+        crC: '✗ <code>Crate</code> no recibe daño: hay que <b>editar el proyectil</b> y añadir otro <code>else if</code> por cada tipo nuevo.' },
+      en: { iface: 'IDamageable interface', chain: 'Type-check chain', crate: 'Add a new type: Crate', none: 'no IDamageable',
+        m: { iface: 'The projectile only asks “do you implement <code>IDamageable</code>?” and calls <code>TakeDamage</code>, without knowing the concrete type.', chain: 'The projectile knows every class: one check per type.' },
+        wall: 'Wall does not implement <code>IDamageable</code>: <code>TryGetComponent</code> returns false (without allocating garbage) and nothing happens.',
+        crI: '✓ <code>Crate</code> implements <code>IDamageable</code> and takes damage <b>without touching the projectile</b> (open/closed principle).',
+        crC: '✗ <code>Crate</code> takes no damage: you must <b>edit the projectile</b> and add another <code>else if</code> for every new type.' }
+    }[lang];
+    let mode = 'iface', crate = false, tgt = 0, p = 0, last = null;
+    const T = () => [{ n: 'Enemy', dmg: true, chain: 1 }, { n: 'Barrel', dmg: true, chain: 2 }, { n: 'Door', dmg: true, chain: 3 }, { n: 'Wall', dmg: false }].concat(crate ? [{ n: 'Crate', dmg: true }] : []);
+    let hp = { Enemy: 30, Barrel: 30, Door: 30, Wall: 30, Crate: 30 }, flash = {};
+    const ctl = controls(host);
+    seg(ctl, [{ v: 'iface', l: L.iface }, { v: 'chain', l: L.chain }], mode, (v) => { mode = v; });
+    toggle(ctl, L.crate, false, (v) => { crate = v; if (v) { tgt = 4; p = 0; } else if (tgt > 3) tgt = 0; });
+    const stage = makeCanvas(host, 170);
+    const out = readout(host);
+    const cb = codeBlock(host);
+
+    const stop = loop((dt) => {
+      const ts = T();
+      p += dt * 1.3;
+      if (p >= 1) {
+        p = 0;
+        const o = ts[tgt % ts.length];
+        const takes = o.dmg && (mode === 'iface' || o.chain);
+        last = { o, takes };
+        if (takes) { hp[o.n] -= 10; if (hp[o.n] <= 0) hp[o.n] = 30; flash[o.n] = 0.4; }
+        tgt = (tgt + 1) % ts.length;
+      }
+      Object.keys(flash).forEach((k) => { flash[k] = Math.max(0, flash[k] - dt); });
+      const c = colors();
+      const { ctx, w, h } = stage;
+      ctx.clearRect(0, 0, w, h);
+      const n = ts.length, cw = (w - 16) / n;
+      ts.forEach((o, i) => {
+        const x = 8 + i * cw + 4, bw = cw - 8;
+        const fl = flash[o.n] > 0;
+        box(ctx, x, 14, bw, 40, o.n, fl ? c.bad : o.dmg ? c.accentSoft : c.soft, fl ? '#fff' : c.text, { r: 8, stroke: o.dmg ? c.accent : c.border });
+        if (o.dmg) {
+          ctx.fillStyle = c.border; ctx.fillRect(x + 6, 60, bw - 12, 5);
+          ctx.fillStyle = c.ok; ctx.fillRect(x + 6, 60, (bw - 12) * hp[o.n] / 30, 5);
+          tx(ctx, 'IDamageable', x + bw / 2, 78, c.accent, { align: 'center' }, bw - 4);
+        } else tx(ctx, L.none, x + bw / 2, 78, c.muted, { align: 'center' }, bw - 4);
+        if (o.n === 'Crate' && mode === 'chain') tx(ctx, '✗', x + bw - 8, 22, c.bad, { align: 'right' });
+      });
+      // proyectil
+      const ti = tgt % n, tx0 = w / 2, ty0 = h - 22, tx1 = 8 + ti * cw + cw / 2, ty1 = 58;
+      box(ctx, tx0 - 16, ty0 - 8, 32, 16, '', c.muted, '#fff', { r: 4 });
+      const q = ease(p);
+      dot(ctx, lerp(tx0, tx1, q), lerp(ty0 - 8, ty1, q), 5, c.warn);
+      let msg = L.m[mode];
+      if (last) {
+        if (last.o.n === 'Wall') msg += '<p>' + L.wall + '</p>';
+        else if (last.o.n === 'Crate') msg += '<p>' + (mode === 'iface' ? L.crI : L.crC) + '</p>';
+        else msg += '<p>→ ' + code(last.o.n + '.TakeDamage(10)') + '</p>';
+      }
+      out(msg);
+      const src = mode === 'iface'
+        ? 'public interface IDamageable { void TakeDamage(int amount); }\n' + (crate ? 'public class Crate : MonoBehaviour, IDamageable { ... }\n' : '') +
+          '\nvoid OnTriggerEnter(Collider other)\n{\n    if (other.TryGetComponent(out IDamageable target))\n        target.TakeDamage(10);\n}'
+        : 'void OnTriggerEnter(Collider other)\n{\n    if (other.TryGetComponent(out Enemy e)) e.TakeDamage(10);\n    else if (other.TryGetComponent(out Barrel b)) b.TakeDamage(10);\n    else if (other.TryGetComponent(out Door d)) d.TakeDamage(10);\n' +
+          (crate ? (lang === 'es' ? '    // ✗ Crate: hay que editar este archivo\n' : '    // ✗ Crate: you must edit this file\n') : '') + '}';
+      const marks = {};
+      if (mode === 'iface') { const off = crate ? 1 : 0; marks[4 + off] = 'hl'; if (last && last.takes) marks[5 + off] = 'ok'; if (crate) marks[1] = 'ok'; }
+      else { if (last && last.o.chain) marks[1 + last.o.chain] = 'ok'; if (crate) marks[5] = 'bad'; }
+      cb(src, marks);
+    });
+    return () => { stop(); stage.destroy(); };
+  }
+
+  /* =========================================================
+     11. Acceso y serialización de campos
+     ========================================================= */
+
+  function mountAccess(host, lang) {
+    const L = {
+      es: { rows: ['¿Se ve en el Inspector?', '¿Se guarda con la escena/prefab?', '¿Otras clases pueden cambiarlo?'], goal: 'objetivo', now: 'este', ph: ['1 · El diseñador pone Speed = 8 en el Inspector', '2 · Guardar y recargar la escena', '3 · Enemy.cs: player.speed = 99;'],
+        hidden: '(no aparece en el Inspector)', err: 'error CS0122: \'Player.speed\' es inaccesible por su nivel de protección', set: 'compila: cualquiera puede cambiarlo',
+        m: { pub: '<code>public</code> se ve y se guarda, pero <b>cualquier clase</b> puede modificarlo: rompe la encapsulación.', priv: '<code>private</code> sin atributo: ni se ve ni se serializa.',
+          sf: '✓ <code>[SerializeField] private</code>: Unity lo serializa y lo muestra, pero el código de otras clases no puede tocarlo. Es justo lo que buscas.',
+          hide: '<code>[HideInInspector] public</code>: se serializa pero se oculta en el Inspector, y sigue siendo público.', nsp: '<code>[NonSerialized] public</code>: no se guarda ni se muestra, pero es público.', nspr: '<code>[NonSerialized] private</code>: no se guarda ni se muestra (igual que private).' } },
+      en: { rows: ['Shown in the Inspector?', 'Saved with the scene/prefab?', 'Can other classes change it?'], goal: 'goal', now: 'this', ph: ['1 · The designer sets Speed = 8 in the Inspector', '2 · Save and reload the scene', '3 · Enemy.cs: player.speed = 99;'],
+        hidden: '(not shown in the Inspector)', err: 'error CS0122: \'Player.speed\' is inaccessible due to its protection level', set: 'compiles: anyone can change it',
+        m: { pub: '<code>public</code> is shown and saved, but <b>any class</b> can modify it: it breaks encapsulation.', priv: '<code>private</code> with no attribute: neither shown nor serialized.',
+          sf: '✓ <code>[SerializeField] private</code>: Unity serializes and shows it, but other classes’ code cannot touch it. Exactly what you want.',
+          hide: '<code>[HideInInspector] public</code>: serialized but hidden in the Inspector, and still public.', nsp: '<code>[NonSerialized] public</code>: not saved or shown, but public.', nspr: '<code>[NonSerialized] private</code>: not saved or shown (same as private).' } }
+    }[lang];
+    const D = [
+      { v: 'pub', l: 'public float speed;', s: [1, 1, 1] }, { v: 'priv', l: 'private float speed;', s: [0, 0, 0] },
+      { v: 'sf', l: '[SerializeField] private float speed;', s: [1, 1, 0] }, { v: 'hide', l: '[HideInInspector] public float speed;', s: [0, 1, 1] },
+      { v: 'nsp', l: '[NonSerialized] public float speed;', s: [0, 0, 1] }, { v: 'nspr', l: '[NonSerialized] private float speed;', s: [0, 0, 0] }
+    ];
+    const GOAL = [1, 1, 0];
+    let sel = 'pub', t = 0;
+    const ctl = controls(host);
+    seg(ctl, D.map((d) => ({ v: d.v, l: d.l.replace(' float speed;', '') })), sel, (v) => { sel = v; t = 0; });
+    const stage = makeCanvas(host, (w) => (w < NARROW ? 300 : 196));
+    const out = readout(host);
+    const cb = codeBlock(host);
+
+    const stop = loop((dt) => {
+      t += dt;
+      if (t > 8) t = 0;
+      const d = D.find((x) => x.v === sel);
+      const [shown, saved, open] = d.s;
+      const phase = t < 2.4 ? 0 : t < 4.8 ? 1 : 2;
+      // valor actual
+      let val = 5;
+      if (shown && t > 1) val = 8;
+      if (phase >= 1 && t > 3.6 && !saved) val = 5;
+      if (phase === 2 && t > 6 && open) val = 99;
+      const c = colors();
+      const { ctx, w, h } = stage;
+      ctx.clearRect(0, 0, w, h);
+      const nar = w < NARROW;
+      const I = nar ? { x: 8, y: 8, w: w - 16, h: 92 } : { x: 8, y: 8, w: w * 0.42, h: 106 };
+      const G = nar ? { x: 8, y: 108, w: w - 16, h: 100 } : { x: I.w + 16, y: 8, w: w - I.w - 24, h: 106 };
+      const E = nar ? { x: 8, y: 216, w: w - 16, h: h - 224 } : { x: 8, y: 122, w: w - 16, h: h - 130 };
+      [I, G, E].forEach((p) => { ctx.fillStyle = c.soft; roundRect(ctx, p.x, p.y, p.w, p.h, 10); ctx.fill(); });
+      tx(ctx, 'Inspector · Player (Script)', I.x + 10, I.y + 14, c.muted, {}, I.w - 20);
+      if (shown) {
+        tx(ctx, 'Speed', I.x + 10, I.y + 46, c.text);
+        const fx = I.x + 70, fw = Math.min(110, I.w - 80);
+        box(ctx, fx, I.y + 34, fw, 24, String(val), phase === 0 && t > 1 && t < 1.8 ? c.accentSoft : c.bg, c.text, { r: 5, stroke: c.border, mono: true });
+      } else tx(ctx, L.hidden, I.x + 10, I.y + 46, c.muted, {}, I.w - 20);
+      tx(ctx, 'speed = ' + val + (phase === 2 && open && t > 6 ? '  (runtime)' : ''), I.x + 10, I.y + I.h - 14, c.muted, { mono: true }, I.w - 20);
+      // cuadrícula
+      const cx1 = G.x + G.w - 96, cx2 = G.x + G.w - 40;
+      tx(ctx, L.now, cx1, G.y + 12, c.muted, { align: 'center' });
+      tx(ctx, L.goal, cx2, G.y + 12, c.muted, { align: 'center' });
+      L.rows.forEach((r, i) => {
+        const y = G.y + 34 + i * 26;
+        tx(ctx, r, G.x + 10, y, c.text, {}, cx1 - G.x - 40);
+        const v = d.s[i], match = v === GOAL[i];
+        box(ctx, cx1 - 14, y - 10, 28, 20, v ? '✓' : '✗', match ? c.ok : c.bad, '#fff', { r: 5 });
+        box(ctx, cx2 - 14, y - 10, 28, 20, GOAL[i] ? '✓' : '✗', c.bg, c.muted, { r: 5, stroke: c.border });
+      });
+      // fases
+      tx(ctx, L.ph[phase], E.x + 10, E.y + 16, c.text, {}, E.w - 20);
+      if (phase === 1) {
+        const ok = saved;
+        tx(ctx, ok ? '💾 speed = ' + val + ' ✓' : '💾 speed → 5 (' + (lang === 'es' ? 'se pierde' : 'lost') + ')', E.x + 10, E.y + 42, t > 3.6 ? (ok ? c.ok : c.bad) : c.muted, { mono: true }, E.w - 20);
+      }
+      if (phase === 2) {
+        const q = ease(clamp((t - 4.8) / 1.2, 0, 1));
+        const ax = E.x + 20, ex = E.x + E.w * 0.6;
+        dot(ctx, lerp(ax, ex, q), E.y + 42, 6, open ? c.warn : c.bad);
+        if (t > 6) tx(ctx, open ? '✓ ' + L.set : '✗ ' + L.err, E.x + 10, E.y + 42, open ? c.warn : c.bad, { mono: !open }, E.w - 20);
+      }
+      out(L.m[sel]);
+      cb('public class Player : MonoBehaviour\n{\n    ' + d.l + '\n}\n\npublic class Enemy : MonoBehaviour\n{\n    void Slow(Player player) { player.speed = 99; }\n}', { 2: sel === 'sf' ? 'ok' : 'hl', 7: open ? 'hl' : 'bad' });
+    });
+    return () => { stop(); stage.destroy(); };
+  }
+
+  /* =========================================================
+     12. Namespaces y colisiones de nombres
+     ========================================================= */
+
+  function mountNamespaces(host, lang) {
+    const L = {
+      es: { mine: 'Mi Timer', glob: 'sin namespace', ns: 'namespace MyGame.Core', asset: 'El asset usa namespace ThirdParty.Tools', use: 'Spawner.cs usa:', yours: 'tuyo', theirs: 'asset',
+        m: { dup: '✗ <code>error CS0101: The namespace \'&lt;global namespace&gt;\' already contains a definition for \'Timer\'</code>. Las dos clases viven en el namespace global y chocan.',
+          okG: '✓ Compila, pero solo porque el asset sí usa namespace. Tu <code>Timer</code> global sigue expuesto a chocar con el próximo asset.',
+          shadow: '⚠️ Compila, pero <code>Timer</code> se resuelve al <b>Timer global del asset</b>: los tipos del namespace global ganan a las directivas <code>using</code>. Llamar a tus métodos daría <code>CS1061</code>. Usa el nombre completo o pon el código en tu namespace.',
+          ok: '✓ Sin ambigüedad: <code>Timer</code> es <code>MyGame.Core.Timer</code>, el tuyo.',
+          amb: '✗ <code>error CS0104: \'Timer\' is an ambiguous reference between \'MyGame.Core.Timer\' and \'ThirdParty.Tools.Timer\'</code>. Usa el nombre completo o un alias.' } },
+      en: { mine: 'My Timer', glob: 'no namespace', ns: 'namespace MyGame.Core', asset: 'The asset uses namespace ThirdParty.Tools', use: 'Spawner.cs uses:', yours: 'yours', theirs: 'asset',
+        m: { dup: '✗ <code>error CS0101: The namespace \'&lt;global namespace&gt;\' already contains a definition for \'Timer\'</code>. Both classes live in the global namespace and clash.',
+          okG: '✓ It compiles, but only because the asset does use a namespace. Your global <code>Timer</code> can still clash with the next asset.',
+          shadow: '⚠️ It compiles, but <code>Timer</code> resolves to the <b>asset’s global Timer</b>: types in the global namespace win over <code>using</code> directives. Calling your methods would give <code>CS1061</code>. Use the fully qualified name or put the code in your namespace.',
+          ok: '✓ No ambiguity: <code>Timer</code> is <code>MyGame.Core.Timer</code>, yours.',
+          amb: '✗ <code>error CS0104: \'Timer\' is an ambiguous reference between \'MyGame.Core.Timer\' and \'ThirdParty.Tools.Timer\'</code>. Use the fully qualified name or an alias.' } }
+    }[lang];
+    let mineNs = false, assetNs = false, use = 'using', t = 0;
+    const ctl = controls(host);
+    seg(ctl, [{ v: false, l: L.mine + ': ' + L.glob }, { v: true, l: L.ns }], mineNs, (v) => { mineNs = v; t = 0; });
+    toggle(ctl, L.asset, false, (v) => { assetNs = v; t = 0; });
+    const ctl2 = controls(host);
+    ctl2.appendChild(el('span', 'muted small', L.use));
+    seg(ctl2, [{ v: 'using', l: 'using MyGame.Core;' }, { v: 'fq', l: 'MyGame.Core.Timer' }, { v: 'both', l: 'using MyGame.Core; using ThirdParty.Tools;' }], use, (v) => { use = v; t = 0; });
+    const stage = makeCanvas(host, (w) => (w < NARROW ? 330 : 220));
+    const out = readout(host);
+    const cb = codeBlock(host);
+
+    function result() {
+      if (!mineNs && !assetNs) return { k: 'dup', to: null };
+      if (!mineNs) return { k: 'okG', to: 'mineG' };
+      if (use === 'fq') return { k: 'ok', to: 'mineN' };
+      if (!assetNs) return { k: 'shadow', to: 'assetG' };
+      return use === 'both' ? { k: 'amb', to: null } : { k: 'ok', to: 'mineN' };
+    }
+
+    const stop = loop((dt) => {
+      t += dt;
+      const c = colors();
+      const { ctx, w, h } = stage;
+      ctx.clearRect(0, 0, w, h);
+      const nar = w < NARROW;
+      const r = result();
+      // árbol de namespaces
+      const items = [{ d: 0, n: '(global)', ns: true }];
+      if (!mineNs) items.push({ d: 1, n: 'Timer', who: 'yours', id: 'mineG' });
+      if (!assetNs) items.push({ d: 1, n: 'Timer', who: 'theirs', id: 'assetG' });
+      items.push({ d: 1, n: 'MyGame', ns: true }, { d: 2, n: 'Core', ns: true });
+      if (mineNs) items.push({ d: 3, n: 'Timer', who: 'yours', id: 'mineN' });
+      items.push({ d: 3, n: 'GameClock' }, { d: 2, n: 'UI', ns: true }, { d: 3, n: 'HealthBar' }, { d: 1, n: 'ThirdParty', ns: true }, { d: 2, n: 'Tools', ns: true });
+      if (assetNs) items.push({ d: 3, n: 'Timer', who: 'theirs', id: 'assetN' });
+      items.push({ d: 3, n: 'Tween' });
+      const TW = nar ? w - 16 : w * 0.5;
+      const rowH = Math.min(17, (nar ? 200 : h - 16) / items.length);
+      const pos = {};
+      items.forEach((it, i) => {
+        const x = 14 + it.d * 18, y = 14 + i * rowH;
+        if (it.d) line(ctx, x - 12, y, x - 4, y, c.border, 1);
+        const clash = r.k === 'dup' && it.n === 'Timer';
+        const amb = r.k === 'amb' && it.n === 'Timer';
+        const col = clash || amb ? c.bad : it.ns ? c.muted : it.who ? (it.who === 'yours' ? c.accent : c.warn) : c.text;
+        tx(ctx, (it.ns ? '{ } ' : '') + it.n, x, y, col, { mono: true });
+        if (it.who) { ctx.font = K.MONO; const nw = ctx.measureText(it.n).width; pill(ctx, x + nw + 8, y, it.who === 'yours' ? L.yours : L.theirs, it.who === 'yours' ? c.accentSoft : c.warnSoft, it.who === 'yours' ? c.accent : c.warn); pos[it.id] = [x + nw + 60, y]; }
+      });
+      // Spawner
+      const S = nar ? { x: 8, y: h - 104, w: w - 16, h: 96 } : { x: TW + 16, y: 30, w: w - TW - 24, h: 110 };
+      ctx.fillStyle = c.soft; roundRect(ctx, S.x, S.y, S.w, S.h, 10); ctx.fill();
+      tx(ctx, 'Spawner.cs', S.x + 10, S.y + 14, c.muted);
+      const decl = !mineNs ? 'Timer timer;' : use === 'fq' ? 'MyGame.Core.Timer timer;' : 'Timer timer;';
+      tx(ctx, decl, S.x + 10, S.y + 40, c.text, { mono: true }, S.w - 20);
+      const res = r.k === 'dup' ? '✗ CS0101' : r.k === 'amb' ? '✗ CS0104' : r.k === 'shadow' ? '⚠️ → Timer (asset)' : '✓ → Timer (' + L.yours + ')';
+      const rc = r.k === 'dup' || r.k === 'amb' ? c.bad : r.k === 'shadow' ? c.warn : c.ok;
+      tx(ctx, res, S.x + 10, S.y + 66, rc, { mono: true }, S.w - 20);
+      if (r.to && pos[r.to]) {
+        const q = ease(clamp(t / 0.9, 0, 1));
+        const sx = nar ? S.x + S.w / 2 : S.x, sy = nar ? S.y : S.y + 40;
+        const e = pos[r.to];
+        line(ctx, sx, sy, lerp(sx, e[0], q), lerp(sy, e[1], q), rc, 2, [5, 4]);
+        if (q >= 1) dot(ctx, e[0], e[1], 4, rc);
+      }
+      out(L.m[r.k]);
+      const timer = mineNs ? 'namespace MyGame.Core\n{\n    public class Timer { public void StartCountdown(float s) { } }\n}' : 'public class Timer { public void StartCountdown(float s) { } }';
+      const usings = !mineNs ? '' : use === 'using' ? 'using MyGame.Core;\n' : use === 'both' ? 'using MyGame.Core;\nusing ThirdParty.Tools;\n' : '';
+      const src = '// Timer.cs\n' + timer + '\n\n// Spawner.cs\n' + usings + 'public class Spawner : MonoBehaviour\n{\n    ' + decl + '\n}';
+      const lines = src.split('\n'), marks = {};
+      lines.forEach((s, i) => { if (s.indexOf('Timer timer') >= 0) marks[i] = r.k === 'ok' || r.k === 'okG' ? 'ok' : r.k === 'shadow' ? 'hl' : 'bad'; if (s.indexOf('namespace MyGame') >= 0) marks[i] = 'ok'; });
+      cb(src, marks);
+    });
+    return () => { stop(); stage.destroy(); };
+  }
+
+  /* =========================================================
+     13. Esperar en Unity 6: Awaitable vs Task.Delay vs corrutina vs Thread.Sleep
+     ========================================================= */
+
+  function mountAwaitable(host, lang) {
+    const L = {
+      es: { start: '▶ Esperar 2 s', destroy: 'Destroy(gameObject)', ts: 'Time.timeScale = 0', exit: '■ Salir de Play Mode', frame: 'frame', waiting: 'esperando', boss: '👹 SpawnBoss()', destroyed: 'GameObject destruido', paused: 'timeScale = 0', edit: 'Edit Mode', frozen: '❄ hilo principal congelado',
+        log: { start: 'Empieza la espera de 2 s.', cancel: '✓ Cancelada: OperationCanceledException (destroyCancellationToken). SpawnBoss no se ejecuta.', coStop: '✓ La corrutina se detiene con su GameObject. SpawnBoss no se ejecuta.',
+          ghost: '✗ Task.Delay no sabe nada del objeto: 2 s después SpawnBoss() se ejecuta sobre un objeto destruido → MissingReferenceException.', exitT: '✗ Task.Delay sigue corriendo fuera de Play Mode: SpawnBoss() se ejecuta en el Editor.',
+          boss: '✓ Pasaron los 2 s: SpawnBoss().', ignore: '⚠️ Task.Delay usa tiempo real: ignora Time.timeScale.', respect: 'La espera se congela: respeta Time.timeScale.', sleep: '✗ Thread.Sleep bloquea el hilo principal: el juego no pinta frames ni procesa nada durante 2 s.' },
+        notes: { aw: '<code>Awaitable</code> se integra con el player loop: respeta <code>timeScale</code>, vuelve al hilo principal y se cancela con <code>destroyCancellationToken</code>.', task: '<code>Task.Delay</code> no conoce Unity: tiempo real, sigue tras destruir el objeto o salir de Play Mode y da problemas en WebGL.',
+          co: 'La corrutina funciona, pero <code>yield return</code> solo vale en un método <code>IEnumerator</code> lanzado con <code>StartCoroutine</code>: en un método <code>async</code> no compila.', sleep: '<code>Thread.Sleep</code> congela el hilo principal: nunca lo uses para esperar en un juego.' } },
+      en: { start: '▶ Wait 2 s', destroy: 'Destroy(gameObject)', ts: 'Time.timeScale = 0', exit: '■ Exit Play Mode', frame: 'frame', waiting: 'waiting', boss: '👹 SpawnBoss()', destroyed: 'GameObject destroyed', paused: 'timeScale = 0', edit: 'Edit Mode', frozen: '❄ main thread frozen',
+        log: { start: 'The 2 s wait starts.', cancel: '✓ Cancelled: OperationCanceledException (destroyCancellationToken). SpawnBoss does not run.', coStop: '✓ The coroutine stops with its GameObject. SpawnBoss does not run.',
+          ghost: '✗ Task.Delay knows nothing about the object: 2 s later SpawnBoss() runs on a destroyed object → MissingReferenceException.', exitT: '✗ Task.Delay keeps running outside Play Mode: SpawnBoss() runs in the Editor.',
+          boss: '✓ 2 s passed: SpawnBoss().', ignore: '⚠️ Task.Delay uses real time: it ignores Time.timeScale.', respect: 'The wait freezes: it respects Time.timeScale.', sleep: '✗ Thread.Sleep blocks the main thread: the game renders no frames and processes nothing for 2 s.' },
+        notes: { aw: '<code>Awaitable</code> is integrated with the player loop: it respects <code>timeScale</code>, resumes on the main thread and is cancelled by <code>destroyCancellationToken</code>.', task: '<code>Task.Delay</code> knows nothing about Unity: real time, it keeps going after the object is destroyed or Play Mode ends, and it misbehaves in WebGL.',
+          co: 'The coroutine works, but <code>yield return</code> is only valid in an <code>IEnumerator</code> method started with <code>StartCoroutine</code>: in an <code>async</code> method it does not compile.', sleep: '<code>Thread.Sleep</code> freezes the main thread: never use it to wait in a game.' } }
+    }[lang];
+    const M = [{ v: 'aw', l: 'Awaitable' }, { v: 'task', l: 'Task.Delay' }, { v: 'co', l: 'Coroutine' }, { v: 'sleep', l: 'Thread.Sleep' }];
+    let m = 'aw', waiting = false, prog = 0, alive = true, play = true, scale = 1, frames = 0, ang = 0, logs = [], frozen = 0, done = null;
+    function reset() { waiting = false; prog = 0; alive = true; play = true; frozen = 0; done = null; logs = []; }
+    function log(s) { logs.push(s); if (logs.length > 3) logs.shift(); }
+    const ctl = controls(host);
+    seg(ctl, M, m, (v) => { m = v; reset(); });
+    const ctl2 = controls(host);
+    button(ctl2, L.start, () => { reset(); waiting = true; log(L.log.start); if (m === 'sleep') { frozen = 2; log(L.log.sleep); } }, true);
+    button(ctl2, L.destroy, () => {
+      if (frozen > 0 || !alive || !play) return;
+      alive = false;
+      if (!waiting) return;
+      if (m === 'aw') { waiting = false; done = 'cancel'; log(L.log.cancel); }
+      else if (m === 'co') { waiting = false; done = 'cancel'; log(L.log.coStop); }
+    });
+    toggle(ctl2, L.ts, false, (v) => { scale = v ? 0 : 1; if (v && waiting) log(m === 'task' ? L.log.ignore : L.log.respect); });
+    button(ctl2, L.exit, () => {
+      if (frozen > 0 || !play) return;
+      play = false; alive = false;
+      if (!waiting) return;
+      if (m === 'task') return;
+      waiting = false; done = 'cancel'; log(m === 'aw' ? L.log.cancel : L.log.coStop);
+    });
+    const stage = makeCanvas(host, 150);
+    const out = readout(host);
+    const cb = codeBlock(host);
+
+    const stop = loop((dt) => {
+      if (frozen > 0) {
+        frozen -= dt;
+        prog = clamp(1 - frozen / 2, 0, 1);
+        if (frozen <= 0) { waiting = false; done = 'boss'; log(L.log.boss); }
+      } else {
+        if (play) { frames++; ang += dt * 3 * scale; }
+        if (waiting) {
+          const rate = m === 'task' ? 1 : (play ? scale : 0);
+          prog += dt * rate / 2;
+          if (prog >= 1) {
+            prog = 1; waiting = false;
+            if (m === 'task' && !play) { done = 'bad'; log(L.log.exitT); }
+            else if (m === 'task' && !alive) { done = 'bad'; log(L.log.ghost); }
+            else { done = 'boss'; log(L.log.boss); }
+          }
+        }
+      }
+      const c = colors();
+      const { ctx, w, h } = stage;
+      ctx.clearRect(0, 0, w, h);
+      // vista de juego
+      const gw = Math.min(150, w * 0.38);
+      ctx.fillStyle = c.soft; roundRect(ctx, 8, 8, gw, h - 16, 10); ctx.fill();
+      tx(ctx, play ? L.frame + ' ' + frames : L.edit, 16, 22, play ? c.text : c.muted, {}, gw - 16);
+      if (alive) {
+        ctx.save(); ctx.translate(8 + gw / 2, h / 2 + 8); ctx.rotate(ang);
+        ctx.fillStyle = frozen > 0 ? c.muted : c.accent; ctx.fillRect(-16, -16, 32, 32); ctx.restore();
+      } else tx(ctx, '💥', 8 + gw / 2, h / 2 + 8, c.bad, { align: 'center' });
+      if (frozen > 0) tx(ctx, '❄', 8 + gw - 12, 22, c.accent, { align: 'right' });
+      // estado de la espera
+      const x0 = gw + 24, x1 = w - 12, bw = x1 - x0;
+      tx(ctx, M.find((x) => x.v === m).l, x0, 22, c.text, { mono: true }, bw);
+      ctx.fillStyle = c.soft; roundRect(ctx, x0, 36, bw, 16, 8); ctx.fill();
+      const col = done === 'cancel' ? c.muted : done === 'bad' ? c.bad : done === 'boss' ? c.ok : c.warn;
+      ctx.fillStyle = col; roundRect(ctx, x0, 36, Math.max(prog > 0 ? 8 : 0, bw * prog), 16, 8); ctx.fill();
+      tx(ctx, (prog * 2).toFixed(1) + ' / 2.0 s', x0, 66, c.muted);
+      const tags = [];
+      if (frozen > 0) tags.push([L.frozen, c.bad]);
+      if (!alive) tags.push([L.destroyed, c.bad]);
+      if (scale === 0) tags.push([L.paused, c.warn]);
+      if (!play) tags.push([L.edit, c.muted]);
+      let ty = 90, tx2 = x0;
+      tags.forEach((tg) => { ctx.font = K.FONT; const tw = ctx.measureText(tg[0]).width + 14; if (tx2 + tw > x1) { tx2 = x0; ty += 24; } pill(ctx, tx2, ty, tg[0], tg[1], '#fff'); tx2 += tw + 6; });
+      if (done === 'boss' || done === 'bad') tx(ctx, L.boss + (done === 'bad' ? ' ✗' : ' ✓'), x0, h - 14, done === 'bad' ? c.bad : c.ok, {}, bw);
+      out((logs.length ? logs.map((s) => '<div>' + s + '</div>').join('') : '') + '<p class="muted">' + L.notes[m] + '</p>');
+      const src = {
+        aw: 'async void Start()\n{\n    await Awaitable.WaitForSecondsAsync(2f, destroyCancellationToken);\n    SpawnBoss();\n}',
+        task: 'async void Start()\n{\n    await Task.Delay(2000);   // System.Threading.Tasks\n    SpawnBoss();\n}',
+        co: 'IEnumerator Start()          // corrutina, no async\n{\n    yield return new WaitForSeconds(2f);\n    SpawnBoss();\n}',
+        sleep: 'void Start()\n{\n    Thread.Sleep(2000);       // bloquea el hilo principal\n    SpawnBoss();\n}'
+      }[m];
+      cb(lang === 'en' ? src.replace('corrutina, no async', 'coroutine, not async').replace('bloquea el hilo principal', 'blocks the main thread') : src,
+        { 2: waiting || frozen > 0 ? 'hl' : m === 'aw' ? 'ok' : m === 'co' ? '' : 'bad', 3: done === 'boss' ? 'ok' : done === 'bad' ? 'bad' : done === 'cancel' ? 'off' : '' });
+    });
+    return () => { stop(); stage.destroy(); };
+  }
+
+  UCP.concepts.push(
+    {
+      id: 'feature-branches', questions: ['team-20'], domain: 'team', practice: { d: 'team', t: 'Control de versiones' }, icon: '🌿', mount: mountBranches,
+      text: {
+        es: {
+          title: 'Ramas por funcionalidad y pull requests',
+          summary: 'Cada funcionalidad se desarrolla en su **rama**, y entra en `main` mediante un **pull request** con revisión de código y tests automáticos (CI). Así `main` siempre funciona. Crea una rama, haz commits (también uno con bug), abre el PR, ejecuta el CI, aprueba y fusiona. Después compáralo con «Todos en main».',
+          points: ['Ramas por funcionalidad: el trabajo en curso queda aislado.', 'Pull request: revisión de código + CI antes del merge.', 'Protección de rama: no se fusiona sin CI en verde y aprobación.', 'Commits directos en main: un error rompe la build de todo el equipo.', 'Fusionar una vez al final del proyecto o usar `push --force` genera conflictos enormes y pérdida de trabajo.']
+        },
+        en: {
+          title: 'Feature branches and pull requests',
+          summary: 'Each feature is built on its own **branch** and reaches `main` through a **pull request** with code review and automated tests (CI). That way `main` always works. Create a branch, commit (including a buggy commit), open the PR, run CI, approve and merge. Then compare it with “Everyone on main”.',
+          points: ['Feature branches: work in progress stays isolated.', 'Pull request: code review + CI before merging.', 'Branch protection: no merge without green CI and an approval.', 'Committing straight to main: one mistake breaks the build for the whole team.', 'Merging once at the end of the project or using `push --force` causes huge conflicts and lost work.']
+        }
+      }
+    },
+    {
+      id: 'tests-edit-play', questions: ['team-07', 'team-08'], domain: 'team', practice: { d: 'team', t: 'Testing' }, icon: '✅', mount: mountTests,
+      text: {
+        es: {
+          title: 'Tests de Edit Mode y Play Mode',
+          summary: 'Con el **Unity Test Framework**, la lógica pura como `CalculateDamage` se prueba en **Edit Mode** con `[Test]`: es instantáneo y no entra en Play Mode. Si necesitas frames, física o tiempo, usa **Play Mode** con `[UnityTest]`, que devuelve `IEnumerator` y hace `yield`. Prueba cada forma de esperar y mira si la bola llega a caer.',
+          points: ['Edit Mode + `[Test]`: lógica pura, rápido, sin Play Mode.', 'Play Mode + `[UnityTest]`: corrutina que deja pasar frames con `yield`.', '`yield return null` = un frame; `WaitForFixedUpdate` = un paso de física; `WaitForSeconds` = tiempo de juego.', 'Un `[Test]` es síncrono: no pasa ningún frame, así que la física no avanza.']
+        },
+        en: {
+          title: 'Edit Mode and Play Mode tests',
+          summary: 'With the **Unity Test Framework**, pure logic such as `CalculateDamage` is tested in **Edit Mode** with `[Test]`: it is instant and does not enter Play Mode. When you need frames, physics or time, use **Play Mode** with `[UnityTest]`, which returns `IEnumerator` and `yield`s. Try each way of waiting and see whether the ball actually falls.',
+          points: ['Edit Mode + `[Test]`: pure logic, fast, no Play Mode.', 'Play Mode + `[UnityTest]`: a coroutine that lets frames pass with `yield`.', '`yield return null` = one frame; `WaitForFixedUpdate` = one physics step; `WaitForSeconds` = game time.', 'A `[Test]` is synchronous: no frame passes, so physics does not advance.']
+        }
+      }
+    },
+    {
+      id: 'asmdef', questions: ['team-09', 'team-10'], domain: 'team', practice: { d: 'team', t: 'Estructura de código' }, icon: '📚', mount: mountAsmdef,
+      text: {
+        es: {
+          title: 'Assembly Definitions',
+          summary: 'Sin asmdefs, todos tus scripts (y los de plugins) se compilan en **Assembly-CSharp**, así que cualquier cambio lo recompila todo. Con **Assembly Definitions** el código se reparte en ensamblados con dependencias declaradas. Edita distintos archivos en cada modo y compara el tiempo; fíjate también en qué pasa con los tests.',
+          points: ['Solo se recompila el ensamblado cambiado y los que dependen de él.', 'Las dependencias se declaran: Unity rechaza las referencias circulares.', 'Un asmdef **no puede** referenciar `Assembly-CSharp`: mueve el juego a `MyGame.asmdef`.', '`MyGame.Tests.asmdef` referencia a `MyGame` (y a los ensamblados de test).', 'No aceleran el código en runtime ni reducen la build.']
+        },
+        en: {
+          title: 'Assembly Definitions',
+          summary: 'Without asmdefs, all your scripts (and plugin scripts) compile into **Assembly-CSharp**, so any change recompiles everything. With **Assembly Definitions** the code is split into assemblies with declared dependencies. Edit different files in each mode and compare the time; also watch what happens to the tests.',
+          points: ['Only the changed assembly and the ones that depend on it recompile.', 'Dependencies are declared: Unity rejects circular references.', 'An asmdef **cannot** reference `Assembly-CSharp`: move the game into `MyGame.asmdef`.', '`MyGame.Tests.asmdef` references `MyGame` (and the test assemblies).', 'They do not make runtime code faster or the build smaller.']
+        }
+      }
+    },
+    {
+      id: 'depuracion', questions: ['team-11', 'team-12'], domain: 'team', practice: { d: 'team', t: 'Depuración' }, icon: '🐞', mount: mountDebugging,
+      text: {
+        es: {
+          title: 'Depuración: breakpoints y Debug.Log',
+          summary: 'Para detenerte en una línea e inspeccionar variables, pon un **breakpoint** y adjunta el depurador del IDE al Editor (**Attach to Unity**) con Code Optimization en **Debug**. Y ojo: en una build de release, `Debug.Log` **se sigue ejecutando**. Prueba ambas pestañas y cambia cada opción.',
+          points: ['Breakpoint + Attach to Unity (Visual Studio, Rider o VS Code).', 'En **Release** el código se optimiza y los breakpoints pueden no detenerse: cambia a **Debug** en la barra de estado.', 'En builds: Development Build + Script Debugging.', '`Debug.Log` no se elimina de las builds; `logEnabled = false` solo corta la salida.', 'Wrapper con `[System.Diagnostics.Conditional("ENABLE_LOGS")]`: el compilador quita la llamada y sus argumentos.']
+        },
+        en: {
+          title: 'Debugging: breakpoints and Debug.Log',
+          summary: 'To stop at a line and inspect variables, set a **breakpoint** and attach the IDE debugger to the Editor (**Attach to Unity**) with Code Optimization set to **Debug**. And note: in a release build, `Debug.Log` **still runs**. Try both tabs and change each option.',
+          points: ['Breakpoint + Attach to Unity (Visual Studio, Rider or VS Code).', 'In **Release** code is optimized and breakpoints may not stop: switch to **Debug** from the status bar.', 'For builds: Development Build + Script Debugging.', '`Debug.Log` is not stripped from builds; `logEnabled = false` only stops the output.', 'Wrapper with `[System.Diagnostics.Conditional("ENABLE_LOGS")]`: the compiler removes the call and its arguments.']
+        }
+      }
+    },
+    {
+      id: 'componentes-srp', questions: ['team-13', 'team-17'], domain: 'team', practice: { d: 'team', t: 'Estructura de código' }, icon: '🧱', mount: mountComponents,
+      text: {
+        es: {
+          title: 'Componentes pequeños y RequireComponent',
+          summary: 'Un `PlayerController` de 2000 líneas que lo hace todo es difícil de mantener, de testear y de compartir. Divídelo en componentes con **responsabilidad única**. Y cuando un script necesita otro componente, decláralo con `[RequireComponent]`. Compara monolito y componentes, y en la segunda pestaña añade y quita componentes.',
+          points: ['Un componente = una responsabilidad (`PlayerMovement`, `Health`, `PlayerAudio`...).', 'Piezas reutilizables (`Health` en el enemigo) y menos conflictos de merge.', '`static`, ScriptableObject o `partial` no resuelven el problema de diseño.', '`[RequireComponent(typeof(Rigidbody))]` añade el Rigidbody al agregar el script e impide quitarlo.', 'Sin él: `MissingComponentException` / `NullReferenceException` en runtime.']
+        },
+        en: {
+          title: 'Small components and RequireComponent',
+          summary: 'A 2000-line `PlayerController` that does everything is hard to maintain, test and share. Split it into components with a **single responsibility**. And when a script needs another component, declare it with `[RequireComponent]`. Compare monolith and components, and in the second tab add and remove components.',
+          points: ['One component = one responsibility (`PlayerMovement`, `Health`, `PlayerAudio`...).', 'Reusable pieces (`Health` on the enemy) and fewer merge conflicts.', '`static`, a ScriptableObject or `partial` classes do not fix the design problem.', '`[RequireComponent(typeof(Rigidbody))]` adds the Rigidbody when you add the script and prevents removing it.', 'Without it: `MissingComponentException` / `NullReferenceException` at runtime.']
+        }
+      }
+    },
+    {
+      id: 'interfaces', questions: ['team-14'], domain: 'team', practice: { d: 'team', t: 'Estructura de código' }, icon: '🔌', mount: mountInterfaces,
+      text: {
+        es: {
+          title: 'Interfaces: IDamageable',
+          summary: 'El proyectil no necesita saber si golpea a un enemigo, un barril o una puerta: le basta con que el objeto implemente `IDamageable`. Compara la interfaz con una cadena de comprobaciones por tipo y añade un tipo nuevo (Crate) para ver cuál de las dos versiones hay que modificar.',
+          points: ['Programa contra interfaces: desacopla sistemas.', 'Tipos nuevos sin tocar el proyectil (principio abierto/cerrado).', '`GetComponent` y `TryGetComponent` funcionan con interfaces.', '`TryGetComponent` no genera basura si el componente no existe.']
+        },
+        en: {
+          title: 'Interfaces: IDamageable',
+          summary: 'The projectile does not need to know whether it hits an enemy, a barrel or a door: it only needs the object to implement `IDamageable`. Compare the interface with a chain of type checks and add a new type (Crate) to see which version has to change.',
+          points: ['Program against interfaces: it decouples systems.', 'New types without touching the projectile (open/closed principle).', '`GetComponent` and `TryGetComponent` work with interfaces.', '`TryGetComponent` allocates no garbage when the component is missing.']
+        }
+      }
+    },
+    {
+      id: 'acceso-serializacion', questions: ['team-16'], domain: 'team', practice: { d: 'team', t: 'Estructura de código' }, icon: '🔒', mount: mountAccess,
+      text: {
+        es: {
+          title: 'Campos: Inspector, serialización y acceso',
+          summary: 'Que un campo se vea en el Inspector, que se guarde con la escena y que otras clases puedan cambiarlo son tres cosas distintas. Elige cada declaración y mira las tres comprobaciones y la animación: el diseñador lo edita, se recarga la escena y otra clase intenta escribirlo.',
+          points: ['`[SerializeField] private`: visible y serializado, pero encapsulado.', '`public`: visible y serializado, pero cualquier clase lo modifica.', '`[HideInInspector]`: se serializa pero no se muestra.', '`[NonSerialized]`: ni se guarda ni se muestra.']
+        },
+        en: {
+          title: 'Fields: Inspector, serialization and access',
+          summary: 'Whether a field shows in the Inspector, whether it is saved with the scene and whether other classes can change it are three different things. Pick each declaration and watch the three checks and the animation: the designer edits it, the scene reloads and another class tries to write it.',
+          points: ['`[SerializeField] private`: shown and serialized, but encapsulated.', '`public`: shown and serialized, but any class can modify it.', '`[HideInInspector]`: serialized but not shown.', '`[NonSerialized]`: neither saved nor shown.']
+        }
+      }
+    },
+    {
+      id: 'namespaces', questions: ['team-21'], domain: 'team', practice: { d: 'team', t: 'Estructura de código' }, icon: '📛', mount: mountNamespaces,
+      text: {
+        es: {
+          title: 'Namespaces: evitar colisiones de nombres',
+          summary: 'Tu clase `Timer` y la de un asset de la Asset Store no pueden convivir en el namespace global. Mete tu código en un **namespace** propio y refiérete a él con `using` o con el nombre completo. Cambia las opciones y mira cómo se resuelve `Timer` en el árbol.',
+          points: ['Namespace propio para tu código (`MyGame.Core`, `MyGame.UI`...).', 'Sin namespaces: `CS0101`, tipo definido dos veces.', 'Con dos `using` que traen el mismo nombre: `CS0104`, referencia ambigua → nombre completo o alias.', '`internal`, `partial` o la carpeta `Plugins` no resuelven el choque.']
+        },
+        en: {
+          title: 'Namespaces: avoiding name clashes',
+          summary: 'Your `Timer` class and an Asset Store asset’s `Timer` cannot both live in the global namespace. Put your code in its own **namespace** and refer to it with `using` or the fully qualified name. Change the options and watch how `Timer` resolves in the tree.',
+          points: ['Your own namespace for your code (`MyGame.Core`, `MyGame.UI`...).', 'No namespaces: `CS0101`, type defined twice.', 'Two `using` directives bringing the same name: `CS0104`, ambiguous reference → fully qualified name or alias.', '`internal`, `partial` or the `Plugins` folder do not fix the clash.']
+        }
+      }
+    },
+    {
+      id: 'awaitable', questions: ['team-23'], domain: 'team', practice: { d: 'team', t: 'Estructura de código' }, icon: '⌛', mount: mountAwaitable,
+      text: {
+        es: {
+          title: 'Esperar en Unity 6: Awaitable',
+          summary: 'Hay muchas formas de «esperar 2 segundos», pero no todas respetan el ciclo de vida de Unity. Elige un método, pulsa Esperar y, durante la espera, destruye el objeto, pon `Time.timeScale = 0` o sal de Play Mode. Observa quién se cancela, quién se pausa y quién se cuelga.',
+          points: ['`await Awaitable.WaitForSecondsAsync(2f, destroyCancellationToken)`: respeta `timeScale`, vuelve al hilo principal y se cancela al destruir el objeto.', '`Task.Delay`: tiempo real, sigue tras destruir el objeto o salir de Play Mode y falla en WebGL.', '`yield return` solo funciona en corrutinas (`IEnumerator`).', '`Thread.Sleep` congela el hilo principal.']
+        },
+        en: {
+          title: 'Waiting in Unity 6: Awaitable',
+          summary: 'There are many ways to “wait 2 seconds”, but not all of them respect Unity’s lifecycle. Pick a method, press Wait and, while waiting, destroy the object, set `Time.timeScale = 0` or exit Play Mode. See which one cancels, which one pauses and which one hangs.',
+          points: ['`await Awaitable.WaitForSecondsAsync(2f, destroyCancellationToken)`: respects `timeScale`, resumes on the main thread and is cancelled when the object is destroyed.', '`Task.Delay`: real time, keeps going after the object is destroyed or Play Mode ends, and fails in WebGL.', '`yield return` only works in coroutines (`IEnumerator`).', '`Thread.Sleep` freezes the main thread.']
+        }
+      }
+    }
+  );
 })();
