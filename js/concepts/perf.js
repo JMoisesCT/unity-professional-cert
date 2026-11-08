@@ -1136,7 +1136,7 @@
         const lod = !lodOn ? 0 : pct >= 50 ? 0 : pct >= 20 ? 1 : pct >= 4 ? 2 : 3;
         tris += TRIS[lod];
         const x = 8 + (w - 16) * (0.1 + i * 0.2);
-        const by = hor + (base - hor) * Math.min(1, 14 / d) + 4;
+        const by = hor + (base - hor) * Math.min(1, 26 / d) + 4;
         const H = Math.max(2, (base - hor + 30) * pct / 100 * 0.95);
         const sway = Math.sin(t * 1.5 + i) * H * 0.03;
         const col = ['#2f9e44', '#37b24d', '#69db7c'][Math.min(lod, 2)];

@@ -1045,7 +1045,11 @@
         if (val > 0) { ctx.fillStyle = col; roundRect(ctx, x0, y - 8, Math.max(6, (x1 - x0) * clamp(val / ref, 0, 1)), 16, 8); ctx.fill(); }
         text(ctx, fmtMB(val) + ' MB', bx + bw, y, c.text, { align: 'right', mono: true });
       };
-      text(ctx, f.id + ' · ' + PLAT[plat] + ' · ' + (ok ? num(f.bpp, f.bpp % 1 ? 2 : 0, lang) + ' bpp' : '32 bpp (' + L.dec + ')'), bx, by, ok ? c.text : c.bad);
+      // Etiqueta del formato: versión corta si no cabe (móviles).
+      ctx.font = K.FONT;
+      let fl = f.id + ' · ' + PLAT[plat] + ' · ' + (ok ? num(f.bpp, f.bpp % 1 ? 2 : 0, lang) + ' bpp' : '32 bpp (' + L.dec + ')');
+      if (ctx.measureText(fl).width > bw) fl = f.id + ' · ' + PLAT[plat] + ' · ' + (ok ? num(f.bpp, f.bpp % 1 ? 2 : 0, lang) + ' bpp' : '→ RGBA32 (32 bpp)');
+      text(ctx, fl, bx, by, ok ? c.text : c.bad);
       bar(by + 28, L.gpu, gpu, ok ? c.accent : c.bad);
       bar(by + 56, L.cpu, cpu, c.warn);
       const qy = by + 84, qx0 = bx + 74, qx1 = bx + bw - 72;

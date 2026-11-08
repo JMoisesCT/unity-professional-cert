@@ -1511,13 +1511,13 @@
       es: { start: '▶ Esperar 2 s', destroy: 'Destroy(gameObject)', ts: 'Time.timeScale = 0', exit: '■ Salir de Play Mode', frame: 'frame', waiting: 'esperando', boss: '👹 SpawnBoss()', destroyed: 'GameObject destruido', destroyedS: 'destruido', frozenS: '❄ congelado', paused: 'timeScale = 0', edit: 'Edit Mode', frozen: '❄ hilo principal congelado',
         log: { start: 'Empieza la espera de 2 s.', cancel: '✓ Cancelada: OperationCanceledException (destroyCancellationToken). SpawnBoss no se ejecuta.', coStop: '✓ La corrutina se detiene con su GameObject. SpawnBoss no se ejecuta.',
           ghost: '✗ Task.Delay no sabe nada del objeto: 2 s después SpawnBoss() se ejecuta sobre un objeto destruido → MissingReferenceException.', exitT: '✗ Task.Delay sigue corriendo fuera de Play Mode: SpawnBoss() se ejecuta en el Editor.',
-          boss: '✓ Pasaron los 2 s: SpawnBoss().', ignore: '⚠️ Task.Delay usa tiempo real: ignora Time.timeScale.', respect: 'La espera se congela: respeta Time.timeScale.', sleep: '✗ Thread.Sleep bloquea el hilo principal: el juego no pinta frames ni procesa nada durante 2 s.' },
+          boss: '✓ Pasaron los 2 s: SpawnBoss().', ignore: '⚠️ Task.Delay usa tiempo real: ignora Time.timeScale.', respect: 'La espera se congela: respeta Time.timeScale.', sleepTs: 'Thread.Sleep usa tiempo real: timeScale no le afecta (y el juego sigue congelado).', sleep: '✗ Thread.Sleep bloquea el hilo principal: el juego no pinta frames ni procesa nada durante 2 s.' },
         notes: { aw: '<code>Awaitable</code> se integra con el player loop: respeta <code>timeScale</code>, vuelve al hilo principal y se cancela con <code>destroyCancellationToken</code>.', task: '<code>Task.Delay</code> no conoce Unity: tiempo real, sigue tras destruir el objeto o salir de Play Mode y da problemas en WebGL.',
           co: 'La corrutina funciona, pero <code>yield return</code> solo vale en un método <code>IEnumerator</code> lanzado con <code>StartCoroutine</code>: en un método <code>async</code> no compila.', sleep: '<code>Thread.Sleep</code> congela el hilo principal: nunca lo uses para esperar en un juego.' } },
       en: { start: '▶ Wait 2 s', destroy: 'Destroy(gameObject)', ts: 'Time.timeScale = 0', exit: '■ Exit Play Mode', frame: 'frame', waiting: 'waiting', boss: '👹 SpawnBoss()', destroyed: 'GameObject destroyed', destroyedS: 'destroyed', frozenS: '❄ frozen', paused: 'timeScale = 0', edit: 'Edit Mode', frozen: '❄ main thread frozen',
         log: { start: 'The 2 s wait starts.', cancel: '✓ Cancelled: OperationCanceledException (destroyCancellationToken). SpawnBoss does not run.', coStop: '✓ The coroutine stops with its GameObject. SpawnBoss does not run.',
           ghost: '✗ Task.Delay knows nothing about the object: 2 s later SpawnBoss() runs on a destroyed object → MissingReferenceException.', exitT: '✗ Task.Delay keeps running outside Play Mode: SpawnBoss() runs in the Editor.',
-          boss: '✓ 2 s passed: SpawnBoss().', ignore: '⚠️ Task.Delay uses real time: it ignores Time.timeScale.', respect: 'The wait freezes: it respects Time.timeScale.', sleep: '✗ Thread.Sleep blocks the main thread: the game renders no frames and processes nothing for 2 s.' },
+          boss: '✓ 2 s passed: SpawnBoss().', ignore: '⚠️ Task.Delay uses real time: it ignores Time.timeScale.', respect: 'The wait freezes: it respects Time.timeScale.', sleepTs: 'Thread.Sleep uses real time: timeScale does not affect it (and the game stays frozen).', sleep: '✗ Thread.Sleep blocks the main thread: the game renders no frames and processes nothing for 2 s.' },
         notes: { aw: '<code>Awaitable</code> is integrated with the player loop: it respects <code>timeScale</code>, resumes on the main thread and is cancelled by <code>destroyCancellationToken</code>.', task: '<code>Task.Delay</code> knows nothing about Unity: real time, it keeps going after the object is destroyed or Play Mode ends, and it misbehaves in WebGL.',
           co: 'The coroutine works, but <code>yield return</code> is only valid in an <code>IEnumerator</code> method started with <code>StartCoroutine</code>: in an <code>async</code> method it does not compile.', sleep: '<code>Thread.Sleep</code> freezes the main thread: never use it to wait in a game.' } }
     }[lang];
@@ -1536,7 +1536,7 @@
       if (m === 'aw') { waiting = false; done = 'cancel'; log(L.log.cancel); }
       else if (m === 'co') { waiting = false; done = 'cancel'; log(L.log.coStop); }
     });
-    toggle(ctl2, L.ts, false, (v) => { scale = v ? 0 : 1; if (v && waiting) log(m === 'task' ? L.log.ignore : L.log.respect); });
+    toggle(ctl2, L.ts, false, (v) => { scale = v ? 0 : 1; if (v && waiting) log(m === 'task' ? L.log.ignore : m === 'sleep' ? L.log.sleepTs : L.log.respect); });
     button(ctl2, L.exit, () => {
       if (frozen > 0 || !play) return;
       play = false; alive = false;
